@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getAdminStats,
+  getAdminAnalytics,
   getAdminTeams,
   updatePaymentStatus,
   verifyAllPayments,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.use(protect, adminOnly);
 
 router.get('/stats', getAdminStats);
+router.get('/analytics', getAdminAnalytics);
 router.get('/teams', getAdminTeams);
 router.put('/teams/verify-all', verifyAllPayments);
 router.delete('/teams/delete-all', deleteAllRegistrations);

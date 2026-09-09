@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { TiltCard } from '../common/TiltCard';
+import { AdminDashboard } from './AdminDashboard';
 import { AdminAttendanceSessions } from './AdminAttendanceSessions';
 import { AdminVolunteers } from './AdminVolunteers';
 import { AdminAttendanceRecords } from './AdminAttendanceRecords';
@@ -137,141 +137,7 @@ export const AdminControlCenter = () => {
 
       {/* OVERVIEW TAB CONTENT */}
       {activeTab === 'overview' && (
-        <div className="space-y-8">
-          
-          {/* Quick Actions Bar */}
-          <div className="p-4 rounded-3xl glass-card border border-sky-500/20 bg-slate-950/80 flex flex-wrap items-center gap-3">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">QUICK ACTIONS:</span>
-            <button
-              onClick={() => setActiveTab('registration')}
-              className="px-3.5 py-2 rounded-xl glass-button text-xs font-bold text-sky-300 flex items-center gap-1.5"
-            >
-              <span>Registration Control</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={() => setActiveTab('sessions')}
-              className="px-3.5 py-2 rounded-xl glass-button text-xs font-bold text-cyan-300 flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create Attendance Session</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('volunteers')}
-              className="px-3.5 py-2 rounded-xl glass-button text-xs font-bold text-emerald-300 flex items-center gap-1.5"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Add Volunteer Account</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('records')}
-              className="px-3.5 py-2 rounded-xl glass-button text-xs font-bold text-indigo-300 flex items-center gap-1.5"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>Export Attendance CSV</span>
-            </button>
-          </div>
-
-          {/* Statistics Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <TiltCard className="p-5 text-center flex flex-col items-center justify-center rounded-2xl glass-card border border-sky-500/20">
-              <Users className="w-6 h-6 text-sky-400 mb-2" />
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">TOTAL REGISTRATIONS</span>
-              <span className="text-xl font-black text-white mt-1">{stats.totalTeams} / {settings.maxTeams || 100}</span>
-              <span className="text-[10px] text-cyan-300 mt-0.5">{stats.totalStudents} Students</span>
-            </TiltCard>
-
-            <TiltCard className="p-5 text-center flex flex-col items-center justify-center rounded-2xl glass-card border border-emerald-500/20">
-              <CheckCircle className="w-6 h-6 text-emerald-400 mb-2" />
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">PRESENT TODAY</span>
-              <span className="text-xl font-black text-emerald-300 mt-1">{stats.presentToday}</span>
-              <span className="text-[10px] text-slate-400 mt-0.5">Scanned Attendance</span>
-            </TiltCard>
-
-            <TiltCard className="p-5 text-center flex flex-col items-center justify-center rounded-2xl glass-card border border-cyan-500/20">
-              <Calendar className="w-6 h-6 text-cyan-400 mb-2" />
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">ACTIVE SESSION</span>
-              <span className="text-sm font-bold text-cyan-300 mt-1 line-clamp-1">{stats.activeSessionName}</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded mt-1 ${
-                stats.activeSessionStatus === 'OPEN' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'
-              }`}>
-                {stats.activeSessionStatus === 'OPEN' ? '🟢 OPEN' : '🔒 CLOSED'}
-              </span>
-            </TiltCard>
-
-            <TiltCard className="p-5 text-center flex flex-col items-center justify-center rounded-2xl glass-card border border-indigo-500/20">
-              <UserPlus className="w-6 h-6 text-indigo-400 mb-2" />
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">VOLUNTEERS ACTIVE</span>
-              <span className="text-xl font-black text-white mt-1">{stats.volunteersOnline} / {stats.totalVolunteers}</span>
-              <span className="text-[10px] text-slate-400 mt-0.5">Authorized Operators</span>
-            </TiltCard>
-          </div>
-
-          {/* Dual Control Overview: Registration & Attendance Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Registration Summary Card */}
-            <div className={`p-6 rounded-3xl glass-card border ${isRegOpen ? 'border-emerald-500/40 bg-emerald-950/10' : 'border-red-500/40 bg-red-950/10'} shadow-xl space-y-4`}>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">REGISTRATION STATUS</span>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${isRegOpen ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40' : 'bg-red-500/20 text-red-300 border border-red-500/40'}`}>
-                  {isRegOpen ? '🟢 REGISTRATION OPEN' : '🔴 REGISTRATION CLOSED'}
-                </span>
-              </div>
-              <h3 className="text-lg font-black text-white">Participant Team Registrations</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {isRegOpen
-                  ? 'Participants are actively able to reserve slots and submit registrations.'
-                  : 'New team registrations are currently blocked by the administrator.'}
-              </p>
-              <button
-                onClick={() => setActiveTab('registration')}
-                className="w-full py-3 text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all"
-              >
-                Manage Registration Status & Capacity
-              </button>
-            </div>
-
-            {/* Attendance Summary Card */}
-            <div className={`p-6 rounded-3xl glass-card border ${stats.activeSessionStatus === 'OPEN' ? 'border-emerald-500/40 bg-emerald-950/10' : 'border-sky-500/30 bg-slate-950/80'} shadow-xl space-y-4`}>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">ATTENDANCE SESSION STATUS</span>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${stats.activeSessionStatus === 'OPEN' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                  {stats.activeSessionStatus === 'OPEN' ? '🟢 SESSION ACTIVE' : '🔒 ALL SESSIONS CLOSED'}
-                </span>
-              </div>
-              <h3 className="text-lg font-black text-white">Active Session: {stats.activeSessionName}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {stats.activeSessionStatus === 'OPEN'
-                  ? `Attendance scanning is currently enabled. Present count: ${stats.activeSessionPresent} / ${stats.activeSessionExpected}.`
-                  : 'No attendance session is currently open. Volunteers are locked from taking attendance.'}
-              </p>
-              <button
-                onClick={() => setActiveTab('sessions')}
-                className="w-full py-3 text-xs font-bold text-slate-200 glass-button rounded-xl hover:text-white"
-              >
-                Manage Attendance Sessions & Open/Close Controls
-              </button>
-            </div>
-
-          </div>
-
-          {/* System Operational Status Indicator */}
-          <div className="p-4 rounded-2xl glass-card border border-sky-500/20 bg-slate-950/80 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-3">
-              <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
-              <div>
-                <span className="font-bold text-white uppercase tracking-wider">SYSTEM STATUS: 🟢 OPERATIONAL</span>
-                <p className="text-[10px] text-slate-400">Database connected, security guards active, QR scanner ready.</p>
-              </div>
-            </div>
-            <span className="text-[10px] text-slate-500 font-mono hidden sm:block">ALPHA 2026 v2.0</span>
-          </div>
-
-        </div>
+        <AdminDashboard onNavigateTab={(tab) => setActiveTab(tab)} />
       )}
 
       {/* SUB-TAB CONTENTS */}
