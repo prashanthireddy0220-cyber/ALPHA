@@ -8,7 +8,7 @@ export const EventDetailsPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 relative pt-20">
+    <div className="min-h-screen bg-transparent text-slate-100 relative pt-20">
       <EventSpecifications />
       <Footer />
     </div>

@@ -37,7 +37,7 @@ export const AdminPage = () => {
   };
 
   return (
-    <div className="min-h-screen pt-28 pb-20 px-4 flex items-center justify-center bg-[#020617] relative overflow-hidden">
+    <div className="min-h-screen pt-28 pb-20 px-4 flex items-center justify-center bg-transparent relative overflow-hidden">
       {/* Ambient Red/Cyan Admin Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-red-600/10 rounded-full blur-[160px] pointer-events-none" />
 

@@ -52,7 +52,7 @@ export const VolunteerAttendancePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen pt-32 pb-20 flex flex-col items-center justify-center bg-[#020617] text-slate-300">
+      <div className="min-h-screen pt-32 pb-20 flex flex-col items-center justify-center bg-transparent text-slate-300">
         <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin mb-4" />
         <p className="text-xs font-bold tracking-widest uppercase">Checking Attendance Status...</p>
       </div>

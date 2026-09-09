@@ -58,7 +58,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen pt-28 pb-20 px-4 flex items-center justify-center bg-[#020617] relative overflow-hidden">
+    <div className="min-h-screen pt-28 pb-20 px-4 flex items-center justify-center bg-transparent relative overflow-hidden">
       {/* Ambient Radial Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-sky-500/10 rounded-full blur-[140px] pointer-events-none" />
 

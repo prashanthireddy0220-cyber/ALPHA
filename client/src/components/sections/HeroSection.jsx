@@ -29,29 +29,9 @@ export const HeroSection = () => {
   }, []);
 
   return (
-    <section className="relative min-h-screen pt-28 md:pt-36 pb-20 px-4 md:px-8 flex flex-col items-center justify-center overflow-hidden bg-[#020617]">
-      {/* ================= DRAGON CINEMATIC ATMOSPHERIC BACKGROUND ================= */}
-      {/* Dark Navy / Deep Cyan Base Gradient */}
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#020617] via-[#051329] to-[#020617] pointer-events-none" />
-
-      {/* Atmospheric Radial Glow Behind Dragon & Logo */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] sm:w-[900px] h-[500px] sm:h-[700px] bg-gradient-to-tr from-cyan-500/20 via-sky-600/15 to-blue-900/10 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* Dragon Background Artwork Layer - WEBX Spider-Man Style Centerpiece */}
-      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-40 md:opacity-50">
-        <div className="relative w-full max-w-7xl h-full flex items-center justify-center">
-          <img
-            src="/assets/alpha_artwork.png"
-            alt="Dragon Background Atmosphere"
-            className="w-[120%] max-w-[1400px] h-auto object-cover md:object-contain mix-blend-screen scale-110 md:scale-125 filter blur-[1px] brightness-110 saturate-150 animate-pulse-fog"
-          />
-          {/* Subtle Smoke & Vignette Gradients */}
-          <div className="absolute inset-0 bg-radial from-transparent via-[#020617]/60 to-[#020617]" />
-        </div>
-      </div>
-
-      {/* Floating Fog & Smoke Accents */}
-      <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_50%_40%,transparent_20%,#020617_90%)]" />
+    <section className="relative min-h-screen pt-28 md:pt-36 pb-20 px-4 md:px-8 flex flex-col items-center justify-center overflow-hidden bg-transparent">
+      {/* Subtle Atmospheric Glow for Logo Highlight */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] sm:w-[900px] h-[500px] sm:h-[700px] bg-gradient-to-tr from-cyan-500/15 via-sky-600/10 to-transparent rounded-full blur-[140px] pointer-events-none" />
 
       {/* ================= HERO CONTENT CONTAINER ================= */}
       <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col items-center text-center">
@@ -69,11 +49,11 @@ export const HeroSection = () => {
         </div>
 
         {/* Floating Transparent ALPHA Logo Artwork (NO Rectangular Box) */}
-        <div className="relative w-full max-w-3xl md:max-w-4xl mx-auto my-2 md:my-4 flex flex-col items-center justify-center">
+        <div className="relative w-full max-w-4xl md:max-w-5xl mx-auto my-3 md:my-5 flex flex-col items-center justify-center">
           <img
             src="/assets/alpha_artwork.png"
             alt="ALPHA 2026 - RISE. CONQUER. RULE."
-            className="w-full h-auto max-h-[350px] md:max-h-[480px] object-contain blend-screen-logo transition-transform duration-700 hover:scale-[1.02]"
+            className="w-full h-auto max-h-[380px] sm:max-h-[460px] md:max-h-[540px] object-contain blend-screen-logo transition-transform duration-700 hover:scale-[1.02]"
           />
         </div>
 

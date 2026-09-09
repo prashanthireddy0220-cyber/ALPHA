@@ -119,3 +119,55 @@
   animation: pulseFog 12s infinite ease-in-out;
 }
 
+/* Global Dragon Floating & Atmosphere Animations */
+@keyframes dragonCinematicFloat {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(-10px, -18px, 0) scale(1.025) rotate(-0.5deg);
+  }
+  50% {
+    transform: translate3d(12px, -28px, 0) scale(1.04) rotate(0.5deg);
+  }
+  75% {
+    transform: translate3d(-8px, -12px, 0) scale(1.015) rotate(-0.25deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+}
+
+.animate-dragon-float {
+  animation: dragonCinematicFloat 16s infinite ease-in-out;
+  will-change: transform;
+}
+
+@keyframes smokeSlowDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate3d(25px, -35px, 0) scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.4;
+  }
+}
+
+.animate-smoke-drift {
+  animation: smokeSlowDrift 22s infinite ease-in-out;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dragon-float,
+  .animate-smoke-drift {
+    animation: none !important;
+  }
+}
+
+

@@ -5,7 +5,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 
 import { GlassHeader } from './components/common/GlassHeader';
 import { CursorLight } from './components/3d/CursorLight';
-import { DragonParticles } from './components/3d/DragonParticles';
+import { GlobalDragonBackground } from './components/3d/GlobalDragonBackground';
 import { CinematicIntro } from './components/intro/CinematicIntro';
 
 import { HomePage } from './pages/HomePage';
@@ -42,8 +42,8 @@ const MainApp = () => {
         <CinematicIntro onComplete={() => setIntroFinished(true)} />
       )}
 
-      {/* Background 3D Particles & Cursor Light */}
-      <DragonParticles />
+      {/* Global 3D Blue Dragon Atmospheric Environment */}
+      <GlobalDragonBackground />
       <CursorLight />
 
       {/* Liquid Glass Header */}
