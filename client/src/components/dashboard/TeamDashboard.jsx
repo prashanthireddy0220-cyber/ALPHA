@@ -60,14 +60,11 @@ export const TeamDashboard = () => {
 
   if (error || !data?.team) {
     return (
-      <div className="min-h-screen pt-32 px-4 max-w-xl mx-auto text-center">
-        <TiltCard className="p-8">
-          <Shield className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">NO REGISTERED TEAM FOUND</h2>
-          <p className="text-xs text-slate-400 mb-6">{error || 'You have not registered a team for ALPHA 2026 yet.'}</p>
+      <div className="min-h-screen pt-36 px-4 max-w-md mx-auto text-center">
+        <TiltCard className="p-8 md:p-10 rounded-3xl glass-card border border-sky-500/30 bg-slate-950/90 shadow-[0_0_50px_rgba(0,240,255,0.2)] flex flex-col items-center justify-center">
           <a
             href="/register"
-            className="px-6 py-3 text-xs font-extrabold text-black bg-cyan-300 hover:bg-cyan-200 rounded-xl shadow-lg inline-block"
+            className="w-full py-4 px-6 text-xs font-black tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.5)] transition-all uppercase tracking-wider inline-block cursor-pointer"
           >
             REGISTER A TEAM NOW
           </a>
