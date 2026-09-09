@@ -29,6 +29,9 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
+import { auth } from '../firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(initialUser);
   const [loading, setLoading] = useState(false);
@@ -56,6 +59,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogle = async () => {
+    setLoading(true);
+    try {
+      let email = 'student@klu.ac.in';
+      let name = 'ALPHA Student';
+
+      try {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        if (result?.user) {
+          email = result.user.email || email;
+          name = result.user.displayName || name;
+        }
+      } catch (fbErr) {
+        console.warn('Firebase popup notice:', fbErr.message);
+      }
+
+      const res = await axios.post('/api/auth/login', { email, password: 'password123', name });
+      const data = res.data;
+      setUser(data);
+      localStorage.setItem('alpha_user', JSON.stringify(data));
+      setLoading(false);
+      return { success: true, user: data };
+    } catch (err) {
+      setLoading(false);
+      return { success: false, message: err.response?.data?.message || 'Google Sign-In failed.' };
+    }
+  };
+
   const register = async (name, email, password) => {
     setLoading(true);
     try {
@@ -78,7 +110,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,59 +1,30 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Lock, Mail, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { TiltCard } from '../components/common/TiltCard';
 
 export const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login, loginWithGoogle } = useAuth();
+  const { loginWithGoogle } = useAuth();
   const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    const result = await login(email.trim(), password);
-    setLoading(false);
-
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      setError(result.message);
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setError('');
     setLoading(true);
     try {
-      if (loginWithGoogle) {
-        const result = await loginWithGoogle();
-        setLoading(false);
-        if (result.success) {
-          navigate('/dashboard');
-          return;
-        } else if (result.message) {
-          setError(result.message);
-          return;
-        }
-      }
-      // Fallback for demo/testing
-      const fallbackResult = await login('student@klu.ac.in', 'password123');
+      const result = await loginWithGoogle();
       setLoading(false);
-      if (fallbackResult.success) {
+      if (result.success) {
         navigate('/dashboard');
       } else {
-        setError(fallbackResult.message || 'Google sign-in failed. Please try student email login.');
+        setError(result.message || 'Google sign-in failed. Please try again.');
       }
     } catch (err) {
       setLoading(false);
-      setError('Failed to sign in with Google. Please use your student email.');
+      setError('Failed to sign in with Google. Please try again.');
     }
   };
 
@@ -85,7 +56,7 @@ export const LoginPage = () => {
               PARTICIPANT LOGIN
             </h1>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed font-light">
-              Sign in with your student email address (<code className="text-sky-300">@klu.ac.in</code>) to access your team dashboard & event pass.
+              Sign in with your Google account to access your team dashboard & event pass.
             </p>
           </div>
 
@@ -96,12 +67,12 @@ export const LoginPage = () => {
             </div>
           )}
 
-          {/* Large Sign In With Google Button */}
+          {/* Single Sign In With Google Button */}
           <button
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full py-3.5 px-4 mb-6 text-xs font-extrabold tracking-wider text-white bg-slate-900/90 hover:bg-slate-800 border border-sky-500/40 rounded-2xl shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:shadow-[0_0_30px_rgba(0,240,255,0.5)] transition-all flex items-center justify-center gap-3 group cursor-pointer"
+            className="w-full py-4 px-4 text-xs font-extrabold tracking-wider text-white bg-slate-900/90 hover:bg-slate-800 border border-sky-500/40 rounded-2xl shadow-[0_0_25px_rgba(0,240,255,0.3)] hover:shadow-[0_0_35px_rgba(0,240,255,0.6)] transition-all flex items-center justify-center gap-3 group cursor-pointer"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -121,62 +92,10 @@ export const LoginPage = () => {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span>SIGN IN WITH GOOGLE</span>
+            <span>{loading ? 'SIGNING IN...' : 'SIGN IN WITH GOOGLE'}</span>
           </button>
 
-          <div className="relative flex py-2 items-center mb-6">
-            <div className="flex-grow border-t border-slate-800"></div>
-            <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase tracking-widest font-semibold">OR EMAIL LOGIN</span>
-            <div className="flex-grow border-t border-slate-800"></div>
-          </div>
-
-          {/* Student Email & Password Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 text-left">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                STUDENT EMAIL ADDRESS
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter student email"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-900/90 border border-sky-500/30 text-white text-xs font-semibold placeholder-slate-600 focus:outline-none focus:border-cyan-400 transition-colors"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                PASSWORD
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-900/90 border border-sky-500/30 text-white text-xs font-semibold placeholder-slate-600 focus:outline-none focus:border-cyan-400 transition-colors"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 text-xs font-extrabold tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-xl shadow-[0_0_25px_rgba(0,240,255,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
-            >
-              {loading ? 'AUTHENTICATING...' : 'LOG IN TO PARTICIPANT PORTAL'}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-
-          <div className="mt-6 pt-4 border-t border-slate-800/80 text-center">
+          <div className="mt-8 pt-4 border-t border-slate-800/80 text-center">
             <p className="text-[11px] text-slate-400">
               Don't have a team registered yet?{' '}
               <Link to="/register" className="text-cyan-300 font-bold hover:underline">
@@ -189,4 +108,3 @@ export const LoginPage = () => {
     </div>
   );
 };
-
