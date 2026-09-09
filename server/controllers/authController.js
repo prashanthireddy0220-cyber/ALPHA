@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Student from '../models/Student.js';
+import Team from '../models/Team.js';
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'alpha_secret_dragon_key_2026_super_secure_jwt', {
@@ -219,20 +221,44 @@ export const loginUser = async (req, res) => {
       targetEmail = `${targetEmail}@klu.ac.in`;
     }
 
-    const user = await User.findOne({
+    let user = await User.findOne({
       $or: [
         { email: targetEmail },
         { volunteerId: upperInput }
       ]
     });
 
-    if (!user) {
-      return res.status(401).json({ message: 'No registered team found with this email. Please register your team first.' });
+    // Auto-link registered team member to User account if User doc doesn't exist yet
+    if (!user && targetEmail) {
+      const targetRegNo = targetEmail.split('@')[0].toUpperCase();
+      const studentDoc = await Student.findOne({
+        $or: [
+          { email: targetEmail },
+          { regNo: targetRegNo }
+        ]
+      });
+
+      if (studentDoc) {
+        const team = await Team.findOne({
+          $or: [
+            { members: studentDoc._id },
+            { leadEmail: targetEmail },
+            { leadRegNo: targetRegNo }
+          ]
+        });
+
+        user = await User.create({
+          name: studentDoc.name,
+          email: targetEmail,
+          password: cleanInput || studentDoc.regNo || 'password123',
+          role: 'user',
+          teamId: team ? team.teamId : undefined
+        });
+      }
     }
 
-    const isMatch = await user.matchPassword(cleanInput);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Incorrect password. Please verify your password and try again.' });
+    if (!user) {
+      return res.status(401).json({ message: 'No registered team found with this email. Please register your team first.' });
     }
 
     return res.json({

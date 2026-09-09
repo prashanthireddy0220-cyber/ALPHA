@@ -259,10 +259,14 @@ export const submitRegistration = async (req, res) => {
     // Create / Save Students with UPPERCASE Name & Section, Lowercase Email
     const studentDocs = [];
     for (const m of members) {
-      const email = (m.email || '').trim().toLowerCase();
+      const cleanRegNo = (m.regNo || '').trim().toUpperCase();
+      let email = (m.email || '').trim().toLowerCase();
+      if (!email && cleanRegNo) {
+        email = `${cleanRegNo.toLowerCase()}@klu.ac.in`;
+      }
       const student = await Student.create({
         name: (m.name || '').trim().toUpperCase(),
-        regNo: (m.regNo || '').trim().toUpperCase(),
+        regNo: cleanRegNo,
         department: m.department,
         year: m.year,
         section: (m.section || '').trim().toUpperCase(),
@@ -384,15 +388,56 @@ export const verifyTeamPass = async (req, res) => {
 // Get Team details for participant dashboard
 export const getMyTeam = async (req, res) => {
   try {
+    const userEmail = (req.user?.email || '').trim().toLowerCase();
+    const userRegNo = userEmail.split('@')[0].toUpperCase();
+
     let team = null;
+
+    // 1. Direct teamId match on User model
     if (req.user.teamId) {
-      team = await Team.findOne({ teamId: req.user.teamId }).populate('members');
-    } else {
-      team = await Team.findOne({ leadEmail: req.user.email }).populate('members');
+      team = await Team.findOne({
+        $or: [
+          { teamId: req.user.teamId },
+          { teamId: req.user.teamId.toUpperCase() }
+        ]
+      }).populate('members');
+    }
+
+    // 2. Find by leadEmail
+    if (!team && userEmail) {
+      team = await Team.findOne({
+        leadEmail: { $regex: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
+      }).populate('members');
+    }
+
+    // 3. Find by student membership across any of the 4 team members (by email or regNo)
+    if (!team) {
+      const studentDocs = await Student.find({
+        $or: [
+          { email: userEmail },
+          { regNo: userRegNo },
+          { regNo: { $regex: new RegExp(`^${userRegNo}$`, 'i') } }
+        ]
+      });
+
+      if (studentDocs && studentDocs.length > 0) {
+        const studentIds = studentDocs.map(s => s._id);
+        team = await Team.findOne({
+          $or: [
+            { members: { $in: studentIds } },
+            { leadRegNo: userRegNo }
+          ]
+        }).populate('members');
+      }
     }
 
     if (!team) {
-      return res.status(404).json({ message: 'No registered team found for this account.' });
+      return res.status(404).json({ message: 'No registered team found for this account. Please register your team.' });
+    }
+
+    // Auto-sync teamId on User model if missing
+    if (req.user._id && (!req.user.teamId || req.user.teamId !== team.teamId)) {
+      await User.findByIdAndUpdate(req.user._id, { teamId: team.teamId });
     }
 
     const settings = (await EventSettings.findOne()) || {};
@@ -405,3 +450,4 @@ export const getMyTeam = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
