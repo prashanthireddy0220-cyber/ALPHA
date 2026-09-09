@@ -4,9 +4,16 @@ import axios from 'axios'
 import './index.css'
 import App from './App.jsx'
 
-if (import.meta.env.VITE_API_URL) {
-  axios.defaults.baseURL = import.meta.env.VITE_API_URL;
-}
+const isVercel = typeof window !== 'undefined' && (
+  window.location.hostname.includes('vercel.app') ||
+  window.location.hostname.includes('alpha-ieee-eds')
+);
+
+const defaultBackendUrl = isVercel
+  ? 'https://alpha-backend-zvhx.onrender.com'
+  : 'http://localhost:5000';
+
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || defaultBackendUrl;
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
