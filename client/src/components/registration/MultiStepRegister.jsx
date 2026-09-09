@@ -111,6 +111,8 @@ export const MultiStepRegister = () => {
       updated[index][field] = value.toUpperCase();
     } else if (field === 'regNo') {
       updated[index][field] = value.toUpperCase().trim();
+    } else if (field === 'mobile') {
+      updated[index][field] = value.replace(/\D/g, '').slice(0, 10);
     } else {
       updated[index][field] = value;
     }
@@ -143,6 +145,7 @@ export const MultiStepRegister = () => {
         name: m.name.trim().toUpperCase(),
         regNo: regClean,
         section: m.section.trim().toUpperCase(),
+        mobile: m.mobile.trim(),
         email: derivedEmail
       };
     });
@@ -157,8 +160,8 @@ export const MultiStepRegister = () => {
         setErrorMessage(`Member ${i + 1} registration number must contain digits only`);
         return;
       }
-      if (m.mobile.trim().length < 10) {
-        setErrorMessage(`Member ${i + 1} mobile number must be at least 10 digits`);
+      if (!/^\d{10}$/.test(m.mobile)) {
+        setErrorMessage(`Member ${i + 1} mobile number must be exactly 10 digits (digits only)`);
         return;
       }
       if (!m.email.endsWith('@klu.ac.in')) {
@@ -444,9 +447,6 @@ export const MultiStepRegister = () => {
                       placeholder="e.g. 2300030001"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold uppercase focus:outline-none focus:border-cyan-400"
                     />
-                    <span className="block mt-1 text-[10px] text-sky-400">
-                      Email: {m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : 'student@klu.ac.in'}
-                    </span>
                   </div>
 
                   <div>
@@ -490,14 +490,15 @@ export const MultiStepRegister = () => {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">MOBILE NUMBER *</label>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">MOBILE NUMBER (10 DIGITS) *</label>
                     <input
                       type="tel"
                       required
+                      maxLength={10}
                       value={m.mobile}
                       onChange={(e) => handleMemberChange(idx, 'mobile', e.target.value)}
-                      placeholder="10-digit mobile number"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none"
+                      placeholder="Enter 10-digit mobile number"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none font-mono"
                     />
                   </div>
 
