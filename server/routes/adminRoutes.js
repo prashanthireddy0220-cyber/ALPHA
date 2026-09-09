@@ -7,7 +7,8 @@ import {
   verifyAllPayments,
   deleteAllRegistrations,
   deleteSingleRegistration,
-  directRegistration
+  directRegistration,
+  updateTeamDetails
 } from '../controllers/adminController.js';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 
@@ -23,5 +24,6 @@ router.delete('/teams/delete-all', deleteAllRegistrations);
 router.delete('/teams/:id', deleteSingleRegistration);
 router.post('/teams/direct-registration', directRegistration);
 router.put('/teams/:id/payment', updatePaymentStatus);
+router.put('/teams/:id/edit', updateTeamDetails);
 
 export default router;

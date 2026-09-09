@@ -108,6 +108,31 @@ export const getAdminAnalytics = async (req, res) => {
 
     const dailyGrowth = Object.values(dailyMap);
 
+    // Gender Breakdown
+    const genderMap = { Male: 0, Female: 0 };
+    students.forEach(s => {
+      const g = (s.gender || 'Male').toLowerCase() === 'female' ? 'Female' : 'Male';
+      genderMap[g] = (genderMap[g] || 0) + 1;
+    });
+    const genderBreakdown = Object.keys(genderMap).map(g => ({
+      name: g,
+      count: genderMap[g]
+    }));
+
+    // Accommodation Breakdown
+    const accomMap = { Hosteller: 0, 'Day Scholar': 0 };
+    students.forEach(s => {
+      const a = (s.accommodation || 'Day Scholar').toLowerCase().includes('hostel') ? 'Hosteller' : 'Day Scholar';
+      accomMap[a] = (accomMap[a] || 0) + 1;
+    });
+    const accommodationBreakdown = Object.keys(accomMap).map(a => ({
+      name: a,
+      count: accomMap[a]
+    }));
+
+    const activeReservations = await RegistrationReservation.countDocuments({ expiresAt: { $gt: new Date() } });
+    const availableSlots = Math.max(0, (settings.maxTeams || 100) - totalTeams - activeReservations);
+
     // Event Lifecycle Workflow Stage Counts
     const workflowStages = [
       { id: 'registration', name: 'REGISTRATION', count: totalStudents, label: 'Submitted Registrations' },
@@ -139,14 +164,23 @@ export const getAdminAnalytics = async (req, res) => {
         registrationOpen: settings.registrationOpen !== false,
         maxTeams: settings.maxTeams || 100,
         participantFee: settings.participantFee || 350,
-        teamSize: settings.teamSize || 4
+        teamSize: settings.teamSize || 4,
+        officialUpiId: settings.officialUpiId || '63897781@ybl',
+        officialWhatsappGroup: settings.officialWhatsappGroup || '',
+        qrScannerImageUrl: settings.qrScannerImageUrl || '/assets/payment_qr.png'
       },
       stats: {
         totalRegistrations: totalTeams,
         confirmedParticipants: verifiedTeams * (settings.teamSize || 4) || totalStudents,
         pendingRegistrations: pendingTeams,
         totalTeams,
+        confirmedTeams: verifiedTeams,
+        activeReservations,
+        availableSlots,
         totalParticipants: totalStudents,
+        pendingCount: pendingTeams,
+        verifiedCount: verifiedTeams,
+        rejectedCount: rejectedTeams,
         presentParticipants: presentParticipantsCount,
         attendancePercentage,
         registrationStatus: settings.registrationOpen !== false ? 'OPEN' : 'CLOSED',
@@ -156,6 +190,8 @@ export const getAdminAnalytics = async (req, res) => {
       dailyGrowth,
       departmentBreakdown,
       yearBreakdown,
+      genderBreakdown,
+      accommodationBreakdown,
       workflowStages,
       sessionProgress,
       recentActivity: auditLogs.map(a => ({
@@ -388,3 +424,37 @@ export const directRegistration = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Update Team Details (Edit Modal)
+export const updateTeamDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { teamName, leadEmail, leadRegNo, utr, amount, status } = req.body;
+
+    const team = await Team.findById(id);
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' });
+    }
+
+    if (teamName) team.teamName = teamName.trim().toUpperCase();
+    if (leadEmail) team.leadEmail = leadEmail.trim().toLowerCase();
+    if (leadRegNo) team.leadRegNo = leadRegNo.trim().toUpperCase();
+    if (utr) team.payment.utr = utr.trim();
+    if (amount !== undefined) team.payment.amount = Number(amount);
+    if (status) {
+      team.payment.status = status;
+      if (status === 'VERIFIED') team.payment.verifiedAt = new Date();
+    }
+
+    await team.save();
+
+    res.json({
+      success: true,
+      message: `Team ${team.teamId} updated successfully!`,
+      team
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
