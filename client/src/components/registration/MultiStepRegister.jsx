@@ -22,17 +22,17 @@ export const MultiStepRegister = () => {
   const [teamName, setTeamName] = useState('');
   const [track, setTrack] = useState('DRAGON INTELLIGENCE (AI & ML)');
 
-  // Members Form State (Default 4 members)
+  // Members Form State (Default 4 members with empty defaults)
   const defaultMember = {
     name: '',
     regNo: '',
-    department: 'CSE',
-    year: 'III',
+    department: '',
+    year: '',
     section: '',
     mobile: '',
-    gender: 'Male',
-    accommodation: 'Day Scholar',
-    hostel: 'MH-1',
+    gender: '',
+    accommodation: '',
+    hostel: '',
     roomNumber: ''
   };
 
@@ -152,8 +152,8 @@ export const MultiStepRegister = () => {
 
     for (let i = 0; i < formattedMembers.length; i++) {
       const m = formattedMembers[i];
-      if (!m.name || !m.regNo || !m.section || !m.mobile) {
-        setErrorMessage(`Please fill all required fields for Member ${i + 1}`);
+      if (!m.name || !m.regNo || !m.department || !m.year || !m.section || !m.mobile || !m.gender || !m.accommodation) {
+        setErrorMessage(`Please fill out and select all required fields for Member ${i + 1}`);
         return;
       }
       if (!/^\d+$/.test(m.regNo)) {
@@ -168,8 +168,8 @@ export const MultiStepRegister = () => {
         setErrorMessage('Please use your KLU email address (@klu.ac.in) to continue.');
         return;
       }
-      if (m.accommodation === 'Hosteller' && (!m.roomNumber || !m.roomNumber.trim())) {
-        setErrorMessage(`Please specify Room Number for Member ${i + 1}`);
+      if (m.accommodation === 'Hosteller' && (!m.hostel || !m.roomNumber || !m.roomNumber.trim())) {
+        setErrorMessage(`Please select Hostel and specify Room Number for Member ${i + 1}`);
         return;
       }
     }
@@ -376,8 +376,8 @@ export const MultiStepRegister = () => {
                 required
                 value={teamName}
                 onChange={(e) => handleTeamNameChange(e.target.value)}
-                placeholder="e.g. GUARDIAN MINDS"
-                className="w-full px-4 py-3.5 rounded-xl bg-slate-950/80 border border-sky-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 text-sm font-bold uppercase tracking-wider"
+                placeholder=""
+                className="w-full px-4 py-3.5 rounded-xl bg-slate-950/80 border border-sky-500/30 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 text-sm font-bold uppercase tracking-wider"
               />
             </div>
 
@@ -430,7 +430,7 @@ export const MultiStepRegister = () => {
                       required
                       value={m.name}
                       onChange={(e) => handleMemberChange(idx, 'name', e.target.value)}
-                      placeholder="e.g. PRASHANTHI PUTLURU"
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-bold uppercase focus:outline-none focus:border-cyan-400"
                     />
                   </div>
@@ -444,7 +444,7 @@ export const MultiStepRegister = () => {
                       required
                       value={m.regNo}
                       onChange={(e) => handleMemberChange(idx, 'regNo', e.target.value)}
-                      placeholder="e.g. 2300030001"
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold uppercase focus:outline-none focus:border-cyan-400"
                     />
                   </div>
@@ -456,6 +456,7 @@ export const MultiStepRegister = () => {
                       onChange={(e) => handleMemberChange(idx, 'department', e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none"
                     >
+                      <option value="">Select Department</option>
                       {['CSE', 'ECE', 'IT', 'EEE', 'MECH', 'CIVIL', 'BIO', 'OTHERS'].map(d => (
                         <option key={d} value={d}>{d}</option>
                       ))}
@@ -469,6 +470,7 @@ export const MultiStepRegister = () => {
                       onChange={(e) => handleMemberChange(idx, 'year', e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none"
                     >
+                      <option value="">Select Year</option>
                       {['II', 'III', 'IV'].map(y => (
                         <option key={y} value={y}>{y} Year</option>
                       ))}
@@ -484,7 +486,7 @@ export const MultiStepRegister = () => {
                       required
                       value={m.section}
                       onChange={(e) => handleMemberChange(idx, 'section', e.target.value)}
-                      placeholder="e.g. CSE-A or S15"
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-bold uppercase focus:outline-none"
                     />
                   </div>
@@ -497,7 +499,7 @@ export const MultiStepRegister = () => {
                       maxLength={10}
                       value={m.mobile}
                       onChange={(e) => handleMemberChange(idx, 'mobile', e.target.value)}
-                      placeholder="Enter 10-digit mobile number"
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none font-mono"
                     />
                   </div>
@@ -509,6 +511,7 @@ export const MultiStepRegister = () => {
                       onChange={(e) => handleMemberChange(idx, 'gender', e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none"
                     >
+                      <option value="">Select Gender</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
@@ -521,6 +524,7 @@ export const MultiStepRegister = () => {
                       onChange={(e) => handleMemberChange(idx, 'accommodation', e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none"
                     >
+                      <option value="">Select Accommodation</option>
                       <option value="Day Scholar">Day Scholar</option>
                       <option value="Hosteller">Hosteller</option>
                     </select>
@@ -535,6 +539,7 @@ export const MultiStepRegister = () => {
                           onChange={(e) => handleMemberChange(idx, 'hostel', e.target.value)}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none"
                         >
+                          <option value="">Select Hostel</option>
                           {m.gender === 'Female'
                             ? ['LH-1', 'LH-2', 'LH-3', 'LH-4'].map(h => <option key={h} value={h}>{h}</option>)
                             : ['MH-1', 'MH-2', 'MH-3', 'MH-4', 'MH-5', 'MH-6', 'MH-7'].map(h => <option key={h} value={h}>{h}</option>)}
@@ -548,7 +553,7 @@ export const MultiStepRegister = () => {
                           required
                           value={m.roomNumber}
                           onChange={(e) => handleMemberChange(idx, 'roomNumber', e.target.value)}
-                          placeholder="e.g. 402-B"
+                          placeholder=""
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none"
                         />
                       </div>
@@ -672,8 +677,8 @@ export const MultiStepRegister = () => {
                   maxLength={12}
                   value={utr}
                   onChange={(e) => setUtr(e.target.value.replace(/\D/g, ''))}
-                  placeholder="e.g. 408212345678"
-                  className="w-full px-4 py-3.5 rounded-xl bg-slate-950 border border-sky-500/30 text-white font-mono text-sm font-bold placeholder-slate-600 focus:outline-none focus:border-cyan-400"
+                  placeholder=""
+                  className="w-full px-4 py-3.5 rounded-xl bg-slate-950 border border-sky-500/30 text-white font-mono text-sm font-bold focus:outline-none focus:border-cyan-400"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">Digits entered: {utr.length}/12</span>
               </div>
