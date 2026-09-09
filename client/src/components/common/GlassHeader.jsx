@@ -38,7 +38,6 @@ export const GlassHeader = () => {
           <div>
             <div className="text-xs md:text-sm font-black tracking-widest text-white group-hover:text-sky-300 transition-colors flex items-center gap-1.5">
               <span>ALPHA</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/40 font-bold">2026</span>
             </div>
             <p className="text-[9px] text-slate-400 tracking-wider hidden sm:block font-medium">KARE IEEE Education Society</p>
           </div>

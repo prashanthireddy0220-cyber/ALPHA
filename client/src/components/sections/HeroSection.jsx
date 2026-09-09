@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Trophy, Calendar, MapPin, Users, ArrowRight, Flame, CreditCard, GraduationCap } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { TiltCard } from '../common/TiltCard';
+import { CapacityDisplay } from './CapacityDisplay';
 
 export const HeroSection = () => {
   const { settings } = useSettings();
@@ -63,7 +64,7 @@ export const HeroSection = () => {
         </p>
 
         {/* Call to Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-5 mb-16 w-full max-w-md justify-center">
+        <div className="flex flex-col sm:flex-row items-center gap-5 mb-8 w-full max-w-md justify-center">
           <Link
             to="/register"
             className="w-full sm:w-auto px-9 py-4 text-xs md:text-sm font-extrabold tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-full shadow-[0_0_40px_rgba(0,240,255,0.6)] hover:shadow-[0_0_60px_rgba(0,240,255,0.9)] transition-all transform hover:-translate-y-1 text-center flex items-center justify-center gap-2.5 group"
@@ -84,6 +85,9 @@ export const HeroSection = () => {
             EXPLORE ARENA
           </a>
         </div>
+
+        {/* Registration Status section placed BELOW the REGISTER YOUR TEAM button */}
+        <CapacityDisplay />
 
         {/* Event Overview Cards Grid (From Pic 2) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 w-full max-w-5xl mb-12">

@@ -1,14 +1,26 @@
 import express from 'express';
-import { reserveSlot, submitRegistration, verifyTeamPass, getMyTeam } from '../controllers/registrationController.js';
+import {
+  validateDetails,
+  reservePaymentSlot,
+  getReservationStatus,
+  submitRegistration,
+  verifyTeamPass,
+  getMyTeam
+} from '../controllers/registrationController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { upload } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
-router.post('/reserve', reserveSlot);
+router.post('/validate-details', validateDetails);
+router.post('/reserve-payment-slot', reservePaymentSlot);
+router.get('/reservation-status/:reservationId', getReservationStatus);
 router.post('/submit', submitRegistration);
 router.get('/verify/:teamId', verifyTeamPass);
 router.get('/my-team', protect, getMyTeam);
+
+// Legacy fallback endpoint for slot reservation
+router.post('/reserve', reservePaymentSlot);
 
 // Upload screenshot endpoint
 router.post('/upload-screenshot', upload.single('screenshot'), (req, res) => {

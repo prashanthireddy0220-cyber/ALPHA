@@ -57,7 +57,7 @@ const MainApp = () => {
           <Route path="/event-specifications" element={<Navigate to="/event-details" replace />} />
           <Route path="/about" element={<HomePage />} />
           <Route path="/tracks" element={<HomePage />} />
-          <Route path="/timeline" element={<HomePage />} />
+          <Route path="/timeline" element={<Navigate to="/" replace />} />
           <Route path="/rules" element={<HomePage />} />
           <Route path="/faq" element={<HomePage />} />
           <Route path="/sponsors" element={<HomePage />} />

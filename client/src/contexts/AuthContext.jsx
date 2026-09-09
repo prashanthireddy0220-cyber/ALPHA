@@ -62,18 +62,30 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
-      let email = 'student@klu.ac.in';
+      let email = '';
       let name = 'ALPHA Student';
 
       try {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
-        if (result?.user) {
-          email = result.user.email || email;
+        if (result?.user?.email) {
+          email = result.user.email.trim().toLowerCase();
           name = result.user.displayName || name;
         }
       } catch (fbErr) {
         console.warn('Firebase popup notice:', fbErr.message);
+      }
+
+      if (!email) {
+        email = 'student@klu.ac.in';
+      }
+
+      if (!email.endsWith('@klu.ac.in')) {
+        setLoading(false);
+        return {
+          success: false,
+          message: 'Only KLU students with a @klu.ac.in email address are allowed.'
+        };
       }
 
       const res = await axios.post('/api/auth/login', { email, password: 'password123', name });

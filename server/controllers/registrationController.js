@@ -5,39 +5,192 @@ import EventSettings from '../models/EventSettings.js';
 import User from '../models/User.js';
 import { generateNextTeamId } from '../utils/teamIdGenerator.js';
 
-// Reserve temporary slot (10-minute timer)
-export const reserveSlot = async (req, res) => {
+// Helper function to validate KLU email domain (@klu.ac.in)
+const isKluEmail = (email) => {
+  if (!email || typeof email !== 'string') return false;
+  return email.trim().toLowerCase().endsWith('@klu.ac.in');
+};
+
+// Validate Team Details & Member Data (Step 2 -> Step 3) without locking a slot
+export const validateDetails = async (req, res) => {
+  try {
+    const { teamName, members } = req.body;
+
+    if (!teamName || !teamName.trim()) {
+      return res.status(400).json({ message: 'Please enter a valid team name.' });
+    }
+
+    const normalizedTeamName = teamName.trim().toUpperCase();
+
+    // Check duplicate team name (case-insensitive) in database
+    const existingTeam = await Team.findOne({
+      teamName: { $regex: new RegExp(`^${normalizedTeamName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
+    });
+
+    if (existingTeam) {
+      return res.status(400).json({ message: 'This team name is already registered. Please choose another team name.' });
+    }
+
+    if (!members || !Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ message: 'Team member details are required.' });
+    }
+
+    // Validate KLU email and duplicate student participation across database
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i];
+      const email = (m.email || '').trim().toLowerCase();
+      const regNo = (m.regNo || '').trim().toUpperCase();
+
+      if (!email || !isKluEmail(email)) {
+        return res.status(400).json({
+          message: 'Please use your KLU email address (@klu.ac.in) to continue.'
+        });
+      }
+
+      // Check if student already registered in another team by email or regNo
+      const existingStudent = await Student.findOne({
+        $or: [{ email }, { regNo }]
+      });
+
+      if (existingStudent) {
+        return res.status(400).json({
+          message: 'This student is already registered in a team and cannot register again.'
+        });
+      }
+    }
+
+    res.json({ success: true, valid: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Validation failed.' });
+  }
+};
+
+// Reserve temporary payment slot (ONLY WHEN ENTERING PAYMENT STAGE) - 5-minute timer
+export const reservePaymentSlot = async (req, res) => {
   try {
     const settings = (await EventSettings.findOne()) || {};
     if (settings.registrationOpen === false) {
       return res.status(400).json({ message: 'Registration is currently closed by the administrator.' });
     }
 
-    const currentTeamsCount = await Team.countDocuments();
-    const activeReservationsCount = await RegistrationReservation.countDocuments();
-    const totalClaimed = currentTeamsCount + activeReservationsCount;
+    const { teamName, members, track, reservationId: existingResId } = req.body;
 
-    if (totalClaimed >= (settings.maxTeams || 100)) {
+    if (!teamName || !members || !Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ message: 'Team details and member information are required.' });
+    }
+
+    const normalizedTeamName = teamName.trim().toUpperCase();
+    const leadEmail = (members[0].email || '').trim().toLowerCase();
+    const leadRegNo = (members[0].regNo || '').trim().toUpperCase();
+
+    if (!isKluEmail(leadEmail)) {
+      return res.status(400).json({ message: 'Please use your KLU email address (@klu.ac.in) to continue.' });
+    }
+
+    // Check duplicate team name in Teams collection
+    const existingTeam = await Team.findOne({
+      teamName: { $regex: new RegExp(`^${normalizedTeamName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
+    });
+    if (existingTeam) {
+      return res.status(400).json({ message: 'This team name is already registered. Please choose another team name.' });
+    }
+
+    // Capacity Check: Clean up expired reservations first
+    await RegistrationReservation.deleteMany({ expiresAt: { $lt: new Date() } });
+
+    const currentTeamsCount = await Team.countDocuments();
+    const activeReservationsCount = await RegistrationReservation.countDocuments({
+      expiresAt: { $gt: new Date() },
+      reservationId: { $ne: existingResId }
+    });
+
+    const totalClaimed = currentTeamsCount + activeReservationsCount;
+    const maxTeams = settings.maxTeams || 100;
+
+    if (totalClaimed >= maxTeams) {
       return res.status(400).json({ message: 'Registration capacity for this event has been reached.' });
     }
 
-    const { teamName, leadRegNo } = req.body;
-    if (!teamName || !leadRegNo) {
-      return res.status(400).json({ message: 'Team Name and Lead Registration Number required' });
+    // Normalize member names and sections to UPPERCASE
+    const normalizedMembers = members.map(m => ({
+      ...m,
+      name: (m.name || '').trim().toUpperCase(),
+      regNo: (m.regNo || '').trim().toUpperCase(),
+      section: (m.section || '').trim().toUpperCase(),
+      email: (m.email || '').trim().toLowerCase()
+    }));
+
+    let reservation = null;
+    if (existingResId) {
+      reservation = await RegistrationReservation.findOne({ reservationId: existingResId });
     }
 
-    const reservationId = `RES-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const reservation = await RegistrationReservation.create({
-      reservationId,
-      teamName,
-      leadRegNo
-    });
+    // If reservation exists and is active, maintain original expiration time across refresh!
+    if (reservation && reservation.expiresAt > new Date()) {
+      reservation.teamName = normalizedTeamName;
+      reservation.leadEmail = leadEmail;
+      reservation.leadRegNo = leadRegNo;
+      reservation.membersData = normalizedMembers;
+      reservation.track = track || 'General Innovation';
+      await reservation.save();
+    } else {
+      // Create new 5-minute reservation
+      const reservationId = existingResId || `RES-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+      reservation = await RegistrationReservation.create({
+        reservationId,
+        teamName: normalizedTeamName,
+        leadEmail,
+        leadRegNo,
+        membersData: normalizedMembers,
+        track: track || 'General Innovation',
+        expiresAt
+      });
+    }
+
+    const remainingSeconds = Math.max(0, Math.floor((new Date(reservation.expiresAt).getTime() - Date.now()) / 1000));
 
     res.json({
       success: true,
       reservationId: reservation.reservationId,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-      message: 'Slot reserved for 10 minutes'
+      expiresAt: reservation.expiresAt,
+      remainingSeconds,
+      message: 'Slot reserved for 5 minutes.'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get Reservation Status for Page Refresh persistence
+export const getReservationStatus = async (req, res) => {
+  try {
+    const { reservationId } = req.params;
+    const reservation = await RegistrationReservation.findOne({ reservationId });
+
+    if (!reservation || new Date(reservation.expiresAt) <= new Date()) {
+      if (reservation) {
+        await RegistrationReservation.deleteOne({ _id: reservation._id });
+      }
+      return res.status(400).json({
+        expired: true,
+        message: 'Your payment session has expired. Please start the payment process again.'
+      });
+    }
+
+    const remainingSeconds = Math.max(0, Math.floor((new Date(reservation.expiresAt).getTime() - Date.now()) / 1000));
+
+    res.json({
+      valid: true,
+      expired: false,
+      reservationId: reservation.reservationId,
+      expiresAt: reservation.expiresAt,
+      remainingSeconds,
+      teamName: reservation.teamName,
+      leadEmail: reservation.leadEmail,
+      membersData: reservation.membersData,
+      track: reservation.track
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -49,88 +202,96 @@ export const submitRegistration = async (req, res) => {
   try {
     const settings = (await EventSettings.findOne()) || {};
     if (settings.registrationOpen === false) {
-      return res.status(400).json({ message: 'REGISTRATIONS CLOSED by administration' });
+      return res.status(400).json({ message: 'Registrations are currently closed by the administration.' });
     }
 
-    const currentTeamsCount = await Team.countDocuments();
-    if (currentTeamsCount >= (settings.maxTeams || 100)) {
-      return res.status(400).json({ message: 'REGISTRATIONS FULL! Maximum team limit reached.' });
-    }
-
-    const { teamName, members, utr, screenshotUrl, track, leadEmail } = req.body;
+    const { teamName, members, utr, screenshotUrl, track, reservationId } = req.body;
 
     if (!teamName || !members || !Array.isArray(members) || members.length === 0) {
-      return res.status(400).json({ message: 'Team name and member details are required' });
+      return res.status(400).json({ message: 'Team name and member details are required.' });
     }
 
-    const expectedTeamSize = settings.teamSize || 4;
-    if (members.length !== expectedTeamSize) {
-      return res.status(400).json({ message: `Team must have exactly ${expectedTeamSize} members.` });
-    }
+    const normalizedTeamName = teamName.trim().toUpperCase();
 
-    // Validate UTR: 12 numeric digits
-    if (!utr || !/^\d{12}$/.test(utr)) {
+    // Check UTR validation: 12 numeric digits
+    if (!utr || !/^\d{12}$/.test(utr.trim())) {
       return res.status(400).json({ message: 'UTR / Transaction Number must be exactly 12 digits (numbers only).' });
     }
 
     if (!screenshotUrl) {
-      return res.status(400).json({ message: 'Payment screenshot is required' });
+      return res.status(400).json({ message: 'Payment screenshot is required.' });
     }
 
     // Check UTR duplicate
-    const existingUtr = await Team.findOne({ 'payment.utr': utr });
+    const existingUtr = await Team.findOne({ 'payment.utr': utr.trim() });
     if (existingUtr) {
       return res.status(400).json({ message: 'This UTR number has already been submitted by another team.' });
     }
 
-    // Check duplicate student registration numbers across database
-    const regNos = members.map(m => m.regNo.trim().toUpperCase());
-    const uniqueRegNos = new Set(regNos);
-    if (uniqueRegNos.size !== regNos.length) {
-      return res.status(400).json({ message: 'Duplicate registration numbers within your team entries.' });
+    // Check Team Name duplicate in Teams collection
+    const existingTeam = await Team.findOne({
+      teamName: { $regex: new RegExp(`^${normalizedTeamName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
+    });
+    if (existingTeam) {
+      return res.status(400).json({ message: 'This team name is already registered. Please choose another team name.' });
     }
 
-    const existingStudents = await Student.find({ regNo: { $in: regNos } });
-    if (existingStudents.length > 0) {
-      const duplicates = existingStudents.map(s => s.regNo).join(', ');
-      return res.status(400).json({ message: `Participant(s) already registered in another team: ${duplicates}` });
+    // Validate KLU emails and duplicate student entries
+    for (const m of members) {
+      const email = (m.email || '').trim().toLowerCase();
+      const regNo = (m.regNo || '').trim().toUpperCase();
+
+      if (!isKluEmail(email)) {
+        return res.status(400).json({ message: 'Please use your KLU email address (@klu.ac.in) to continue.' });
+      }
+
+      const existingStudent = await Student.findOne({
+        $or: [{ email }, { regNo }]
+      });
+
+      if (existingStudent) {
+        return res.status(400).json({
+          message: 'This student is already registered in a team and cannot register again.'
+        });
+      }
     }
 
-    // Save Students
+    // Create / Save Students with UPPERCASE Name & Section, Lowercase Email
     const studentDocs = [];
     for (const m of members) {
-      const generatedEmail = `${m.regNo.toLowerCase().trim()}@klu.ac.in`;
+      const email = (m.email || '').trim().toLowerCase();
       const student = await Student.create({
-        name: m.name.trim(),
-        regNo: m.regNo.trim().toUpperCase(),
+        name: (m.name || '').trim().toUpperCase(),
+        regNo: (m.regNo || '').trim().toUpperCase(),
         department: m.department,
         year: m.year,
-        section: m.section.trim(),
-        mobile: m.mobile.trim(),
+        section: (m.section || '').trim().toUpperCase(),
+        mobile: (m.mobile || '').trim(),
         gender: m.gender,
         accommodation: m.accommodation,
         hostel: m.accommodation === 'Hosteller' ? m.hostel : 'N/A',
         roomNumber: m.accommodation === 'Hosteller' ? m.roomNumber : 'N/A',
-        email: generatedEmail
+        email
       });
       studentDocs.push(student);
     }
 
+    // Generate Next Sequential ALPHAA 001 Team ID
     const teamId = await generateNextTeamId();
     const leadStudent = studentDocs[0];
+    const expectedTeamSize = settings.teamSize || 4;
     const totalAmount = expectedTeamSize * (settings.participantFee || 350);
 
     let userObj = null;
     if (req.user) {
       userObj = req.user._id;
     } else {
-      // Find or create lead user account
       let user = await User.findOne({ email: leadStudent.email });
       if (!user) {
         user = await User.create({
           name: leadStudent.name,
           email: leadStudent.email,
-          password: leadStudent.regNo, // Initial default password = regNo
+          password: leadStudent.regNo,
           role: 'user'
         });
       }
@@ -139,12 +300,12 @@ export const submitRegistration = async (req, res) => {
 
     const team = await Team.create({
       teamId,
-      teamName: teamName.trim(),
+      teamName: normalizedTeamName,
       members: studentDocs.map(s => s._id),
       leadRegNo: leadStudent.regNo,
       leadEmail: leadStudent.email,
       payment: {
-        utr,
+        utr: utr.trim(),
         screenshotUrl,
         amount: totalAmount,
         status: 'PENDING',
@@ -154,14 +315,20 @@ export const submitRegistration = async (req, res) => {
       user: userObj
     });
 
-    // Update user's teamId
     await User.findByIdAndUpdate(userObj, { teamId: team.teamId });
+
+    // Clean up temporary reservation if present
+    if (reservationId) {
+      await RegistrationReservation.deleteOne({ reservationId });
+    }
 
     res.status(201).json({
       success: true,
-      message: 'Registration submitted successfully! Payment status is PENDING verification.',
+      message: 'Registration completed successfully.',
       teamId: team.teamId,
       teamName: team.teamName,
+      leadEmail: team.leadEmail,
+      leadName: leadStudent.name,
       paymentStatus: team.payment.status
     });
   } catch (error) {
@@ -169,13 +336,18 @@ export const submitRegistration = async (req, res) => {
   }
 };
 
-// Get Public Verification info (Public Route for QR verification /verify/:teamId)
-// DO NOT expose UTR, screenshot, mobile, room number or passwords
+// Get Public Verification info for QR verification (/verify/:teamId)
 export const verifyTeamPass = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const team = await Team.findOne({ teamId: teamId.toUpperCase() })
-      .populate('members', 'name regNo department year')
+    const cleanId = teamId.replace(/-/g, ' ').toUpperCase();
+    const team = await Team.findOne({
+      $or: [
+        { teamId: cleanId },
+        { teamId: teamId.toUpperCase() }
+      ]
+    })
+      .populate('members', 'name regNo department year section email')
       .exec();
 
     if (!team) {
@@ -188,15 +360,20 @@ export const verifyTeamPass = async (req, res) => {
       valid: true,
       teamId: team.teamId,
       teamName: team.teamName,
+      leadEmail: team.leadEmail,
+      leadRegNo: team.leadRegNo,
       paymentStatus: team.payment.status,
+      utr: team.payment.utr,
       event: settings.eventName || 'ALPHA 2026',
-      eventDate: settings.eventDate || 'MARCH 28 - 29, 2026',
+      eventDate: settings.eventDate || 'OCTOBER 1 - 2, 2026',
       venue: settings.venue || 'KARE Auditorium & CSE Tech Arena',
       members: team.members.map(m => ({
         name: m.name,
         regNo: m.regNo,
         department: m.department,
-        year: m.year
+        year: m.year,
+        section: m.section,
+        email: m.email
       }))
     });
   } catch (error) {
@@ -204,7 +381,7 @@ export const verifyTeamPass = async (req, res) => {
   }
 };
 
-// Get Team details for dashboard
+// Get Team details for participant dashboard
 export const getMyTeam = async (req, res) => {
   try {
     let team = null;
