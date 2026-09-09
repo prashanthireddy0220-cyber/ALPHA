@@ -28,7 +28,7 @@ export const MultiStepRegister = () => {
     regNo: '',
     department: 'CSE',
     year: 'III',
-    section: 'A',
+    section: '',
     mobile: '',
     gender: 'Male',
     accommodation: 'Day Scholar',
