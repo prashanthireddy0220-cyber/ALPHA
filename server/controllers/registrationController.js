@@ -431,6 +431,36 @@ export const getMyTeam = async (req, res) => {
       }
     }
 
+    // 4. Find by leadRegNo directly
+    if (!team && userRegNo) {
+      team = await Team.findOne({
+        $or: [
+          { leadRegNo: userRegNo },
+          { leadEmail: { $regex: userRegNo, $options: 'i' } }
+        ]
+      }).populate('members');
+    }
+
+    // 5. Find by user object reference
+    if (!team && req.user._id) {
+      team = await Team.findOne({ user: req.user._id }).populate('members');
+    }
+
+    // 6. Comprehensive Scan across all teams in DB
+    if (!team) {
+      const allTeams = await Team.find().populate('members').sort({ createdAt: -1 });
+      for (const t of allTeams) {
+        if (
+          t.leadEmail?.toLowerCase() === userEmail ||
+          t.leadRegNo?.toUpperCase() === userRegNo ||
+          t.members?.some(m => m.email?.toLowerCase() === userEmail || m.regNo?.toUpperCase() === userRegNo)
+        ) {
+          team = t;
+          break;
+        }
+      }
+    }
+
     if (!team) {
       return res.status(404).json({ message: 'No registered team found for this account. Please register your team.' });
     }
@@ -450,4 +480,5 @@ export const getMyTeam = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 

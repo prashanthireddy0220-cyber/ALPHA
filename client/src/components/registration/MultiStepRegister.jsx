@@ -117,17 +117,13 @@ export const MultiStepRegister = () => {
     setMembers(updated);
   };
 
-  // Step 1 -> Step 2: Validate Team Name & Lead RegNo
+  // Step 1 -> Step 2: Validate Team Name
   const handleProceedToMembers = (e) => {
     e.preventDefault();
     setErrorMessage('');
 
     if (!teamName.trim()) {
       setErrorMessage('Please enter a Team Name');
-      return;
-    }
-    if (!members[0].regNo.trim()) {
-      setErrorMessage('Please enter Team Lead Registration Number in Member 1 details');
       return;
     }
 
@@ -359,12 +355,12 @@ export const MultiStepRegister = () => {
         </div>
       )}
 
-      {/* STEP 1: Team Name & Initial Details */}
+      {/* STEP 1: Team Name */}
       {step === 1 && (
         <TiltCard className="p-8">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Users className="w-5 h-5 text-sky-400" />
-            <span>STEP 1: TEAM & TRACK SELECTION</span>
+            <span>STEP 1: ENTER YOUR TEAM NAME</span>
           </h2>
 
           <form onSubmit={handleProceedToMembers} className="space-y-6">
@@ -380,40 +376,6 @@ export const MultiStepRegister = () => {
                 placeholder="e.g. GUARDIAN MINDS"
                 className="w-full px-4 py-3.5 rounded-xl bg-slate-950/80 border border-sky-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 text-sm font-bold uppercase tracking-wider"
               />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-                INNOVATION TRACK *
-              </label>
-              <select
-                value={track}
-                onChange={(e) => setTrack(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-xl bg-slate-950/80 border border-sky-500/30 text-white focus:outline-none focus:border-cyan-400 text-sm font-semibold"
-              >
-                <option value="DRAGON INTELLIGENCE (AI & ML)">DRAGON INTELLIGENCE (AI & ML)</option>
-                <option value="CASTLE DEFENSE (CYBERSECURITY)">CASTLE DEFENSE (CYBERSECURITY)</option>
-                <option value="REALM OF CLOUD & WEB3">REALM OF CLOUD & WEB3</option>
-                <option value="RUNIC HARDWARE (IOT & ROBOTICS)">RUNIC HARDWARE (IOT & ROBOTICS)</option>
-                <option value="OPEN DRAGON ARENA">OPEN DRAGON ARENA</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-                TEAM LEAD REGISTRATION NUMBER (MEMBER 1) *
-              </label>
-              <input
-                type="text"
-                required
-                value={members[0].regNo}
-                onChange={(e) => handleMemberChange(0, 'regNo', e.target.value)}
-                placeholder="e.g. 2300030001"
-                className="w-full px-4 py-3.5 rounded-xl bg-slate-950/80 border border-sky-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-sm font-semibold uppercase"
-              />
-              <p className="mt-2 text-[11px] text-sky-400">
-                Official KLU Student Email: <span className="font-mono text-white">{members[0].regNo ? `${members[0].regNo.toLowerCase()}@klu.ac.in` : 'student@klu.ac.in'}</span>
-              </p>
             </div>
 
             <button
