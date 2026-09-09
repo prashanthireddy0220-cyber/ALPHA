@@ -10,7 +10,7 @@ import User from '../models/User.js';
 
 export const getAdminStats = async (req, res) => {
   try {
-    const settings = (await EventSettings.findOne()) || { maxTeams: 100 };
+    const settings = (await EventSettings.findOne()) || { maxTeams: 100, registrationOpen: true };
     const totalTeams = await Team.countDocuments();
     const totalParticipants = await Student.countDocuments();
     const activeReservations = await RegistrationReservation.countDocuments();
@@ -28,7 +28,8 @@ export const getAdminStats = async (req, res) => {
       activeReservations,
       pendingPayments,
       verifiedPayments,
-      rejectedPayments
+      rejectedPayments,
+      registrationOpen: settings.registrationOpen !== false
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
