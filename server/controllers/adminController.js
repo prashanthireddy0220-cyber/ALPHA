@@ -463,6 +463,7 @@ export const updateTeamDetails = async (req, res) => {
     if (leadRegNo) team.leadRegNo = leadRegNo.trim().toUpperCase();
     if (utr) team.payment.utr = utr.trim();
     if (amount !== undefined) team.payment.amount = Number(amount);
+    if (req.body.screenshotUrl) team.payment.screenshotUrl = req.body.screenshotUrl;
     if (status) {
       team.payment.status = status;
       if (status === 'VERIFIED') team.payment.verifiedAt = new Date();

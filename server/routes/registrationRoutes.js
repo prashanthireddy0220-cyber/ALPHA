@@ -26,18 +26,57 @@ router.get('/my-team', protect, getMyTeam);
 // Legacy fallback endpoint for slot reservation
 router.post('/reserve', protect, reservePaymentSlot);
 
-// Upload screenshot endpoint
-router.post('/upload-screenshot', upload.single('screenshot'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded' });
+import cloudinary from '../config/cloudinary.js';
+import fs from 'fs';
+
+// Upload screenshot endpoint (Permanent Cloudinary + Base64 fallback)
+router.post('/upload-screenshot', upload.single('screenshot'), async (req, res) => {
+  try {
+    if (req.body.base64 && req.body.base64.startsWith('data:image/')) {
+      return res.json({
+        success: true,
+        url: req.body.base64
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Try Cloudinary upload
+    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'alpha_payment_screenshots',
+          resource_type: 'image'
+        });
+        if (result && result.secure_url) {
+          return res.json({
+            success: true,
+            url: result.secure_url,
+            public_id: result.public_id
+          });
+        }
+      } catch (cloudErr) {
+        console.warn('Cloudinary upload error, falling back to base64 buffer:', cloudErr.message);
+      }
+    }
+
+    // Convert file buffer to base64 Data URL so it is stored permanently in MongoDB Atlas
+    const fileBuffer = fs.readFileSync(req.file.path);
+    const mimeType = req.file.mimetype || 'image/png';
+    const base64Url = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+
+    res.json({
+      success: true,
+      url: base64Url,
+      filename: req.file.filename
+    });
+  } catch (error) {
+    console.error('Screenshot upload processing failed:', error);
+    res.status(500).json({ message: 'Failed to process screenshot' });
   }
-  const backendBase = (process.env.BACKEND_URL || 'https://alpha-backend-zvhx.onrender.com').replace(/\/$/, '');
-  const fileUrl = `${backendBase}/uploads/${req.file.filename}`;
-  res.json({
-    success: true,
-    url: fileUrl,
-    filename: req.file.filename
-  });
 });
 
 export default router;
+

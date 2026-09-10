@@ -567,30 +567,36 @@ export const MultiStepRegister = () => {
     setScreenshotFile(file);
     setUploadProgress(0);
 
-    // Create local object URL for instant image preview display
-    try {
-      const localUrl = URL.createObjectURL(file);
-      setPreviewUrl(localUrl);
-    } catch (err) {
-      console.warn('Could not create object URL for preview:', err);
-    }
+    // 1. Convert to Base64 Data URL for instant local preview and guaranteed permanent storage
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Data = event.target.result;
+      setPreviewUrl(base64Data);
+      setScreenshotUrl(base64Data);
 
-    const formData = new FormData();
-    formData.append('screenshot', file);
+      // 2. Also send to server
+      const formData = new FormData();
+      formData.append('screenshot', file);
+      formData.append('base64', base64Data);
 
-    try {
-      const res = await axios.post('/api/registration/upload-screenshot', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percent);
+      try {
+        const res = await axios.post('/api/registration/upload-screenshot', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percent);
+          }
+        });
+        if (res.data?.url) {
+          setScreenshotUrl(res.data.url);
         }
-      });
-      setScreenshotUrl(res.data.url);
-    } catch (err) {
-      setErrorMessage('Failed to upload screenshot. Please make sure file size is under 5MB.');
-    }
+      } catch (err) {
+        console.warn('Server upload fallback to direct base64 data:', err);
+      }
+    };
+    reader.readAsDataURL(file);
   };
+
 
   // STEP 7 -> STEP 8: Final Submission
   const handleFinalSubmit = async (e) => {

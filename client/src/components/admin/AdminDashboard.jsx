@@ -426,6 +426,34 @@ export const AdminDashboard = () => {
     }
   };
 
+  // Replace / Attach Screenshot directly in Inspect Modal
+  const handleReplaceInspectScreenshot = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !inspectTeam) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Data = event.target.result;
+      try {
+        await axios.put(`/api/admin/teams/${inspectTeam._id}/edit`, {
+          screenshotUrl: base64Data
+        });
+        setInspectTeam(prev => ({
+          ...prev,
+          payment: {
+            ...prev.payment,
+            screenshotUrl: base64Data
+          }
+        }));
+        await loadDashboardData(true);
+        alert('Screenshot updated successfully!');
+      } catch (err) {
+        alert('Failed to update screenshot: ' + (err.response?.data?.message || err.message));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Export CSV
   const exportCSV = () => {
     if (filteredTeams.length === 0) {
@@ -1317,16 +1345,28 @@ export const AdminDashboard = () => {
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                       CLOUDINARY SCREENSHOT PROOF:
                     </span>
-                    {(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl) && (
-                      <button
-                        type="button"
-                        onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
-                        className="text-[10px] font-bold text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <ZoomIn className="w-3 h-3" />
-                        <span>Zoom / Full</span>
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer">
+                        <ImageIcon className="w-3 h-3" />
+                        <span>Replace Proof</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleReplaceInspectScreenshot}
+                          className="hidden"
+                        />
+                      </label>
+                      {(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl) && (
+                        <button
+                          type="button"
+                          onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
+                          className="text-[10px] font-bold text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <ZoomIn className="w-3 h-3" />
+                          <span>Zoom</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="p-2 rounded-2xl bg-black/60 border border-slate-800 flex items-center justify-center min-h-64 relative overflow-hidden group">
@@ -1343,21 +1383,33 @@ export const AdminDashboard = () => {
                             if (fallback) fallback.classList.remove('hidden');
                           }}
                         />
-                        <div className="img-fallback-box hidden p-6 text-center space-y-2">
-                          <p className="text-xs font-bold text-amber-400">Preview image could not be rendered.</p>
-                          <a
-                            href={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-300 text-xs font-bold"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> View Raw Proof Link
-                          </a>
+                        <div className="img-fallback-box hidden p-6 text-center space-y-3">
+                          <p className="text-xs font-bold text-amber-400">Preview image could not be loaded from previous server session.</p>
+                          <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 text-white text-xs font-bold shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            <span>Upload / Attach Proof Image</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleReplaceInspectScreenshot}
+                              className="hidden"
+                            />
+                          </label>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center p-8 text-slate-500 text-xs font-bold">
-                        No Screenshot Uploaded
+                      <div className="text-center p-8 space-y-2">
+                        <p className="text-slate-500 text-xs font-bold">No Screenshot Attached</p>
+                        <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold cursor-pointer transition-all">
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span>Upload Screenshot</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleReplaceInspectScreenshot}
+                            className="hidden"
+                          />
+                        </label>
                       </div>
                     )}
                   </div>
