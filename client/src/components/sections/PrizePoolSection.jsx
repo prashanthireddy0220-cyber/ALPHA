@@ -1,71 +1,270 @@
-import React from 'react';
-import { Trophy, Medal, Award, Flame } from 'lucide-react';
-import { useSettings } from '../../contexts/SettingsContext';
-import { TiltCard } from '../common/TiltCard';
+import React, { useState } from 'react';
+import { Trophy, Medal, Award, Sparkles, Crown, Shield, Zap, CheckCircle2, ChevronRight } from 'lucide-react';
 
 export const PrizePoolSection = () => {
-  const { settings } = useSettings();
+  const [activeHover, setActiveHover] = useState(null);
+
+  const prizes = [
+    {
+      id: '2nd',
+      place: '2ND PLACE',
+      badge: 'RUNNER UP',
+      amount: '₹5,000',
+      icon: Medal,
+      tier: '02',
+      rank: 2,
+      orderClass: 'order-2 lg:order-1',
+      heightClass: 'lg:min-h-[440px] lg:mt-16',
+      accentColor: 'cyan',
+      theme: {
+        border: 'border-cyan-400/40 hover:border-cyan-400/80',
+        bg: 'from-slate-900/90 via-[#071328]/95 to-slate-950/90',
+        glow: 'shadow-[0_0_30px_rgba(6,182,212,0.18)] hover:shadow-[0_0_45px_rgba(6,182,212,0.35)]',
+        pill: 'bg-cyan-500/10 text-cyan-300 border-cyan-400/30',
+        iconBg: 'from-cyan-500/30 via-slate-800 to-cyan-950/50 text-cyan-200 border-cyan-400/40',
+        textGradient: 'from-white via-cyan-100 to-cyan-300',
+        baseFloor: 'from-cyan-500/30 to-blue-600/30 border-cyan-400/40'
+      },
+      perks: [
+        '₹5,000 Direct Cash Prize',
+        'Silver Dragon Champion Trophy',
+        'Official IEEE Silver Merit Certificate',
+        'Direct Finalist Recognition & Swag'
+      ]
+    },
+    {
+      id: '1st',
+      place: '1ST PLACE',
+      badge: 'CHAMPION',
+      amount: '₹7,000',
+      icon: Trophy,
+      tier: '01',
+      rank: 1,
+      orderClass: 'order-1 lg:order-2',
+      heightClass: 'lg:min-h-[520px] lg:mt-0',
+      accentColor: 'gold',
+      theme: {
+        border: 'border-amber-400/70 hover:border-amber-300',
+        bg: 'from-[#171105]/95 via-[#0d172e]/95 to-slate-950/95',
+        glow: 'shadow-[0_0_50px_rgba(245,158,11,0.28)] hover:shadow-[0_0_70px_rgba(251,191,36,0.45)]',
+        pill: 'bg-gradient-to-r from-amber-500/20 via-yellow-400/20 to-amber-500/20 text-amber-300 border-amber-400/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]',
+        iconBg: 'from-amber-400/40 via-yellow-500/20 to-amber-950/60 text-amber-300 border-amber-400/70',
+        textGradient: 'from-yellow-100 via-amber-200 to-yellow-400',
+        baseFloor: 'from-amber-500/40 via-yellow-400/40 to-amber-600/40 border-amber-400/60'
+      },
+      perks: [
+        '₹7,000 Direct Cash Prize',
+        'Grand Golden Dragon Trophy',
+        'Official IEEE Gold Excellence Certificate',
+        'Incubation & Direct Innovation Mentorship',
+        'Winner Medals & Exclusive Swag Kit'
+      ]
+    },
+    {
+      id: '3rd',
+      place: '3RD PLACE',
+      badge: '2ND RUNNER UP',
+      amount: '₹3,000',
+      icon: Award,
+      tier: '03',
+      rank: 3,
+      orderClass: 'order-3 lg:order-3',
+      heightClass: 'lg:min-h-[410px] lg:mt-24',
+      accentColor: 'bronze',
+      theme: {
+        border: 'border-amber-600/40 hover:border-amber-500/70',
+        bg: 'from-slate-900/90 via-[#150d1a]/95 to-slate-950/90',
+        glow: 'shadow-[0_0_30px_rgba(217,119,6,0.15)] hover:shadow-[0_0_40px_rgba(217,119,6,0.3)]',
+        pill: 'bg-amber-600/10 text-amber-400 border-amber-600/30',
+        iconBg: 'from-amber-600/30 via-slate-800 to-orange-950/50 text-amber-400 border-amber-600/40',
+        textGradient: 'from-white via-orange-100 to-amber-300',
+        baseFloor: 'from-amber-600/30 to-orange-700/30 border-amber-600/40'
+      },
+      perks: [
+        '₹3,000 Direct Cash Prize',
+        'Bronze Dragon Trophy',
+        'Official IEEE Bronze Merit Certificate',
+        'Merit Recognition & Goodies Kit'
+      ]
+    }
+  ];
 
   return (
-    <section id="prizes" className="py-24 px-4 md:px-8 max-w-6xl mx-auto relative z-20">
-      <div className="text-center mb-16">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card border border-sky-400/30 text-xs font-bold text-sky-300 uppercase tracking-widest mb-4">
-          <Trophy className="w-4 h-4 text-amber-400" />
-          <span>REWARDS & RECOGNITION</span>
+    <section id="prizes" className="py-24 px-4 md:px-8 max-w-7xl mx-auto relative z-20 overflow-hidden">
+      {/* Background Dragon Artwork Watermark (Subtle & Atmospheric) */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-[0.04] bg-center bg-no-repeat bg-contain"
+        style={{ backgroundImage: `url('/assets/alpha_artwork.png')` }}
+      />
+
+      {/* Ambient Lighting Gradients */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[250px] bg-amber-500/15 rounded-full blur-[110px] pointer-events-none" />
+
+      {/* ============================================================== */}
+      {/* SECTION HEADER */}
+      {/* ============================================================== */}
+      <div className="text-center mb-16 relative z-10 space-y-3.5">
+        {/* Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/80 border border-sky-400/40 text-xs font-black text-sky-300 uppercase tracking-widest shadow-[0_0_20px_rgba(56,189,248,0.25)] backdrop-blur-md">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
+          <span>PRIZE POOL</span>
         </div>
 
-        <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight">
-          PRIZE POOL DISCLOSURE
+        {/* Title */}
+        <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight uppercase">
+          TOTAL CASH PRIZES
         </h2>
-        <div className="mt-4 text-3xl md:text-5xl font-black text-cyan-300 font-mono text-glow">
-          ₹15,000 TOTAL CASH PRIZES
+
+        {/* Total Cash Amount */}
+        <div className="inline-block relative">
+          <div className="text-3xl md:text-4xl font-black font-mono tracking-wider bg-gradient-to-r from-cyan-300 via-sky-200 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(0,240,255,0.4)]">
+            ₹15,000
+          </div>
+          <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent mt-1 opacity-70" />
         </div>
-        <p className="mt-2 text-slate-400 text-sm font-light max-w-lg mx-auto">
-          Plus IEEE merit certificates, direct internship opportunities, and dragon trophies.
+
+        {/* Subtitle */}
+        <p className="text-sm md:text-base font-semibold text-slate-300 tracking-wide">
+          “Compete. Innovate. Conquer.”
+        </p>
+
+        <p className="text-xs text-slate-400 max-w-md mx-auto font-light">
+          Battle for the highest glory, official IEEE credentials, dragon trophies, and direct innovation opportunities.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* 2ND PLACE */}
-        <TiltCard className="p-8 text-center flex flex-col justify-between border-slate-700 md:order-1">
-          <div>
-            <div className="w-16 h-16 rounded-2xl bg-slate-800 text-slate-300 border border-slate-600 flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <Medal className="w-8 h-8" />
-            </div>
-            <span className="text-xs font-extrabold text-slate-400 uppercase tracking-widest block">RUNNER UP</span>
-            <h3 className="text-xl font-black text-white my-2">2ND PLACE</h3>
-            <div className="text-3xl font-black text-cyan-300 my-4 font-mono">₹5,000</div>
-          </div>
-          <p className="text-xs text-slate-400 font-light">Cash Prize + Silver Trophy + Silver IEEE Certificate</p>
-        </TiltCard>
+      {/* ============================================================== */}
+      {/* 3D CHAMPIONSHIP PODIUM ARENA */}
+      {/* ============================================================== */}
+      <div className="relative z-10 max-w-5xl mx-auto">
+        {/* Podium Pillars Container */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-5 items-end">
+          {prizes.map((p) => {
+            const Icon = p.icon;
+            const isWinner = p.rank === 1;
+            const isHovered = activeHover === p.id;
 
-        {/* 1ST PLACE */}
-        <TiltCard className="p-8 text-center flex flex-col justify-between border-amber-500/50 shadow-[0_0_50px_rgba(245,158,11,0.2)] md:-translate-y-4 md:order-2">
-          <div>
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-amber-500/30 via-yellow-400/20 to-transparent text-amber-400 border border-amber-400/50 flex items-center justify-center mx-auto mb-6 shadow-2xl animate-pulse">
-              <Trophy className="w-10 h-10" />
-            </div>
-            <span className="text-xs font-black text-amber-400 uppercase tracking-widest block flex items-center justify-center gap-1">
-              <Flame className="w-4 h-4" /> CHAMPIONS
+            return (
+              <div
+                key={p.id}
+                onMouseEnter={() => setActiveHover(p.id)}
+                onMouseLeave={() => setActiveHover(null)}
+                className={`relative flex flex-col justify-between rounded-3xl p-6 md:p-7 border backdrop-blur-xl transition-all duration-500 cursor-default ${p.orderClass} ${p.heightClass} ${p.theme.border} ${p.theme.glow} bg-gradient-to-b ${p.theme.bg} ${
+                  isWinner ? 'animate-podium-float' : 'hover:-translate-y-2'
+                }`}
+                style={{
+                  transformStyle: 'preserve-3d'
+                }}
+              >
+                {/* Holographic Background Watermark Tier Number */}
+                <span className="absolute top-4 right-5 text-6xl md:text-7xl font-black font-mono text-white/[0.03] select-none pointer-events-none">
+                  {p.tier}
+                </span>
+
+                {/* Winner Crown & Ambient Top Aura (For 1st Place) */}
+                {isWinner && (
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black text-[10px] font-black uppercase tracking-widest shadow-[0_0_25px_rgba(245,158,11,0.6)] z-20">
+                    <Crown className="w-3.5 h-3.5 fill-black" />
+                    <span>GRAND CHAMPION</span>
+                  </div>
+                )}
+
+                {/* Top Section: Icon, Badge, Rank, Amount */}
+                <div className="text-center space-y-4 pt-2">
+                  {/* Floating Icon Orb */}
+                  <div className="relative inline-block">
+                    {isWinner && (
+                      <div className="absolute inset-0 rounded-2xl bg-amber-400/20 blur-xl animate-pulse" />
+                    )}
+                    <div
+                      className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl border flex items-center justify-center mx-auto shadow-2xl relative z-10 transition-transform duration-300 bg-gradient-to-br ${p.theme.iconBg} ${
+                        isWinner ? 'animate-trophy-float' : 'hover:scale-105'
+                      }`}
+                    >
+                      <Icon className={`${isWinner ? 'w-9 h-9 md:w-11 md:h-11' : 'w-8 h-8 md:w-9 md:h-9'}`} />
+                    </div>
+                  </div>
+
+                  {/* Badge & Place Title */}
+                  <div>
+                    <span className={`inline-block text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border mb-1.5 ${p.theme.pill}`}>
+                      {p.badge}
+                    </span>
+                    <h3 className="text-lg md:text-xl font-black text-white tracking-wide">
+                      {p.place}
+                    </h3>
+                  </div>
+
+                  {/* Prize Amount */}
+                  <div className="py-2 border-y border-white/5 relative">
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
+                      CASH REWARD
+                    </div>
+                    <div
+                      className={`text-3xl md:text-4xl font-black font-mono tracking-tight bg-gradient-to-r ${p.theme.textGradient} bg-clip-text text-transparent`}
+                      style={{
+                        textShadow: isWinner ? '0 0 25px rgba(245,158,11,0.4)' : '0 0 20px rgba(56,189,248,0.3)'
+                      }}
+                    >
+                      {p.amount}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Perks List */}
+                <div className="mt-6 space-y-2.5 text-left border-t border-slate-800/80 pt-4">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                    INCLUDED REWARDS:
+                  </span>
+                  <ul className="space-y-2">
+                    {p.perks.map((perk, pIdx) => (
+                      <li key={pIdx} className="text-xs text-slate-300 flex items-start gap-2 font-medium">
+                        <CheckCircle2
+                          className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${
+                            isWinner ? 'text-amber-400' : 'text-cyan-400'
+                          }`}
+                        />
+                        <span className="leading-tight">{perk}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Podium Pedestal Base Indicator */}
+                <div className="mt-6 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-bold text-slate-400 font-mono">
+                  <span className="flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-cyan-400" />
+                    <span>TIER {p.tier} PODIUM</span>
+                  </span>
+                  <span className="text-slate-500 uppercase tracking-wider">
+                    {isWinner ? '★ 1ST PLACE' : `#${p.rank} RANK`}
+                  </span>
+                </div>
+
+                {/* Glowing Bottom Lip of the Pillar */}
+                <div className={`absolute bottom-0 inset-x-4 h-1 rounded-full bg-gradient-to-r ${p.theme.baseFloor}`} />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ============================================================== */}
+        {/* UNIFIED HOLOGRAPHIC ARENA STAGE BASE */}
+        {/* ============================================================== */}
+        <div className="hidden lg:block relative mt-3">
+          {/* Base Beam Glow */}
+          <div className="h-3 w-full rounded-2xl bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent border-t border-cyan-400/40 shadow-[0_0_30px_rgba(0,240,255,0.4)]" />
+          
+          {/* Stage Platform Surface Reflection */}
+          <div className="h-6 w-full bg-gradient-to-b from-cyan-950/40 via-slate-950/80 to-transparent rounded-b-3xl border-b border-sky-500/20 backdrop-blur-md flex items-center justify-around px-12 text-[10px] font-mono text-cyan-300/60 uppercase tracking-widest">
+            <span>◄ 2ND PLACE PLATFORM</span>
+            <span className="text-amber-400/80 font-bold flex items-center gap-1">
+              <Crown className="w-3 h-3" /> 1ST PLACE CHAMPIONSHIP PEDESTAL
             </span>
-            <h3 className="text-2xl font-black text-white my-2">1ST PLACE</h3>
-            <div className="text-4xl font-black text-amber-300 my-4 font-mono text-glow">₹7,000</div>
+            <span>3RD PLACE PLATFORM ►</span>
           </div>
-          <p className="text-xs text-slate-300 font-semibold">Grand Cash Prize + Gold Dragon Trophy + IEEE Gold Excellence Certificate</p>
-        </TiltCard>
-
-        {/* 3RD PLACE */}
-        <TiltCard className="p-8 text-center flex flex-col justify-between border-amber-800/40 md:order-3">
-          <div>
-            <div className="w-16 h-16 rounded-2xl bg-amber-950/40 text-amber-600 border border-amber-700/40 flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <Award className="w-8 h-8" />
-            </div>
-            <span className="text-xs font-extrabold text-amber-600 uppercase tracking-widest block">2ND RUNNER UP</span>
-            <h3 className="text-xl font-black text-white my-2">3RD PLACE</h3>
-            <div className="text-3xl font-black text-cyan-300 my-4 font-mono">₹3,000</div>
-          </div>
-          <p className="text-xs text-slate-400 font-light">Cash Prize + Bronze Trophy + Bronze IEEE Certificate</p>
-        </TiltCard>
+        </div>
       </div>
     </section>
   );

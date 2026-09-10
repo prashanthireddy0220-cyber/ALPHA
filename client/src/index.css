@@ -98,6 +98,48 @@
   animation: floatParticle 8s infinite ease-in-out;
 }
 
+/* Futuristic Prize Podium Keyframes */
+@keyframes podiumFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes winnerTrophyFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    filter: drop-shadow(0 0 20px rgba(245, 158, 11, 0.6));
+  }
+  50% {
+    transform: translateY(-6px) scale(1.05);
+    filter: drop-shadow(0 0 35px rgba(251, 191, 36, 0.9));
+  }
+}
+
+@keyframes podiumPulseGlow {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-podium-float {
+  animation: podiumFloat 6s infinite ease-in-out;
+}
+
+.animate-trophy-float {
+  animation: winnerTrophyFloat 4s infinite ease-in-out;
+}
+
+.animate-podium-glow {
+  animation: podiumPulseGlow 3s infinite ease-in-out;
+}
+
 /* Floating Transparent Logo Blending */
 .blend-screen-logo {
   mix-blend-mode: screen;
