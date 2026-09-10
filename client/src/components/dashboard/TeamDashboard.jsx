@@ -243,7 +243,7 @@ export const TeamDashboard = () => {
 
         <TiltCard className="p-6 text-center">
           <span className="text-[10px] text-slate-400 uppercase tracking-widest block mb-1">VENUE</span>
-          <span className="text-xs font-bold text-slate-200">{eventSettings?.venue || 'KARE Auditorium & CSE Arena'}</span>
+          <span className="text-xs font-bold text-slate-200">{eventSettings?.venue || 'KS KRISHNA AUDITORIUM'}</span>
         </TiltCard>
 
         <TiltCard className="p-6 text-center">

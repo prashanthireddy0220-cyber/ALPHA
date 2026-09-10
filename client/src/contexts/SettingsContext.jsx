@@ -19,7 +19,7 @@ export const SettingsProvider = ({ children }) => {
     eventName: 'ALPHA 2026',
     eventTagline: 'RISE. CONQUER. RULE.',
     eventDate: 'OCTOBER 1 - 2, 2026',
-    venue: 'KARE Auditorium & CSE Tech Arena, KLU Campus',
+    venue: 'KS KRISHNA AUDITORIUM',
     duration: '24 HOURS',
     prizePool: '₹1,50,000',
     communityLink: 'https://chat.whatsapp.com/alpha-hackathon-2026'

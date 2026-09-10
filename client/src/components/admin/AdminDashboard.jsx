@@ -6,7 +6,7 @@ import {
   Search, Filter, Eye, ExternalLink, Download, FileText,
   Trash2, Edit3, X, Check, AlertTriangle, Layers, Ticket,
   PieChart, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles,
-  Printer, ArrowUpRight
+  Printer, ArrowUpRight, ZoomIn
 } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { getScreenshotUrl } from '../../utils/imageUrl';
@@ -39,6 +39,7 @@ export const AdminDashboard = () => {
   const [editTeam, setEditTeam] = useState(null);
   const [passTeam, setPassTeam] = useState(null);
   const [showAllPassesModal, setShowAllPassesModal] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
 
   // Settings form state
   const [settingsForm, setSettingsForm] = useState({
@@ -245,8 +246,6 @@ export const AdminDashboard = () => {
         accomCounts[a] += 1;
       });
     });
-
-    const fallbackTotal = analytics?.stats?.totalParticipants || totalParticipants || 1;
 
     return {
       totalParticipants: totalParticipants || analytics?.stats?.totalParticipants || 0,
@@ -467,11 +466,6 @@ export const AdminDashboard = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  // Print PDF Passes
-  const handlePrintSinglePass = (team) => {
-    setPassTeam(team);
   };
 
   if (loading && !analytics) {
@@ -1205,7 +1199,7 @@ export const AdminDashboard = () => {
                         <td className="p-4">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
-                              onClick={() => handlePrintSinglePass(t)}
+                              onClick={() => setPassTeam(t)}
                               className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-cyan-400 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                             >
                               <Ticket className="w-3 h-3 text-cyan-400" />
@@ -1324,15 +1318,14 @@ export const AdminDashboard = () => {
                       CLOUDINARY SCREENSHOT PROOF:
                     </span>
                     {(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl) && (
-                      <a
-                        href={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] font-bold text-cyan-400 hover:underline flex items-center gap-1"
+                      <button
+                        type="button"
+                        onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
+                        className="text-[10px] font-bold text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
                       >
-                        <ExternalLink className="w-3 h-3" />
-                        <span>Open Full</span>
-                      </a>
+                        <ZoomIn className="w-3 h-3" />
+                        <span>Zoom / Full</span>
+                      </button>
                     )}
                   </div>
 
@@ -1342,7 +1335,8 @@ export const AdminDashboard = () => {
                         <img
                           src={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
                           alt="Payment Screenshot Proof"
-                          className="w-full max-h-72 object-contain rounded-xl mx-auto shadow-md"
+                          onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
+                          className="w-full max-h-72 object-contain rounded-xl mx-auto shadow-md cursor-pointer hover:opacity-90 transition-opacity"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                             const fallback = e.currentTarget.parentElement?.querySelector('.img-fallback-box');
@@ -1512,7 +1506,32 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 7. ADD REGISTRATION MODAL */}
+      {/* 7. FULLSCREEN SCREENSHOT LIGHTBOX */}
+      {/* ============================================================== */}
+      {fullscreenImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center justify-center">
+            <button
+              onClick={() => setFullscreenImage(null)}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-slate-900 border border-slate-700 text-white hover:text-red-400 cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={fullscreenImage}
+              alt="Payment Screenshot Fullscreen"
+              className="max-h-[85vh] max-w-full object-contain rounded-2xl border border-slate-700 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 8. ADD REGISTRATION MODAL */}
       {/* ============================================================== */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
@@ -1636,7 +1655,7 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 8. EDIT TEAM MODAL */}
+      {/* 9. EDIT TEAM MODAL */}
       {/* ============================================================== */}
       {editTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
@@ -1710,7 +1729,7 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 9. SINGLE PASS PREVIEW MODAL */}
+      {/* 10. SINGLE PASS PREVIEW MODAL */}
       {/* ============================================================== */}
       {passTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
@@ -1739,7 +1758,7 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 10. ALL PASSES PRINT MODAL */}
+      {/* 11. ALL PASSES PRINT MODAL */}
       {/* ============================================================== */}
       {showAllPassesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md overflow-y-auto">
