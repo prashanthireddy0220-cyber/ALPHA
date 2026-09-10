@@ -51,20 +51,30 @@ export const IntroVideo = ({ onVideoEnd }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, filter: 'blur(16px)' }}
       transition={{ duration: 0.8, ease: 'easeOut' }}
-      className="fixed inset-0 z-50 w-screen h-screen bg-black overflow-hidden flex items-center justify-center pointer-events-auto"
+      className="fixed inset-0 z-50 w-screen h-screen bg-black overflow-hidden flex items-center justify-center pointer-events-none select-none"
     >
       <video
         ref={videoRef}
         src="/assets/dragon_intro.mp4"
         autoPlay
         playsInline
+        webkit-playsinline="true"
         muted
+        loop={false}
+        controls={false}
+        disablePictureInPicture
+        controlsList="nodownload nofullscreen noremoteplayback"
         preload="auto"
         onEnded={triggerEnd}
         onTimeUpdate={handleTimeUpdate}
         onError={triggerEnd}
         onStalled={triggerEnd}
-        className="w-full h-full object-cover md:object-cover"
+        className="w-full h-full object-cover md:object-cover pointer-events-none select-none border-none outline-none"
+        style={{
+          outline: 'none',
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none'
+        }}
       />
     </motion.div>
   );
