@@ -257,15 +257,14 @@ export const loginUser = async (req, res) => {
         });
       }
 
-      if (studentDoc || team) {
-        user = await User.create({
-          name: studentDoc?.name || team?.teamName || targetEmail.split('@')[0],
-          email: targetEmail.toLowerCase(),
-          password: cleanInput || targetRegNo || 'password123',
-          role: 'user',
-          teamId: team ? team.teamId : undefined
-        });
-      }
+      const fallbackName = (req.body.name || targetEmail.split('@')[0]).toUpperCase();
+      user = await User.create({
+        name: studentDoc?.name || team?.teamName || fallbackName,
+        email: targetEmail.toLowerCase(),
+        password: cleanInput || targetRegNo || 'password123',
+        role: 'user',
+        teamId: team ? team.teamId : undefined
+      });
     }
 
     // If user exists but teamId is not linked on User model, attempt to auto-link
@@ -290,7 +289,7 @@ export const loginUser = async (req, res) => {
     }
 
     if (!user) {
-      return res.status(401).json({ message: 'No registered team found with this email. Please register your team first.' });
+      return res.status(401).json({ message: 'Unable to authenticate account. Please check your credentials.' });
     }
 
     return res.json({
