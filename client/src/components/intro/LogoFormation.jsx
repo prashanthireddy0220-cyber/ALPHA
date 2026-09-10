@@ -8,9 +8,9 @@ export const LogoFormation = ({ onComplete }) => {
   const [stage, setStage] = useState(1);
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setStage(2), 1200);
-    const timer2 = setTimeout(() => setStage(3), 4500);
-    const timer3 = setTimeout(() => onComplete(), 5500);
+    const timer1 = setTimeout(() => setStage(2), 600);
+    const timer2 = setTimeout(() => setStage(3), 2100);
+    const timer3 = setTimeout(() => onComplete(), 2800);
 
     return () => {
       clearTimeout(timer1);
