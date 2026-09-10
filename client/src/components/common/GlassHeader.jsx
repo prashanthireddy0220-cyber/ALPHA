@@ -1,12 +1,70 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, LogIn, Ticket, LayoutDashboard, LogOut } from 'lucide-react';
+import { Menu, X, LogIn, Ticket, LogOut, ExternalLink, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const GlassHeader = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Dedicated Header for Admin Panel matching User Reference Image 2
+  if (isAdminRoute) {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-40 px-4 py-3 md:px-8">
+        <div className="mx-auto max-w-7xl rounded-full border border-slate-800/80 px-6 py-2.5 flex items-center justify-between shadow-[0_0_30px_rgba(0,0,0,0.8)] backdrop-blur-xl bg-[#070c18]/95">
+          
+          {/* LEFT: Logo + Title + ADMIN CONSOLE Badge + Subtitle */}
+          <div className="flex items-center gap-3.5">
+            <div className="p-1 rounded-full bg-red-500/10 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)] shrink-0">
+              <img
+                src="/assets/kare_logo.jpg"
+                alt="ALPHA Logo"
+                className="w-8 h-8 md:w-9 md:h-9 rounded-full object-contain"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm md:text-base font-black tracking-widest text-white uppercase">
+                  ALPHA
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-950/60 border border-red-500/50 text-red-400 text-[10px] font-black uppercase tracking-wider">
+                  <ShieldCheck className="w-3 h-3 text-red-400" />
+                  <span>ADMIN CONSOLE</span>
+                </span>
+              </div>
+              <p className="text-[9px] text-slate-400 tracking-wider uppercase font-mono">
+                ALPHA 2026 MANAGEMENT PORTAL
+              </p>
+            </div>
+          </div>
+
+          {/* RIGHT: VIEW PUBLIC SITE Button */}
+          <div className="flex items-center gap-2.5">
+            <Link
+              to="/"
+              className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-200 hover:text-white text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+            >
+              <span>VIEW PUBLIC SITE</span>
+              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+            </Link>
+            {user && (
+              <button
+                onClick={logout}
+                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all cursor-pointer"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+        </div>
+      </header>
+    );
+  }
 
   const navLinks = [
     { name: 'Home', path: '/' },
@@ -65,7 +123,7 @@ export const GlassHeader = () => {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-2">
-              {user.role === 'admin' && location.pathname.startsWith('/admin') && (
+              {user.role === 'admin' && (
                 <Link
                   to="/admin"
                   className="px-3.5 py-1.5 text-xs font-bold tracking-wider text-cyan-300 border border-cyan-400/40 rounded-full hover:bg-cyan-500/20 transition-all"
@@ -146,7 +204,7 @@ export const GlassHeader = () => {
           <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-2 mt-1">
             {user ? (
               <>
-                {user.role === 'admin' && location.pathname.startsWith('/admin') && (
+                {user.role === 'admin' && (
                   <Link
                     to="/admin"
                     onClick={() => setMobileOpen(false)}
@@ -209,5 +267,3 @@ export const GlassHeader = () => {
     </header>
   );
 };
-
-
