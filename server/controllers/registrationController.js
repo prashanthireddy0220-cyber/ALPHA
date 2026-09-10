@@ -427,6 +427,9 @@ export const submitRegistration = async (req, res) => {
     });
 
     await User.findByIdAndUpdate(userObj, { teamId: team.teamId });
+    if (leadStudent.email) {
+      await User.findOneAndUpdate({ email: leadStudent.email.toLowerCase() }, { teamId: team.teamId }).exec().catch(() => {});
+    }
 
     // Clean up temporary reservation if present
     if (reservationId) {

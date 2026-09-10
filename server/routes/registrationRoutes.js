@@ -12,15 +12,15 @@ import { upload } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
-router.post('/validate-details', validateDetails);
-router.post('/reserve-payment-slot', reservePaymentSlot);
+router.post('/validate-details', protect, validateDetails);
+router.post('/reserve-payment-slot', protect, reservePaymentSlot);
 router.get('/reservation-status/:reservationId', getReservationStatus);
-router.post('/submit', submitRegistration);
+router.post('/submit', protect, submitRegistration);
 router.get('/verify/:teamId', verifyTeamPass);
 router.get('/my-team', protect, getMyTeam);
 
 // Legacy fallback endpoint for slot reservation
-router.post('/reserve', reservePaymentSlot);
+router.post('/reserve', protect, reservePaymentSlot);
 
 // Upload screenshot endpoint
 router.post('/upload-screenshot', upload.single('screenshot'), (req, res) => {
