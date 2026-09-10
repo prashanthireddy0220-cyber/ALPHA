@@ -16,7 +16,7 @@ export const CapacityDisplay = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get('/api/admin/stats');
+        const res = await axios.get('/api/registration/capacity-stats');
         setStats(res.data);
       } catch (err) {
         // Fallback gracefully

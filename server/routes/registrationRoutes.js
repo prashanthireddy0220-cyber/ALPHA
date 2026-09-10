@@ -5,13 +5,15 @@ import {
   getReservationStatus,
   submitRegistration,
   verifyTeamPass,
-  getMyTeam
+  getMyTeam,
+  getPublicCapacityStats
 } from '../controllers/registrationController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { upload } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
+router.get('/capacity-stats', getPublicCapacityStats);
 router.post('/validate-details', protect, validateDetails);
 router.post('/reserve-payment-slot', protect, reservePaymentSlot);
 router.get('/reservation-status/:reservationId', getReservationStatus);

@@ -559,4 +559,28 @@ export const getMyTeam = async (req, res) => {
   }
 };
 
+// Public Capacity Stats Endpoint (accessible to all homepage visitors)
+export const getPublicCapacityStats = async (req, res) => {
+  try {
+    const settings = (await EventSettings.findOne().lean()) || {};
+    const totalTeams = await Team.countDocuments();
+    const activeReservations = await RegistrationReservation.countDocuments({
+      expiresAt: { $gt: new Date() }
+    });
+
+    const maxTeams = settings.maxTeams || 100;
+    const availableSlots = Math.max(0, maxTeams - totalTeams - activeReservations);
+
+    res.json({
+      totalTeams,
+      maxTeams,
+      availableSlots,
+      activeReservations,
+      registrationOpen: settings.registrationOpen !== false
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
