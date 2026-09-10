@@ -20,5 +20,5 @@ export const generateNextTeamId = async () => {
 
   const nextNum = maxNum + 1;
   const padded = String(nextNum).padStart(3, '0');
-  return `ALPHAA ${padded}`;
+  return `ALPHA-${padded}`;
 };

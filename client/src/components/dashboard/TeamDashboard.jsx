@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
-import { Shield, Clock, CheckCircle, XCircle, AlertCircle, Users, ExternalLink, Download, Flame, HelpCircle, Send } from 'lucide-react';
+import { Shield, Clock, CheckCircle, XCircle, AlertCircle, Users, ExternalLink, Download, Flame, HelpCircle, Send, MessageCircle } from 'lucide-react';
 import { AnnouncementCard } from './AnnouncementCard';
 import { TiltCard } from '../common/TiltCard';
 import { useAuth } from '../../contexts/AuthContext';
@@ -194,6 +194,35 @@ export const TeamDashboard = () => {
           Rejection Reason: {payment.rejectionReason}
         </div>
       )}
+
+      {/* ⭐ OFFICIAL WHATSAPP GROUP & TEAMMATES JOIN NOTICE */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-teal-950/80 border-2 border-emerald-500/60 shadow-[0_0_40px_rgba(16,185,129,0.25)] flex flex-col md:flex-row items-center justify-between gap-5">
+        <div className="flex items-start gap-4 text-left">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center shrink-0 mt-0.5">
+            <MessageCircle className="w-7 h-7 text-emerald-400" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-black text-white uppercase tracking-wider">OFFICIAL PARTICIPANTS WHATSAPP GROUP</span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-[9px] text-emerald-300 font-extrabold border border-emerald-400/30">MANDATORY</span>
+            </div>
+            <p className="text-xs text-slate-200 leading-relaxed">
+              Join the official WhatsApp group for live hackathon announcements, reporting schedules, and mentor coordination.
+              <br />
+              <strong className="text-emerald-300 font-bold">👉 Please share this invitation link with all your teammates ({team.members?.map(m => m.name).join(', ')}) and ensure everyone is added!</strong>
+            </p>
+          </div>
+        </div>
+        <a
+          href={eventSettings?.communityLink || 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyls'}
+          target="_blank"
+          rel="noreferrer"
+          className="w-full md:w-auto px-7 py-4 text-xs font-black text-black bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 rounded-2xl shadow-[0_0_25px_rgba(16,185,129,0.5)] text-center flex items-center justify-center gap-2 shrink-0 transition-all uppercase cursor-pointer"
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span>JOIN WHATSAPP GROUP</span>
+        </a>
+      </div>
 
       {/* 2. OFFICIAL EVENT PASS CARD */}
       <TiltCard className="p-6 md:p-8 border border-sky-400/40 relative overflow-hidden bg-slate-950/80 shadow-[0_0_50px_rgba(0,240,255,0.15)]">

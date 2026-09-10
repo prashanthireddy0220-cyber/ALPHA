@@ -17,16 +17,16 @@ export const IntroVideo = ({ onVideoEnd }) => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Safety fallback timer at 4.2s (cuts video cleanly before any pause symbol)
+    // Safety fallback timer at 12s in case video hangs
     fallbackTimerRef.current = setTimeout(() => {
       triggerEnd();
-    }, 4200);
+    }, 12000);
 
-    // Attempt video playback smoothly
+    // Smooth autoplay
     const playPromise = video.play();
     if (playPromise !== undefined) {
       playPromise.catch((err) => {
-        console.warn('Autoplay prevented or video load delayed:', err);
+        console.warn('Autoplay prevented or video delayed:', err);
       });
     }
 
@@ -35,13 +35,14 @@ export const IntroVideo = ({ onVideoEnd }) => {
     };
   }, []);
 
-  const handleTimeUpdate = () => {
+  const handleLoadedMetadata = () => {
     const video = videoRef.current;
-    if (video) {
-      // Cut video at 3.8s right before any pause frame appears in video stream
-      if (video.currentTime >= 3.8) {
+    if (video && video.duration) {
+      // Dynamic fallback set slightly past video duration
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = setTimeout(() => {
         triggerEnd();
-      }
+      }, (video.duration + 0.5) * 1000);
     }
   };
 
@@ -66,10 +67,9 @@ export const IntroVideo = ({ onVideoEnd }) => {
         disablePictureInPicture
         controlsList="nodownload nofullscreen noremoteplayback"
         preload="auto"
+        onLoadedMetadata={handleLoadedMetadata}
         onEnded={triggerEnd}
-        onTimeUpdate={handleTimeUpdate}
         onError={triggerEnd}
-        onStalled={triggerEnd}
         className="w-full h-full object-cover md:object-cover pointer-events-none select-none border-none outline-none"
         style={{
           outline: 'none',
@@ -77,8 +77,22 @@ export const IntroVideo = ({ onVideoEnd }) => {
           WebkitUserSelect: 'none'
         }}
       />
+
+      {/* Floating Skip Button */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          triggerEnd();
+        }}
+        className="absolute bottom-8 right-8 z-50 px-5 py-2.5 rounded-full bg-slate-950/70 hover:bg-slate-900 border border-cyan-400/40 text-cyan-300 text-xs font-black uppercase tracking-widest backdrop-blur-md shadow-[0_0_20px_rgba(0,240,255,0.3)] transition-all cursor-pointer flex items-center gap-2"
+      >
+        <span>SKIP INTRO</span>
+        <span>⏩</span>
+      </button>
     </motion.div>
   );
 };
+
 
 

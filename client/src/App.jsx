@@ -64,6 +64,8 @@ const MainApp = () => {
           <Route path="/sponsors" element={<HomePage />} />
           <Route path="/contact" element={<HomePage />} />
 
+          <Route path="/login" element={<LoginPage />} />
+
           <Route
             path="/register"
             element={

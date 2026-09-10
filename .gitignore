@@ -41,3 +41,5 @@ Thumbs.db
 # Scratch & System
 .system_generated/
 scratch/
+uploads/
+server/uploads/
