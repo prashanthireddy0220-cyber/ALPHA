@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, Medal, Award, Sparkles, Crown, Shield, Zap, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Trophy, Medal, Award, Sparkles, Crown, Zap } from 'lucide-react';
 
 export const PrizePoolSection = () => {
   const [activeHover, setActiveHover] = useState(null);
@@ -14,7 +14,7 @@ export const PrizePoolSection = () => {
       tier: '02',
       rank: 2,
       orderClass: 'order-2 lg:order-1',
-      heightClass: 'lg:min-h-[440px] lg:mt-16',
+      heightClass: 'lg:min-h-[320px] lg:mt-12',
       accentColor: 'cyan',
       theme: {
         border: 'border-cyan-400/40 hover:border-cyan-400/80',
@@ -24,13 +24,7 @@ export const PrizePoolSection = () => {
         iconBg: 'from-cyan-500/30 via-slate-800 to-cyan-950/50 text-cyan-200 border-cyan-400/40',
         textGradient: 'from-white via-cyan-100 to-cyan-300',
         baseFloor: 'from-cyan-500/30 to-blue-600/30 border-cyan-400/40'
-      },
-      perks: [
-        '₹5,000 Direct Cash Prize',
-        'Silver Dragon Champion Trophy',
-        'Official IEEE Silver Merit Certificate',
-        'Direct Finalist Recognition & Swag'
-      ]
+      }
     },
     {
       id: '1st',
@@ -41,7 +35,7 @@ export const PrizePoolSection = () => {
       tier: '01',
       rank: 1,
       orderClass: 'order-1 lg:order-2',
-      heightClass: 'lg:min-h-[520px] lg:mt-0',
+      heightClass: 'lg:min-h-[390px] lg:mt-0',
       accentColor: 'gold',
       theme: {
         border: 'border-amber-400/70 hover:border-amber-300',
@@ -51,14 +45,7 @@ export const PrizePoolSection = () => {
         iconBg: 'from-amber-400/40 via-yellow-500/20 to-amber-950/60 text-amber-300 border-amber-400/70',
         textGradient: 'from-yellow-100 via-amber-200 to-yellow-400',
         baseFloor: 'from-amber-500/40 via-yellow-400/40 to-amber-600/40 border-amber-400/60'
-      },
-      perks: [
-        '₹7,000 Direct Cash Prize',
-        'Grand Golden Dragon Trophy',
-        'Official IEEE Gold Excellence Certificate',
-        'Incubation & Direct Innovation Mentorship',
-        'Winner Medals & Exclusive Swag Kit'
-      ]
+      }
     },
     {
       id: '3rd',
@@ -69,7 +56,7 @@ export const PrizePoolSection = () => {
       tier: '03',
       rank: 3,
       orderClass: 'order-3 lg:order-3',
-      heightClass: 'lg:min-h-[410px] lg:mt-24',
+      heightClass: 'lg:min-h-[290px] lg:mt-20',
       accentColor: 'bronze',
       theme: {
         border: 'border-amber-600/40 hover:border-amber-500/70',
@@ -79,13 +66,7 @@ export const PrizePoolSection = () => {
         iconBg: 'from-amber-600/30 via-slate-800 to-orange-950/50 text-amber-400 border-amber-600/40',
         textGradient: 'from-white via-orange-100 to-amber-300',
         baseFloor: 'from-amber-600/30 to-orange-700/30 border-amber-600/40'
-      },
-      perks: [
-        '₹3,000 Direct Cash Prize',
-        'Bronze Dragon Trophy',
-        'Official IEEE Bronze Merit Certificate',
-        'Merit Recognition & Goodies Kit'
-      ]
+      }
     }
   ];
 
@@ -143,14 +124,13 @@ export const PrizePoolSection = () => {
           {prizes.map((p) => {
             const Icon = p.icon;
             const isWinner = p.rank === 1;
-            const isHovered = activeHover === p.id;
 
             return (
               <div
                 key={p.id}
                 onMouseEnter={() => setActiveHover(p.id)}
                 onMouseLeave={() => setActiveHover(null)}
-                className={`relative flex flex-col justify-between rounded-3xl p-6 md:p-7 border backdrop-blur-xl transition-all duration-500 cursor-default ${p.orderClass} ${p.heightClass} ${p.theme.border} ${p.theme.glow} bg-gradient-to-b ${p.theme.bg} ${
+                className={`relative flex flex-col justify-between rounded-3xl p-6 md:p-8 border backdrop-blur-xl transition-all duration-500 cursor-default ${p.orderClass} ${p.heightClass} ${p.theme.border} ${p.theme.glow} bg-gradient-to-b ${p.theme.bg} ${
                   isWinner ? 'animate-podium-float' : 'hover:-translate-y-2'
                 }`}
                 style={{
@@ -197,7 +177,7 @@ export const PrizePoolSection = () => {
                   </div>
 
                   {/* Prize Amount */}
-                  <div className="py-2 border-y border-white/5 relative">
+                  <div className="py-3 border-y border-white/5 relative">
                     <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
                       CASH REWARD
                     </div>
@@ -212,27 +192,8 @@ export const PrizePoolSection = () => {
                   </div>
                 </div>
 
-                {/* Perks List */}
-                <div className="mt-6 space-y-2.5 text-left border-t border-slate-800/80 pt-4">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                    INCLUDED REWARDS:
-                  </span>
-                  <ul className="space-y-2">
-                    {p.perks.map((perk, pIdx) => (
-                      <li key={pIdx} className="text-xs text-slate-300 flex items-start gap-2 font-medium">
-                        <CheckCircle2
-                          className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${
-                            isWinner ? 'text-amber-400' : 'text-cyan-400'
-                          }`}
-                        />
-                        <span className="leading-tight">{perk}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
                 {/* Podium Pedestal Base Indicator */}
-                <div className="mt-6 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-bold text-slate-400 font-mono">
+                <div className="mt-8 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-bold text-slate-400 font-mono">
                   <span className="flex items-center gap-1">
                     <Zap className="w-3 h-3 text-cyan-400" />
                     <span>TIER {p.tier} PODIUM</span>
