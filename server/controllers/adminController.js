@@ -10,47 +10,68 @@ import User from '../models/User.js';
 
 export const getAdminStats = async (req, res) => {
   try {
-    const settings = (await EventSettings.findOne()) || { maxTeams: 100, registrationOpen: true };
-    const totalTeams = await Team.countDocuments();
-    const totalParticipants = await Student.countDocuments();
-    const activeReservations = await RegistrationReservation.countDocuments();
-    const availableSlots = Math.max(0, settings.maxTeams - totalTeams - activeReservations);
+    const [
+      settings,
+      totalTeams,
+      totalParticipants,
+      activeReservations,
+      pendingPayments,
+      verifiedPayments,
+      rejectedPayments
+    ] = await Promise.all([
+      EventSettings.findOne().lean(),
+      Team.countDocuments(),
+      Student.countDocuments(),
+      RegistrationReservation.countDocuments(),
+      Team.countDocuments({ 'payment.status': 'PENDING' }),
+      Team.countDocuments({ 'payment.status': 'VERIFIED' }),
+      Team.countDocuments({ 'payment.status': 'REJECTED' })
+    ]);
 
-    const pendingPayments = await Team.countDocuments({ 'payment.status': 'PENDING' });
-    const verifiedPayments = await Team.countDocuments({ 'payment.status': 'VERIFIED' });
-    const rejectedPayments = await Team.countDocuments({ 'payment.status': 'REJECTED' });
+    const maxTeams = settings?.maxTeams || 100;
+    const availableSlots = Math.max(0, maxTeams - totalTeams - activeReservations);
 
     res.json({
       totalTeams,
       totalParticipants,
-      maxTeams: settings.maxTeams,
+      maxTeams,
       availableSlots,
       activeReservations,
       pendingPayments,
       verifiedPayments,
       rejectedPayments,
-      registrationOpen: settings.registrationOpen !== false
+      registrationOpen: settings?.registrationOpen !== false
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// Comprehensive Analytics & Command Center Metrics Endpoint
+// Comprehensive Analytics & Command Center Metrics Endpoint (High Performance Parallel Lookup)
 export const getAdminAnalytics = async (req, res) => {
   try {
-    const settings = (await EventSettings.findOne()) || {
+    const [
+      settingsData,
+      teams,
+      students,
+      sessions,
+      logs,
+      auditLogs
+    ] = await Promise.all([
+      EventSettings.findOne().lean(),
+      Team.find().populate('members').lean().exec(),
+      Student.find().lean().exec(),
+      AttendanceSession.find().lean().exec(),
+      AttendanceRecord.find().lean().exec(),
+      AuditLog.find().sort({ createdAt: -1 }).limit(15).lean().exec()
+    ]);
+
+    const settings = settingsData || {
       maxTeams: 100,
       registrationOpen: true,
       participantFee: 350,
       teamSize: 4
     };
-
-    const teams = await Team.find().populate('members').exec();
-    const students = await Student.find().exec();
-    const sessions = await AttendanceSession.find().exec();
-    const logs = await AttendanceRecord.find().exec();
-    const auditLogs = await AuditLog.find().sort({ createdAt: -1 }).limit(15).exec();
 
     const totalTeams = teams.length;
     const totalStudents = students.length;

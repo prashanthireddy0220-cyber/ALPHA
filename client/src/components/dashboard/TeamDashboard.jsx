@@ -17,11 +17,30 @@ export const TeamDashboard = () => {
   const [helpSuccess, setHelpSuccess] = useState('');
 
   const fetchTeamData = async () => {
+    // Instant 0ms cached load from sessionStorage for high-speed dashboard opening
+    const cacheKey = 'alpha_cached_team_dashboard';
+    const cached = sessionStorage.getItem(cacheKey);
+    let hasCache = false;
+
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.team) {
+          setData(parsed);
+          setLoading(false);
+          hasCache = true;
+        }
+      } catch (e) {}
+    }
+
     try {
       const res = await axios.get('/api/registration/my-team');
       setData(res.data);
+      sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
     } catch (err) {
-      setError(err.response?.data?.message || 'No team found for your account.');
+      if (!hasCache) {
+        setError(err.response?.data?.message || 'No team found for your account.');
+      }
     } finally {
       setLoading(false);
     }

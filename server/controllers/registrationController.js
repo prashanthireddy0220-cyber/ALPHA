@@ -432,7 +432,7 @@ export const verifyTeamPass = async (req, res) => {
   }
 };
 
-// Get Team details for participant dashboard
+// Get Team details for participant dashboard (High-Performance Parallel Lookup)
 export const getMyTeam = async (req, res) => {
   try {
     const userEmail = (req.user?.email || '').trim().toLowerCase();
@@ -440,84 +440,50 @@ export const getMyTeam = async (req, res) => {
 
     let team = null;
 
-    // 1. Direct teamId match on User model
+    // 1. Direct teamId match on User model if available
     if (req.user.teamId) {
       team = await Team.findOne({
         $or: [
           { teamId: req.user.teamId },
           { teamId: req.user.teamId.toUpperCase() }
         ]
-      }).populate('members');
+      }).populate('members').lean();
     }
 
-    // 2. Find by leadEmail
-    if (!team && userEmail) {
-      team = await Team.findOne({
-        leadEmail: { $regex: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
-      }).populate('members');
-    }
-
-    // 3. Find by student membership across any of the 4 team members (by email or regNo)
+    // 2. High-speed combined indexed search across Student and Team collections
     if (!team) {
       const studentDocs = await Student.find({
         $or: [
           { email: userEmail },
-          { regNo: userRegNo },
-          { regNo: { $regex: new RegExp(`^${userRegNo}$`, 'i') } }
+          { regNo: userRegNo }
         ]
-      });
+      }).select('_id').lean();
 
-      if (studentDocs && studentDocs.length > 0) {
-        const studentIds = studentDocs.map(s => s._id);
-        team = await Team.findOne({
-          $or: [
-            { members: { $in: studentIds } },
-            { leadRegNo: userRegNo }
-          ]
-        }).populate('members');
-      }
-    }
+      const studentIds = studentDocs.map(s => s._id);
 
-    // 4. Find by leadRegNo directly
-    if (!team && userRegNo) {
+      const emailRegex = userEmail ? new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+      const regNoRegex = userRegNo ? new RegExp(`^${userRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+
       team = await Team.findOne({
         $or: [
-          { leadRegNo: userRegNo },
-          { leadEmail: { $regex: userRegNo, $options: 'i' } }
+          ...(emailRegex ? [{ leadEmail: emailRegex }] : []),
+          ...(regNoRegex ? [{ leadRegNo: regNoRegex }] : []),
+          ...(req.user._id ? [{ user: req.user._id }] : []),
+          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
         ]
-      }).populate('members');
-    }
-
-    // 5. Find by user object reference
-    if (!team && req.user._id) {
-      team = await Team.findOne({ user: req.user._id }).populate('members');
-    }
-
-    // 6. Comprehensive Scan across all teams in DB
-    if (!team) {
-      const allTeams = await Team.find().populate('members').sort({ createdAt: -1 });
-      for (const t of allTeams) {
-        if (
-          t.leadEmail?.toLowerCase() === userEmail ||
-          t.leadRegNo?.toUpperCase() === userRegNo ||
-          t.members?.some(m => m.email?.toLowerCase() === userEmail || m.regNo?.toUpperCase() === userRegNo)
-        ) {
-          team = t;
-          break;
-        }
-      }
+      }).populate('members').lean();
     }
 
     if (!team) {
       return res.status(404).json({ message: 'No registered team found for this account. Please register your team.' });
     }
 
-    // Auto-sync teamId on User model if missing
+    // Background non-blocking sync of teamId on User model if missing
     if (req.user._id && (!req.user.teamId || req.user.teamId !== team.teamId)) {
-      await User.findByIdAndUpdate(req.user._id, { teamId: team.teamId });
+      User.findByIdAndUpdate(req.user._id, { teamId: team.teamId }).exec().catch(() => {});
     }
 
-    const settings = (await EventSettings.findOne()) || {};
+    const settings = (await EventSettings.findOne().lean()) || {};
 
     res.json({
       team,
