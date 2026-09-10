@@ -188,9 +188,36 @@ export const validateDetails = async (req, res) => {
         ]
       });
 
-      if (existingStudent || existingTeam) {
+      if (existingStudent) {
+        // Verify if this student belongs to an ACTIVE existing team
+        const activeTeamWithStudent = await Team.findOne({
+          $or: [
+            { members: existingStudent._id },
+            { _id: existingStudent.teamId },
+            { leadRegNo: cleanRegRegex },
+            { leadEmail: cleanEmailRegex }
+          ]
+        });
+
+        if (activeTeamWithStudent) {
+          return res.status(400).json({
+            message: `Student with Registration Number '${regNo}' (${m.name || 'Member ' + (i + 1)}) is ALREADY registered in team '${activeTeamWithStudent.teamName}' and cannot register again.`
+          });
+        } else {
+          // Self-Healing: The team was deleted by admin, but student document remained orphaned. Clean it up now!
+          await Student.deleteMany({
+            $or: [
+              { _id: existingStudent._id },
+              { regNo: cleanRegRegex },
+              { email: cleanEmailRegex }
+            ]
+          });
+        }
+      }
+
+      if (existingTeam) {
         return res.status(400).json({
-          message: `Student with Registration Number '${regNo}' (${m.name || 'Member ' + (i + 1)}) is ALREADY registered in another team and cannot register again.`
+          message: `Student with Registration Number '${regNo}' (${m.name || 'Member ' + (i + 1)}) is ALREADY registered as lead in team '${existingTeam.teamName}'.`
         });
       }
     }
@@ -548,9 +575,36 @@ export const submitRegistration = async (req, res) => {
         ]
       });
 
-      if (existingStudent || existingTeam) {
+      if (existingStudent) {
+        // Verify if this student belongs to an ACTIVE existing team
+        const activeTeamWithStudent = await Team.findOne({
+          $or: [
+            { members: existingStudent._id },
+            { _id: existingStudent.teamId },
+            { leadRegNo: cleanRegRegex },
+            { leadEmail: cleanEmailRegex }
+          ]
+        });
+
+        if (activeTeamWithStudent) {
+          return res.status(400).json({
+            message: `Student with Registration Number '${regNo}' (${m.name || 'Member ' + (i + 1)}) is ALREADY registered in team '${activeTeamWithStudent.teamName}' and cannot register again.`
+          });
+        } else {
+          // Self-Healing: The team was deleted by admin, but student document remained orphaned. Clean it up now!
+          await Student.deleteMany({
+            $or: [
+              { _id: existingStudent._id },
+              { regNo: cleanRegRegex },
+              { email: cleanEmailRegex }
+            ]
+          });
+        }
+      }
+
+      if (existingTeam) {
         return res.status(400).json({
-          message: `Student with Registration Number '${regNo}' (${m.name || 'Member ' + (i + 1)}) is ALREADY registered in another team and cannot register again.`
+          message: `Student with Registration Number '${regNo}' (${m.name || 'Member ' + (i + 1)}) is ALREADY registered as lead in team '${existingTeam.teamName}'.`
         });
       }
     }
@@ -732,6 +786,9 @@ export const getMyTeam = async (req, res) => {
     }
 
     if (!team) {
+      if (req.user && req.user._id) {
+        User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
+      }
       return res.status(404).json({ message: 'No registered team found for this account. Please register your team.' });
     }
 

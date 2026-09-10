@@ -139,11 +139,20 @@ export const MultiStepRegister = () => {
     let isMounted = true;
     axios.get('/api/registration/my-team')
       .then(res => {
-        if (isMounted && res.data && res.data.team) {
-          setExistingUserTeam(res.data.team);
+        if (isMounted) {
+          if (res.data && res.data.team) {
+            setExistingUserTeam(res.data.team);
+          } else {
+            setExistingUserTeam(null);
+          }
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        // If 404 / team deleted, ensure clean state so user can register fresh
+        if (isMounted) {
+          setExistingUserTeam(null);
+        }
+      })
       .finally(() => {
         if (isMounted) setCheckingExistingTeam(false);
       });
@@ -689,8 +698,35 @@ export const MultiStepRegister = () => {
               GO TO PARTICIPANT DASHBOARD
             </button>
             <button
+              type="button"
+              onClick={async () => {
+                clearSessionData();
+                localStorage.removeItem(draftKey);
+                sessionStorage.removeItem('alpha_cached_team_dashboard');
+                setExistingUserTeam(null);
+                setCheckingExistingTeam(true);
+                try {
+                  const res = await axios.get('/api/registration/my-team');
+                  if (res.data?.team) {
+                    setExistingUserTeam(res.data.team);
+                  } else {
+                    setExistingUserTeam(null);
+                    setStep(1);
+                  }
+                } catch (e) {
+                  setExistingUserTeam(null);
+                  setStep(1);
+                } finally {
+                  setCheckingExistingTeam(false);
+                }
+              }}
+              className="w-full py-3 text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-2xl cursor-pointer transition-all"
+            >
+              🔄 Check Live Status / Register Fresh Team
+            </button>
+            <button
               onClick={() => navigate('/')}
-              className="w-full py-3 text-xs font-bold text-slate-300 glass-button rounded-2xl"
+              className="w-full py-3 text-xs font-bold text-slate-300 glass-button rounded-2xl cursor-pointer"
             >
               Back to Homepage
             </button>

@@ -365,14 +365,15 @@ export const deleteAllRegistrations = async (req, res) => {
     await Student.deleteMany({});
     await Team.deleteMany({});
     await RegistrationReservation.deleteMany({});
+    await User.updateMany({}, { $unset: { teamId: 1 } });
 
-    res.json({ success: true, message: 'All student registration records deleted successfully.' });
+    res.json({ success: true, message: 'All student registration records, teams, and reservations deleted successfully.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// Delete Single Registration / Team
+// Delete Single Registration / Team (Complete Cascade & Orphan Cleanup)
 export const deleteSingleRegistration = async (req, res) => {
   try {
     const { id } = req.params;
@@ -381,13 +382,57 @@ export const deleteSingleRegistration = async (req, res) => {
       return res.status(404).json({ message: 'Registration record not found' });
     }
 
-    if (team.members && team.members.length > 0) {
-      await Student.deleteMany({ _id: { $in: team.members } });
-    }
+    const memberIds = team.members || [];
+    const leadEmail = (team.leadEmail || '').trim().toLowerCase();
+    const leadRegNo = (team.leadRegNo || '').trim().toUpperCase();
+    const teamName = (team.teamName || '').trim().toUpperCase();
 
+    // 1. Find all student documents associated with this team
+    const memberStudents = await Student.find({
+      $or: [
+        { _id: { $in: memberIds } },
+        { teamId: team._id },
+        ...(leadEmail ? [{ email: new RegExp(`^${leadEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
+        ...(leadRegNo ? [{ regNo: new RegExp(`^${leadRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : [])
+      ]
+    });
+
+    const allStudentIds = memberStudents.map(s => s._id);
+    const allRegNos = memberStudents.map(s => (s.regNo || '').trim().toUpperCase()).filter(Boolean);
+    const allEmails = memberStudents.map(s => (s.email || '').trim().toLowerCase()).filter(Boolean);
+
+    // 2. Delete all these Student documents completely
+    await Student.deleteMany({
+      $or: [
+        { _id: { $in: allStudentIds } },
+        { teamId: team._id },
+        ...(allRegNos.length > 0 ? [{ regNo: { $in: allRegNos } }] : []),
+        ...(allEmails.length > 0 ? [{ email: { $in: allEmails } }] : [])
+      ]
+    });
+
+    // 3. Delete all reservations associated with this team or any of its members
+    await RegistrationReservation.deleteMany({
+      $or: [
+        { teamId: team._id },
+        ...(teamName ? [{ teamName: new RegExp(`^${teamName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
+        ...(leadEmail ? [{ leadEmail: new RegExp(`^${leadEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
+        ...(leadRegNo ? [{ leadRegNo: new RegExp(`^${leadRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
+        ...(allEmails.length > 0 ? [{ leadEmail: { $in: allEmails } }] : []),
+        ...(allRegNos.length > 0 ? [{ leadRegNo: { $in: allRegNos } }] : [])
+      ]
+    });
+
+    // 4. Unset teamId reference on all affected User accounts
+    await User.updateMany(
+      { $or: [{ teamId: team.teamId }, { teamId: team._id }, ...(leadEmail ? [{ email: leadEmail }] : [])] },
+      { $unset: { teamId: 1 } }
+    );
+
+    // 5. Delete the Team document
     await Team.findByIdAndDelete(id);
 
-    res.json({ success: true, message: `Registration record ${team.teamId} deleted successfully.` });
+    res.json({ success: true, message: `Registration record ${team.teamId} and all associated member profiles deleted successfully.` });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
