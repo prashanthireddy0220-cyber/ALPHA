@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Mail, ArrowRight } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { TiltCard } from '../components/common/TiltCard';
 
 export const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [emailInput, setEmailInput] = useState('');
 
-  const { loginWithGoogle, login } = useAuth();
+  const { loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleGoogleSignIn = async () => {
@@ -26,35 +25,6 @@ export const LoginPage = () => {
     } catch (err) {
       setLoading(false);
       setError('Failed to sign in with Google. Please try again.');
-    }
-  };
-
-  const handleEmailSignIn = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!emailInput.trim()) {
-      setError('Please enter your KLU Email or Registration Number');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      let formattedEmail = emailInput.trim();
-      if (!formattedEmail.includes('@')) {
-        formattedEmail = `${formattedEmail}@klu.ac.in`;
-      }
-
-      const result = await login(formattedEmail, 'password123');
-      setLoading(false);
-      if (result.success) {
-        navigate('/dashboard');
-      } else {
-        setError(result.message || 'Login failed. Please verify your details.');
-      }
-    } catch (err) {
-      setLoading(false);
-      setError('Failed to sign in. Please try again.');
     }
   };
 
@@ -81,12 +51,12 @@ export const LoginPage = () => {
           </div>
 
           {/* Card Header Title & Description */}
-          <div className="mb-6">
+          <div className="mb-8">
             <h1 className="text-xl md:text-2xl font-black tracking-wider text-white uppercase text-glow">
               PARTICIPANT LOGIN
             </h1>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed font-light">
-              Sign in with your Google account or KLU Email / Registration Number to access registration & your dashboard.
+              Sign in with your Google account to access your team dashboard & event pass.
             </p>
           </div>
 
@@ -125,36 +95,9 @@ export const LoginPage = () => {
             <span>{loading ? 'SIGNING IN...' : 'SIGN IN WITH GOOGLE'}</span>
           </button>
 
-          <div className="relative my-6 flex items-center justify-center">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
-            <span className="relative px-3 bg-[#020617] text-[10px] uppercase tracking-widest text-slate-500 font-semibold">OR</span>
-          </div>
-
-          {/* Email / Reg No Form Fallback */}
-          <form onSubmit={handleEmailSignIn} className="space-y-3">
-            <div className="relative">
-              <input
-                type="text"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="KLU Email or Reg No (e.g. 2200030100)"
-                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-sky-500/30 text-white text-xs font-semibold placeholder:text-slate-500 focus:outline-none focus:border-sky-400 font-mono"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 text-xs font-bold tracking-wider text-sky-300 glass-button rounded-xl hover:border-sky-400 transition-all flex items-center justify-center gap-2"
-            >
-              <Mail className="w-4 h-4" />
-              <span>CONTINUE WITH KLU EMAIL / REG NO</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-
-          <div className="mt-6 pt-4 border-t border-slate-800/80 text-center">
+          <div className="mt-8 pt-4 border-t border-slate-800/80 text-center">
             <p className="text-[11px] text-slate-400">
-              Sign in above to proceed with team registration & access your event pass.
+              Sign in with Google above to proceed with team registration & access your dashboard.
             </p>
           </div>
         </TiltCard>
