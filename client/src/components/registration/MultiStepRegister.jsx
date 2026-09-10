@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Shield, Clock, AlertTriangle, CheckCircle, ArrowRight, ArrowLeft, Users, Building2, Copy, Lock, Flame, MessageCircle } from 'lucide-react';
+import { Shield, Clock, AlertTriangle, CheckCircle, ArrowRight, ArrowLeft, Users, Building2, Copy, Lock, Flame, MessageCircle, RotateCcw, Save } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { TiltCard } from '../common/TiltCard';
 
 export const MultiStepRegister = () => {
   const { settings } = useSettings();
+  const { user } = useAuth();
   const navigate = useNavigate();
+
+  const draftKey = user?.email
+    ? `alpha_reg_draft_${user.email.toLowerCase().trim()}`
+    : 'alpha_reg_draft_guest';
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [copiedField, setCopiedField] = useState(null);
+  const [draftRestoredNotice, setDraftRestoredNotice] = useState(false);
 
   // Slot Reservation state (stored server-side with 5-minute timer)
   const [reservation, setReservation] = useState(null);
@@ -66,7 +73,17 @@ export const MultiStepRegister = () => {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // 1. Restore reservation timer state on page refresh if user was on Payment Step
+  const handleClearDraft = () => {
+    localStorage.removeItem(draftKey);
+    setTeamName('');
+    setMembers(Array.from({ length: settings.teamSize || 4 }, () => ({ ...defaultMember })));
+    setTrack('DRAGON INTELLIGENCE (AI & ML)');
+    setStep(1);
+    setDraftRestoredNotice(false);
+    setErrorMessage('');
+  };
+
+  // 1. Restore reservation timer or saved form draft on mount
   useEffect(() => {
     const savedResId = sessionStorage.getItem('alpha_reservation_id');
     const savedStep = sessionStorage.getItem('alpha_registration_step');
@@ -121,8 +138,44 @@ export const MultiStepRegister = () => {
           setErrorMessage('Your payment slot session has expired. Please start the registration process again.');
         })
         .finally(() => setLoading(false));
+    } else {
+      // Restore auto-saved draft for steps 1-3 from localStorage
+      const savedDraftRaw = localStorage.getItem(draftKey);
+      if (savedDraftRaw) {
+        try {
+          const savedDraft = JSON.parse(savedDraftRaw);
+          if (savedDraft.teamName) setTeamName(savedDraft.teamName);
+          if (savedDraft.members && Array.isArray(savedDraft.members) && savedDraft.members.length > 0) {
+            setMembers(savedDraft.members);
+          }
+          if (savedDraft.track) setTrack(savedDraft.track);
+          if (savedDraft.step && savedDraft.step >= 1 && savedDraft.step <= 3) {
+            setStep(savedDraft.step);
+          }
+          setDraftRestoredNotice(true);
+        } catch (e) {
+          console.warn('Draft restoration notice:', e);
+        }
+      }
     }
-  }, []);
+  }, [draftKey]);
+
+  // Auto-save form draft whenever team details change (Steps 1 to 3)
+  useEffect(() => {
+    if (step >= 1 && step <= 3) {
+      const hasContent = teamName.trim().length > 0 || members.some(m => m.name || m.regNo || m.mobile);
+      if (hasContent) {
+        const draftData = {
+          step,
+          teamName,
+          members,
+          track,
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draftData));
+      }
+    }
+  }, [teamName, members, track, step, draftKey]);
 
   // 2. Server-side synchronized 5-minute timer countdown
   useEffect(() => {
@@ -227,8 +280,17 @@ export const MultiStepRegister = () => {
 
     // Check duplicate reg numbers within current team input
     const regNos = formattedMembers.map(m => m.regNo);
-    if (new Set(regNos).size !== regNos.length) {
-      setErrorMessage('Duplicate registration numbers found inside team members list.');
+    const seenRegs = new Set();
+    let dupRegFound = null;
+    for (const r of regNos) {
+      if (seenRegs.has(r)) {
+        dupRegFound = r;
+        break;
+      }
+      seenRegs.add(r);
+    }
+    if (dupRegFound) {
+      setErrorMessage(`Duplicate Registration Number '${dupRegFound}' found inside team members list. Each member must have a unique Registration Number.`);
       return;
     }
 
@@ -381,6 +443,7 @@ export const MultiStepRegister = () => {
       });
 
       clearSessionData();
+      localStorage.removeItem(draftKey);
       setRegistrationResult(res.data);
       setStep(5); // Success step
     } catch (err) {
@@ -441,6 +504,27 @@ export const MultiStepRegister = () => {
           ))}
         </div>
       </div>
+
+      {/* Auto-Saved Progress Restored Banner */}
+      {draftRestoredNotice && step <= 3 && (
+        <div className="mb-6 p-4 rounded-2xl bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-between text-xs text-cyan-200 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
+          <div className="flex items-center gap-3">
+            <Save className="w-5 h-5 text-cyan-400 shrink-0" />
+            <div>
+              <span className="font-bold text-white uppercase tracking-wider block">UNFINISHED DRAFT AUTO-RECOVERED</span>
+              <span className="text-[11px] text-slate-300">Your previously typed team details were automatically restored.</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleClearDraft}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Form</span>
+          </button>
+        </div>
+      )}
 
       {/* Reservation Active Countdown Banner (ONLY SHOWN AT PAYMENT STEP 4) */}
       {reservation && step === 4 && (

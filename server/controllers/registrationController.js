@@ -35,7 +35,7 @@ export const validateDetails = async (req, res) => {
       return res.status(400).json({ message: 'Team member details are required.' });
     }
 
-    // Validate KLU email and duplicate student participation across database
+    // Validate KLU email and duplicate student participation across database strictly by Registration Number & Email
     for (let i = 0; i < members.length; i++) {
       const m = members[i];
       const email = (m.email || '').trim().toLowerCase();
@@ -43,18 +43,38 @@ export const validateDetails = async (req, res) => {
 
       if (!email || !isKluEmail(email)) {
         return res.status(400).json({
-          message: 'Please use your KLU email address (@klu.ac.in) to continue.'
+          message: `Member ${i + 1}: Please use a valid KLU email address (@klu.ac.in).`
         });
       }
 
-      // Check if student already registered in another team by email or regNo
+      if (!regNo) {
+        return res.status(400).json({
+          message: `Member ${i + 1}: Registration Number is required.`
+        });
+      }
+
+      const cleanRegRegex = new RegExp(`^${regNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i');
+      const cleanEmailRegex = new RegExp(`^${email.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i');
+
+      // 1. Check Student collection for existing student with same Registration Number or Email
       const existingStudent = await Student.findOne({
-        $or: [{ email }, { regNo }]
+        $or: [
+          { regNo: cleanRegRegex },
+          { email: cleanEmailRegex }
+        ]
       });
 
-      if (existingStudent) {
+      // 2. Check Team collection for existing lead student with same Registration Number or Email
+      const existingTeam = await Team.findOne({
+        $or: [
+          { leadRegNo: cleanRegRegex },
+          { leadEmail: cleanEmailRegex }
+        ]
+      });
+
+      if (existingStudent || existingTeam) {
         return res.status(400).json({
-          message: 'This student is already registered in a team and cannot register again.'
+          message: `Student with Registration Number '${regNo}' (${m.name || 'Member ' + (i + 1)}) is ALREADY registered in another team and cannot register again.`
         });
       }
     }
@@ -245,22 +265,40 @@ export const submitRegistration = async (req, res) => {
       return res.status(400).json({ message: 'This team name is already registered. Please choose another team name.' });
     }
 
-    // Validate KLU emails and duplicate student entries
-    for (const m of members) {
+    // Validate KLU emails and duplicate student entries strictly by Registration Number & Email
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i];
       const email = (m.email || '').trim().toLowerCase();
       const regNo = (m.regNo || '').trim().toUpperCase();
 
-      if (!isKluEmail(email)) {
-        return res.status(400).json({ message: 'Please use your KLU email address (@klu.ac.in) to continue.' });
+      if (!email || !isKluEmail(email)) {
+        return res.status(400).json({ message: `Member ${i + 1}: Please use a valid KLU email address (@klu.ac.in).` });
       }
 
+      if (!regNo) {
+        return res.status(400).json({ message: `Member ${i + 1}: Registration Number is required.` });
+      }
+
+      const cleanRegRegex = new RegExp(`^${regNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i');
+      const cleanEmailRegex = new RegExp(`^${email.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i');
+
       const existingStudent = await Student.findOne({
-        $or: [{ email }, { regNo }]
+        $or: [
+          { regNo: cleanRegRegex },
+          { email: cleanEmailRegex }
+        ]
       });
 
-      if (existingStudent) {
+      const existingTeam = await Team.findOne({
+        $or: [
+          { leadRegNo: cleanRegRegex },
+          { leadEmail: cleanEmailRegex }
+        ]
+      });
+
+      if (existingStudent || existingTeam) {
         return res.status(400).json({
-          message: 'This student is already registered in a team and cannot register again.'
+          message: `Student with Registration Number '${regNo}' (${m.name || 'Member ' + (i + 1)}) is ALREADY registered in another team and cannot register again.`
         });
       }
     }
