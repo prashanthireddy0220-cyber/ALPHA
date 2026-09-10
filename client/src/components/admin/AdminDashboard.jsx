@@ -54,18 +54,36 @@ export const AdminDashboard = () => {
   const [uploadingQr, setUploadingQr] = useState(false);
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
 
-  // Add Registration form state
-  const [addForm, setAddForm] = useState({
-    studentName: '',
+  // Add Team Registration form state (Full Team + 4 Members)
+  const defaultAddMember = {
+    name: '',
     regNo: '',
     department: 'CSE',
     year: 'III',
     section: 'A',
     mobile: '',
     email: '',
+    gender: 'Male',
+    accommodation: 'Day Scholar',
+    hostel: '',
+    roomNumber: ''
+  };
+
+  const [addForm, setAddForm] = useState({
+    teamName: '',
+    track: 'DRAGON INTELLIGENCE (AI & ML)',
+    members: [
+      { ...defaultAddMember },
+      { ...defaultAddMember },
+      { ...defaultAddMember },
+      { ...defaultAddMember }
+    ],
     utr: '',
+    amount: 1400,
+    screenshotUrl: '',
     status: 'VERIFIED'
   });
+  const [activeAddMemberTab, setActiveAddMemberTab] = useState(0);
   const [addingReg, setAddingReg] = useState(false);
 
   // Edit Team form state
@@ -334,25 +352,39 @@ export const AdminDashboard = () => {
   // Add Direct Registration
   const handleAddRegistration = async (e) => {
     e.preventDefault();
+    if (!addForm.teamName.trim()) {
+      alert('Team Name is required');
+      return;
+    }
+    const lead = addForm.members[0];
+    if (!lead.name.trim() || !lead.regNo.trim()) {
+      alert('Team Lead (Member 1) Name and Registration Number are required.');
+      return;
+    }
+
     setAddingReg(true);
     try {
       await axios.post('/api/admin/teams/direct-registration', addForm);
       setShowAddModal(false);
       setAddForm({
-        studentName: '',
-        regNo: '',
-        department: 'CSE',
-        year: 'III',
-        section: 'A',
-        mobile: '',
-        email: '',
+        teamName: '',
+        track: 'DRAGON INTELLIGENCE (AI & ML)',
+        members: [
+          { ...defaultAddMember },
+          { ...defaultAddMember },
+          { ...defaultAddMember },
+          { ...defaultAddMember }
+        ],
         utr: '',
+        amount: 1400,
+        screenshotUrl: '',
         status: 'VERIFIED'
       });
+      setActiveAddMemberTab(0);
       await loadDashboardData(true);
-      alert('Registration added successfully!');
+      alert('Direct Team Registration created successfully!');
     } catch (err) {
-      alert('Failed to add registration: ' + (err.response?.data?.message || err.message));
+      alert('Failed to register team: ' + (err.response?.data?.message || err.message));
     } finally {
       setAddingReg(false);
     }
@@ -1561,146 +1593,402 @@ export const AdminDashboard = () => {
       {/* 7. FULLSCREEN SCREENSHOT LIGHTBOX */}
       {/* ============================================================== */}
       {fullscreenImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg"
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setFullscreenImage(null)}
         >
-          <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center justify-center">
+          <div 
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => setFullscreenImage(null)}
-              className="absolute -top-12 right-0 p-2 rounded-full bg-slate-900 border border-slate-700 text-white hover:text-red-400 cursor-pointer"
+              className="absolute -top-12 right-0 p-2 rounded-full bg-slate-900/80 border border-slate-700 text-white hover:bg-red-600 transition-all cursor-pointer shadow-xl"
+              title="Close"
             >
               <X className="w-6 h-6" />
             </button>
             <img
               src={fullscreenImage}
-              alt="Payment Screenshot Fullscreen"
-              className="max-h-[85vh] max-w-full object-contain rounded-2xl border border-slate-700 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
+              alt="Payment Screenshot Zoom"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
             />
+            <div className="mt-3 flex items-center gap-3">
+              <a
+                href={fullscreenImage}
+                download="payment-screenshot.png"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs uppercase flex items-center gap-1.5 transition-all shadow-lg cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Proof</span>
+              </a>
+              <button
+                onClick={() => setFullscreenImage(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* 8. ADD REGISTRATION MODAL */}
+      {/* 8. ADD REGISTRATION MODAL (FULL TEAM + 4 MEMBERS) */}
       {/* ============================================================== */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-lg w-full p-6 rounded-3xl border border-red-500/40 bg-[#090e1a] shadow-2xl space-y-5 text-left animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h2 className="text-base font-black text-white uppercase tracking-wider">+ DIRECT ADMIN REGISTRATION</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+          <div className="max-w-2xl w-full p-6 rounded-3xl border border-red-500/40 bg-[#090e1a] shadow-2xl space-y-5 text-left max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 sticky top-0 bg-[#090e1a] z-10">
+              <div>
+                <h2 className="text-sm md:text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>+ DIRECT ADMIN TEAM REGISTRATION</span>
+                </h2>
+                <p className="text-[11px] text-slate-400">Register a complete 4-member team directly with instant verification</p>
+              </div>
+              <button 
+                onClick={() => setShowAddModal(false)} 
+                className="p-1 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddRegistration} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-300 uppercase mb-1">STUDENT FULL NAME *</label>
-                <input
-                  type="text"
-                  required
-                  value={addForm.studentName}
-                  onChange={(e) => setAddForm({ ...addForm, studentName: e.target.value.toUpperCase() })}
-                  placeholder="e.g. PRASHANTHI REDDY"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-red-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">REGISTRATION NO *</label>
-                  <input
-                    type="text"
-                    required
-                    value={addForm.regNo}
-                    onChange={(e) => setAddForm({ ...addForm, regNo: e.target.value.toUpperCase() })}
-                    placeholder="99240040717"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-red-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">DEPARTMENT</label>
-                  <select
-                    value={addForm.department}
-                    onChange={(e) => setAddForm({ ...addForm, department: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
-                  >
-                    {['CSE', 'ECE', 'IT', 'EEE', 'MECH', 'CIVIL'].map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+            <form onSubmit={handleAddRegistration} className="space-y-5 text-xs">
+              {/* Section 1: Team & Track */}
+              <div className="p-4 rounded-2xl bg-black/40 border border-slate-800 space-y-3">
+                <span className="text-[10px] font-extrabold text-red-400 uppercase tracking-wider block">
+                  1. TEAM & TRACK SPECIFICATION
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-300 uppercase mb-1">TEAM NAME *</label>
+                    <input
+                      type="text"
+                      required
+                      value={addForm.teamName}
+                      onChange={(e) => setAddForm({ ...addForm, teamName: e.target.value.toUpperCase() })}
+                      placeholder="e.g. INNOVAX / CYBER DRAGONS"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-red-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-300 uppercase mb-1">HACKATHON TRACK *</label>
+                    <select
+                      value={addForm.track}
+                      onChange={(e) => setAddForm({ ...addForm, track: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-red-500 focus:outline-none"
+                    >
+                      <option value="DRAGON INTELLIGENCE (AI & ML)">DRAGON INTELLIGENCE (AI & ML)</option>
+                      <option value="CYBERSECURITY & DEFENSE">CYBERSECURITY & DEFENSE</option>
+                      <option value="WEB3 & DECENTRALIZED SYSTEMS">WEB3 & DECENTRALIZED SYSTEMS</option>
+                      <option value="SMART IOT & HARDWARE">SMART IOT & HARDWARE</option>
+                      <option value="OPEN INNOVATION & FINTECH">OPEN INNOVATION & FINTECH</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">YEAR</label>
-                  <select
-                    value={addForm.year}
-                    onChange={(e) => setAddForm({ ...addForm, year: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
-                  >
-                    <option value="II">II Year</option>
-                    <option value="III">III Year</option>
-                    <option value="IV">IV Year</option>
-                  </select>
+              {/* Section 2: 4 Team Members */}
+              <div className="p-4 rounded-2xl bg-black/40 border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold text-cyan-400 uppercase tracking-wider">
+                    2. TEAM MEMBERS DETAILS (4 MEMBERS)
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold">
+                    Member 1 is Team Lead
+                  </span>
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">SECTION</label>
-                  <input
-                    type="text"
-                    value={addForm.section}
-                    onChange={(e) => setAddForm({ ...addForm, section: e.target.value.toUpperCase() })}
-                    placeholder="24SRS"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
-                  />
+
+                {/* Member Tabs */}
+                <div className="grid grid-cols-4 gap-2">
+                  {[0, 1, 2, 3].map((idx) => {
+                    const m = addForm.members[idx];
+                    const isFilled = m?.name?.trim() && m?.regNo?.trim();
+                    const isActive = activeAddMemberTab === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveAddMemberTab(idx)}
+                        className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase transition-all cursor-pointer border text-center ${
+                          isActive
+                            ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-md'
+                            : isFilled
+                            ? 'bg-slate-900 text-emerald-400 border-emerald-500/40'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                        }`}
+                      >
+                        {idx === 0 ? '★ 1. Lead' : `${idx + 1}. Member`}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {/* Active Member Form Inputs */}
+                {(() => {
+                  const idx = activeAddMemberTab;
+                  const currentMember = addForm.members[idx] || defaultAddMember;
+                  const updateMember = (field, val) => {
+                    const updated = [...addForm.members];
+                    updated[idx] = { ...updated[idx], [field]: val };
+                    if (field === 'regNo' && (!updated[idx].email || updated[idx].email.endsWith('@klu.ac.in'))) {
+                      const cleanReg = val.trim().toLowerCase();
+                      if (cleanReg) updated[idx].email = `${cleanReg}@klu.ac.in`;
+                    }
+                    setAddForm({ ...addForm, members: updated });
+                  };
+
+                  return (
+                    <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3 animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
+                        <span className="text-[11px] font-black text-slate-300">
+                          {idx === 0 ? '★ MEMBER 1 (TEAM LEAD - PRIMARY CONTACT)' : `MEMBER ${idx + 1} DETAILS`}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-bold">
+                          {idx === 0 ? 'Mandatory' : 'Optional / Standard'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">
+                            FULL NAME {idx === 0 ? '*' : ''}
+                          </label>
+                          <input
+                            type="text"
+                            required={idx === 0}
+                            value={currentMember.name}
+                            onChange={(e) => updateMember('name', e.target.value.toUpperCase())}
+                            placeholder="e.g. POLANKI VYSHNAVI"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-red-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">
+                            REGISTRATION NO {idx === 0 ? '*' : ''}
+                          </label>
+                          <input
+                            type="text"
+                            required={idx === 0}
+                            value={currentMember.regNo}
+                            onChange={(e) => updateMember('regNo', e.target.value.toUpperCase())}
+                            placeholder="e.g. 9924008110"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-red-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">DEPARTMENT</label>
+                          <select
+                            value={currentMember.department || 'CSE'}
+                            onChange={(e) => updateMember('department', e.target.value)}
+                            className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-red-500 focus:outline-none"
+                          >
+                            {['CSE', 'ECE', 'IT', 'AI&DS', 'CS&IT', 'EEE', 'MECH', 'CIVIL'].map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">YEAR</label>
+                          <select
+                            value={currentMember.year || 'III'}
+                            onChange={(e) => updateMember('year', e.target.value)}
+                            className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-red-500 focus:outline-none"
+                          >
+                            <option value="I">I Year</option>
+                            <option value="II">II Year</option>
+                            <option value="III">III Year</option>
+                            <option value="IV">IV Year</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">SECTION</label>
+                          <input
+                            type="text"
+                            value={currentMember.section || 'A'}
+                            onChange={(e) => updateMember('section', e.target.value.toUpperCase())}
+                            placeholder="24SRS"
+                            className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-red-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">MOBILE NUMBER</label>
+                          <input
+                            type="text"
+                            value={currentMember.mobile}
+                            onChange={(e) => updateMember('mobile', e.target.value)}
+                            placeholder="9999999999"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-red-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">COLLEGE EMAIL</label>
+                          <input
+                            type="email"
+                            value={currentMember.email}
+                            onChange={(e) => updateMember('email', e.target.value.toLowerCase())}
+                            placeholder="student@klu.ac.in"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-red-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">GENDER</label>
+                          <select
+                            value={currentMember.gender || 'Male'}
+                            onChange={(e) => updateMember('gender', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-red-500 focus:outline-none"
+                          >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">ACCOMMODATION</label>
+                          <select
+                            value={currentMember.accommodation || 'Day Scholar'}
+                            onChange={(e) => updateMember('accommodation', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-red-500 focus:outline-none"
+                          >
+                            <option value="Day Scholar">Day Scholar</option>
+                            <option value="Hosteller">Hosteller</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {currentMember.accommodation === 'Hosteller' && (
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <label className="block font-bold text-slate-300 uppercase mb-1">HOSTEL NAME</label>
+                            <input
+                              type="text"
+                              value={currentMember.hostel || ''}
+                              onChange={(e) => updateMember('hostel', e.target.value.toUpperCase())}
+                              placeholder="e.g. LH-2 / MH-1"
+                              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-red-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-300 uppercase mb-1">ROOM NUMBER</label>
+                            <input
+                              type="text"
+                              value={currentMember.roomNumber || ''}
+                              onChange={(e) => updateMember('roomNumber', e.target.value.toUpperCase())}
+                              placeholder="e.g. 310"
+                              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-red-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Section 3: Payment & Screenshot Proof */}
+              <div className="p-4 rounded-2xl bg-black/40 border border-slate-800 space-y-3">
+                <span className="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider block">
+                  3. PAYMENT DETAILS & SCREENSHOT PROOF
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-300 uppercase mb-1">12-DIGIT UTR / REF NO</label>
+                    <input
+                      type="text"
+                      value={addForm.utr}
+                      onChange={(e) => setAddForm({ ...addForm, utr: e.target.value.replace(/\D/g, '') })}
+                      placeholder="e.g. 528252926226"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-red-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-300 uppercase mb-1">TOTAL AMOUNT (₹)</label>
+                    <input
+                      type="number"
+                      value={addForm.amount}
+                      onChange={(e) => setAddForm({ ...addForm, amount: Number(e.target.value) })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono font-bold focus:border-red-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-300 uppercase mb-1">VERIFICATION STATUS</label>
+                    <select
+                      value={addForm.status}
+                      onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-red-500 focus:outline-none"
+                    >
+                      <option value="VERIFIED">VERIFIED</option>
+                      <option value="PENDING">PENDING</option>
+                      <option value="REJECTED">REJECTED</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Screenshot Upload */}
                 <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">MOBILE</label>
+                  <label className="block font-bold text-slate-300 uppercase mb-1">
+                    ATTACH PAYMENT SCREENSHOT (OPTIONAL)
+                  </label>
                   <input
-                    type="text"
-                    value={addForm.mobile}
-                    onChange={(e) => setAddForm({ ...addForm, mobile: e.target.value })}
-                    placeholder="9999999999"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          setAddForm({ ...addForm, screenshotUrl: ev.target.result });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full text-xs text-slate-300 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-red-600/20 file:text-red-300 hover:file:bg-red-600/30 cursor-pointer"
                   />
+                  {addForm.screenshotUrl && (
+                    <div className="mt-2 p-2 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3">
+                      <img
+                        src={addForm.screenshotUrl}
+                        alt="Proof Preview"
+                        className="w-16 h-16 object-cover rounded-lg border border-slate-700"
+                      />
+                      <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Screenshot attached
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">UTR NUMBER</label>
-                  <input
-                    type="text"
-                    value={addForm.utr}
-                    onChange={(e) => setAddForm({ ...addForm, utr: e.target.value })}
-                    placeholder="459821937188"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">PAYMENT STATUS</label>
-                  <select
-                    value={addForm.status}
-                    onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
-                  >
-                    <option value="VERIFIED">VERIFIED</option>
-                    <option value="PENDING">PENDING</option>
-                    <option value="REJECTED">REJECTED</option>
-                  </select>
-                </div>
+              {/* Submit Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="w-1/3 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase cursor-pointer"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingReg}
+                  className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg disabled:opacity-50"
+                >
+                  {addingReg ? 'REGISTERING TEAM...' : 'CONFIRM & REGISTER FULL TEAM'}
+                </button>
               </div>
-
-              <button
-                type="submit"
-                disabled={addingReg}
-                className="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg"
-              >
-                {addingReg ? 'ADDING REGISTRATION...' : 'CONFIRM & ADD REGISTRATION'}
-              </button>
             </form>
           </div>
         </div>

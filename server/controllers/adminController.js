@@ -396,51 +396,115 @@ export const deleteSingleRegistration = async (req, res) => {
 // Direct Registration from Admin
 export const directRegistration = async (req, res) => {
   try {
-    const { studentName, regNo, department, year, section, mobile, email, utr, track, status } = req.body;
+    const { 
+      teamName, 
+      track, 
+      members, 
+      utr, 
+      amount, 
+      screenshotUrl, 
+      status,
+      // Legacy fallback fields
+      studentName, 
+      regNo, 
+      department, 
+      year, 
+      section, 
+      mobile, 
+      email,
+      gender,
+      accommodation,
+      hostel,
+      roomNumber
+    } = req.body;
 
-    if (!studentName || !regNo) {
-      return res.status(400).json({ message: 'Student Name and Reg No are required' });
+    let memberList = [];
+
+    if (members && Array.isArray(members) && members.length > 0) {
+      memberList = members.filter(m => m && (m.name?.trim() || m.regNo?.trim()));
+    } else if (studentName || regNo) {
+      memberList = [{
+        name: studentName,
+        regNo,
+        department: department || 'CSE',
+        year: year || 'III',
+        section: section || 'A',
+        mobile: mobile || '9999999999',
+        email: email || (regNo ? `${regNo.toLowerCase()}@klu.ac.in` : ''),
+        gender: gender || 'Male',
+        accommodation: accommodation || 'Day Scholar',
+        hostel: hostel || '',
+        roomNumber: roomNumber || ''
+      }];
+    }
+
+    if (memberList.length === 0) {
+      return res.status(400).json({ message: 'At least one member with Name and Reg No is required' });
     }
 
     const count = await Team.countDocuments();
     const teamId = `ALPHA-${1000 + count + 1}`;
+    const finalTeamName = (teamName && teamName.trim()) 
+      ? teamName.trim().toUpperCase() 
+      : `${(memberList[0].name || 'ALPHA').trim().toUpperCase()}'S TEAM`;
 
-    const student = await Student.create({
-      name: studentName.trim(),
-      regNo: regNo.trim().toUpperCase(),
-      department: department || 'CSE',
-      year: year || 'III',
-      section: section || 'A',
-      mobile: mobile || '9999999999',
-      gender: 'Male',
-      accommodation: 'Day Scholar'
-    });
+    const leadRegNo = (memberList[0].regNo || '').trim().toUpperCase();
+    const leadEmail = (memberList[0].email || `${leadRegNo.toLowerCase()}@klu.ac.in`).trim().toLowerCase();
 
-    const leadEmail = email || `${regNo.trim().toLowerCase()}@klu.ac.in`;
+    // Create student documents
+    const createdStudentIds = [];
+    for (let i = 0; i < memberList.length; i++) {
+      const m = memberList[i];
+      const mReg = (m.regNo || '').trim().toUpperCase();
+      const mEmail = (m.email || (mReg ? `${mReg.toLowerCase()}@klu.ac.in` : '')).trim().toLowerCase();
+      
+      const student = await Student.create({
+        name: (m.name || `Member ${i + 1}`).trim().toUpperCase(),
+        regNo: mReg,
+        department: m.department || 'CSE',
+        year: m.year || 'III',
+        section: (m.section || 'A').trim().toUpperCase(),
+        mobile: (m.mobile || '9999999999').trim(),
+        email: mEmail,
+        gender: m.gender || 'Male',
+        accommodation: m.accommodation || 'Day Scholar',
+        hostel: m.accommodation === 'Hosteller' ? (m.hostel || '') : '',
+        roomNumber: m.accommodation === 'Hosteller' ? (m.roomNumber || '') : ''
+      });
+      createdStudentIds.push(student._id);
+    }
+
+    const finalStatus = status || 'VERIFIED';
+    const finalAmount = amount !== undefined ? Number(amount) : (memberList.length * 350);
+    const finalUtr = utr ? utr.trim() : `DIR${Date.now().toString().slice(-8)}`;
 
     const team = await Team.create({
       teamId,
-      teamName: `${studentName.trim()}'s Team`,
-      track: track || 'General Innovation',
+      teamName: finalTeamName,
+      track: track || 'DRAGON INTELLIGENCE (AI & ML)',
       leadEmail,
-      leadRegNo: regNo.trim().toUpperCase(),
-      members: [student._id],
+      leadRegNo,
+      members: createdStudentIds,
       payment: {
-        amount: 350,
-        utr: utr || `DIR${Date.now().toString().slice(-8)}`,
-        screenshotUrl: '/assets/payment_qr.png',
-        status: status || 'VERIFIED',
-        verifiedAt: status === 'VERIFIED' ? new Date() : null
+        amount: finalAmount,
+        utr: finalUtr,
+        screenshotUrl: screenshotUrl || '/assets/payment_qr.png',
+        status: finalStatus,
+        verifiedAt: finalStatus === 'VERIFIED' ? new Date() : null
       }
     });
 
-    student.teamId = team._id;
-    await student.save();
+    // Link teamId to students
+    await Student.updateMany(
+      { _id: { $in: createdStudentIds } },
+      { $set: { teamId: team._id } }
+    );
 
     res.status(201).json({
       success: true,
-      message: 'Direct Registration created successfully!',
-      teamId
+      message: `Direct Team Registration ${teamId} created successfully!`,
+      teamId,
+      team
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
