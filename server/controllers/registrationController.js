@@ -5,6 +5,36 @@ import EventSettings from '../models/EventSettings.js';
 import User from '../models/User.js';
 import { generateNextTeamId } from '../utils/teamIdGenerator.js';
 
+// In-memory Mutex Lock to guarantee 100% thread-safe atomic capacity checks under heavy concurrent load
+class AsyncMutex {
+  constructor() {
+    this.queue = [];
+    this.locked = false;
+  }
+
+  acquire() {
+    return new Promise((resolve) => {
+      if (!this.locked) {
+        this.locked = true;
+        resolve();
+      } else {
+        this.queue.push(resolve);
+      }
+    });
+  }
+
+  release() {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift();
+      next();
+    } else {
+      this.locked = false;
+    }
+  }
+}
+
+const registrationMutex = new AsyncMutex();
+
 // Helper function to validate KLU email domain (@klu.ac.in)
 const isKluEmail = (email) => {
   if (!email || typeof email !== 'string') return false;
@@ -87,6 +117,7 @@ export const validateDetails = async (req, res) => {
 
 // Reserve temporary payment slot (ONLY WHEN ENTERING PAYMENT STAGE) - 5-minute timer
 export const reservePaymentSlot = async (req, res) => {
+  await registrationMutex.acquire();
   try {
     const settings = (await EventSettings.findOne()) || {};
     if (settings.registrationOpen === false) {
@@ -189,6 +220,8 @@ export const reservePaymentSlot = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  } finally {
+    registrationMutex.release();
   }
 };
 
@@ -228,6 +261,7 @@ export const getReservationStatus = async (req, res) => {
 
 // Complete Team Registration & Payment Submission
 export const submitRegistration = async (req, res) => {
+  await registrationMutex.acquire();
   try {
     const settings = (await EventSettings.findOne()) || {};
     if (settings.registrationOpen === false) {
@@ -249,6 +283,32 @@ export const submitRegistration = async (req, res) => {
 
     if (!screenshotUrl) {
       return res.status(400).json({ message: 'Payment screenshot is required.' });
+    }
+
+    // Capacity Check inside submitRegistration if reservation is missing or expired
+    let hasValidReservation = false;
+    if (reservationId) {
+      const activeRes = await RegistrationReservation.findOne({
+        reservationId,
+        expiresAt: { $gt: new Date() }
+      });
+      if (activeRes) {
+        hasValidReservation = true;
+      }
+    }
+
+    if (!hasValidReservation) {
+      await RegistrationReservation.deleteMany({ expiresAt: { $lt: new Date() } });
+      const currentTeamsCount = await Team.countDocuments();
+      const activeReservationsCount = await RegistrationReservation.countDocuments({
+        expiresAt: { $gt: new Date() }
+      });
+      const totalClaimed = currentTeamsCount + activeReservationsCount;
+      const maxTeams = settings.maxTeams || 100;
+
+      if (totalClaimed >= maxTeams) {
+        return res.status(400).json({ message: 'Registration capacity for this event has been reached.' });
+      }
     }
 
     // Check UTR duplicate
@@ -384,6 +444,8 @@ export const submitRegistration = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  } finally {
+    registrationMutex.release();
   }
 };
 

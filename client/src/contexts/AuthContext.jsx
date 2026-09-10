@@ -77,7 +77,11 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (!email) {
-        email = 'student@klu.ac.in';
+        setLoading(false);
+        return {
+          success: false,
+          message: 'Google Sign-In popup was closed or cancelled. Please try signing in again.'
+        };
       }
 
       if (!email.endsWith('@klu.ac.in')) {

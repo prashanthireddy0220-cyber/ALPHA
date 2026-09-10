@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 import { GlassHeader } from './components/common/GlassHeader';
 import { CursorLight } from './components/3d/CursorLight';
@@ -98,12 +99,14 @@ const MainApp = () => {
 
 export default function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <SettingsProvider>
-          <MainApp />
-        </SettingsProvider>
-      </AuthProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <SettingsProvider>
+            <MainApp />
+          </SettingsProvider>
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }

@@ -181,10 +181,8 @@ export const loginUser = async (req, res) => {
     // 3. STUDENT DEMO LOGIN HANDLER
     // -------------------------------------------------------------
     const isStudentDemoAttempt =
-      cleanEmail === 'student@klu.ac.in' ||
-      cleanEmail === 'demo@klu.ac.in' ||
-      cleanInput.toLowerCase() === 'student' ||
-      cleanInput.toLowerCase() === 'password123';
+      (cleanEmail === 'student@klu.ac.in' || cleanEmail === 'demo@klu.ac.in') &&
+      (cleanInput.toLowerCase() === 'student' || cleanInput.toLowerCase() === 'password123' || cleanInput.toLowerCase() === 'demo');
 
     if (isStudentDemoAttempt) {
       let student = await User.findOne({ email: 'student@klu.ac.in' });
@@ -221,39 +219,73 @@ export const loginUser = async (req, res) => {
       targetEmail = `${targetEmail}@klu.ac.in`;
     }
 
+    const emailRegex = targetEmail ? new RegExp(`^${targetEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+    const targetRegNo = targetEmail ? targetEmail.split('@')[0].toUpperCase() : '';
+    const regNoRegex = targetRegNo ? new RegExp(`^${targetRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+
     let user = await User.findOne({
       $or: [
-        { email: targetEmail },
-        { volunteerId: upperInput }
+        ...(emailRegex ? [{ email: emailRegex }] : []),
+        ...(upperInput ? [{ volunteerId: upperInput }] : [])
       ]
     });
 
     // Auto-link registered team member to User account if User doc doesn't exist yet
     if (!user && targetEmail) {
-      const targetRegNo = targetEmail.split('@')[0].toUpperCase();
       const studentDoc = await Student.findOne({
         $or: [
-          { email: targetEmail },
-          { regNo: targetRegNo }
+          ...(emailRegex ? [{ email: emailRegex }] : []),
+          ...(regNoRegex ? [{ regNo: regNoRegex }] : [])
         ]
       });
 
+      let team = null;
       if (studentDoc) {
-        const team = await Team.findOne({
+        team = await Team.findOne({
           $or: [
             { members: studentDoc._id },
-            { leadEmail: targetEmail },
-            { leadRegNo: targetRegNo }
+            ...(emailRegex ? [{ leadEmail: emailRegex }] : []),
+            ...(regNoRegex ? [{ leadRegNo: regNoRegex }] : [])
           ]
         });
+      } else {
+        team = await Team.findOne({
+          $or: [
+            ...(emailRegex ? [{ leadEmail: emailRegex }] : []),
+            ...(regNoRegex ? [{ leadRegNo: regNoRegex }] : [])
+          ]
+        });
+      }
 
+      if (studentDoc || team) {
         user = await User.create({
-          name: studentDoc.name,
-          email: targetEmail,
-          password: cleanInput || studentDoc.regNo || 'password123',
+          name: studentDoc?.name || team?.teamName || targetEmail.split('@')[0],
+          email: targetEmail.toLowerCase(),
+          password: cleanInput || targetRegNo || 'password123',
           role: 'user',
           teamId: team ? team.teamId : undefined
         });
+      }
+    }
+
+    // If user exists but teamId is not linked on User model, attempt to auto-link
+    if (user && !user.teamId && targetEmail) {
+      const studentDoc = await Student.findOne({
+        $or: [
+          ...(emailRegex ? [{ email: emailRegex }] : []),
+          ...(regNoRegex ? [{ regNo: regNoRegex }] : [])
+        ]
+      });
+      const team = await Team.findOne({
+        $or: [
+          ...(studentDoc ? [{ members: studentDoc._id }] : []),
+          ...(emailRegex ? [{ leadEmail: emailRegex }] : []),
+          ...(regNoRegex ? [{ leadRegNo: regNoRegex }] : [])
+        ]
+      });
+      if (team) {
+        user.teamId = team.teamId;
+        await user.save();
       }
     }
 

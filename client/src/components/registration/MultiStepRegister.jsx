@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { QRCodeSVG } from 'qrcode.react';
+import confetti from 'canvas-confetti';
 import { Shield, Clock, AlertTriangle, CheckCircle, ArrowRight, ArrowLeft, Users, Building2, Copy, Lock, Flame, MessageCircle, RotateCcw, Save } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -197,6 +199,20 @@ export const MultiStepRegister = () => {
     }
     return () => clearInterval(interval);
   }, [step, timerSeconds]);
+  // 3. Trigger celebratory confetti on successful registration (Step 5)
+  useEffect(() => {
+    if (step === 5) {
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {
+        console.warn('Confetti launch error:', e);
+      }
+    }
+  }, [step]);
 
   const formatTimer = (secs) => {
     const m = Math.floor(secs / 60);
