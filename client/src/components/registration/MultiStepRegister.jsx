@@ -86,11 +86,17 @@ export const MultiStepRegister = () => {
     email: ''
   };
 
-  const [members, setMembers] = useState(
-    Array.from({ length: settings.teamSize || 4 }, () => ({
-      ...defaultMember
-    }))
-  );
+  const [members, setMembers] = useState(() => {
+    const leadInit = {
+      ...defaultMember,
+      name: user?.name && user.name !== 'ALPHA Student' ? user.name : '',
+      regNo: user?.email ? user.email.split('@')[0].toUpperCase() : '',
+      email: user?.email || ''
+    };
+    return Array.from({ length: settings.teamSize || 4 }, (_, idx) =>
+      idx === 0 ? leadInit : { ...defaultMember }
+    );
+  });
 
   // Payment Form State
   const [utr, setUtr] = useState('');
@@ -122,10 +128,16 @@ export const MultiStepRegister = () => {
   const handleClearDraft = () => {
     localStorage.removeItem(draftKey);
     setTeamName('');
+    const leadInit = {
+      ...defaultMember,
+      name: user?.name && user.name !== 'ALPHA Student' ? user.name : '',
+      regNo: user?.email ? user.email.split('@')[0].toUpperCase() : '',
+      email: user?.email || ''
+    };
     setMembers(
-      Array.from({ length: settings.teamSize || 4 }, () => ({
-        ...defaultMember
-      }))
+      Array.from({ length: settings.teamSize || 4 }, (_, idx) =>
+        idx === 0 ? leadInit : { ...defaultMember }
+      )
     );
     setTrack('DRAGON INTELLIGENCE (AI & ML)');
     setStep(1);
@@ -215,27 +227,29 @@ export const MultiStepRegister = () => {
         })
         .finally(() => setLoading(false));
     } else {
-      // Restore auto-saved draft for steps 1-6 from localStorage
-      const savedDraftRaw = localStorage.getItem(draftKey);
-      if (savedDraftRaw) {
-        try {
-          const savedDraft = JSON.parse(savedDraftRaw);
-          if (savedDraft.teamName) setTeamName(savedDraft.teamName);
-          if (savedDraft.members && Array.isArray(savedDraft.members) && savedDraft.members.length > 0) {
-            const merged = savedDraft.members.map((m, idx) => ({
-              ...defaultMember,
-              ...m,
-              email: idx === 0 ? (user?.email || m.email) : m.email
-            }));
-            setMembers(merged);
+      // Restore auto-saved draft for steps 1-6 from localStorage strictly for current authenticated user
+      if (user?.email) {
+        const savedDraftRaw = localStorage.getItem(draftKey);
+        if (savedDraftRaw) {
+          try {
+            const savedDraft = JSON.parse(savedDraftRaw);
+            if (savedDraft.teamName) setTeamName(savedDraft.teamName);
+            if (savedDraft.members && Array.isArray(savedDraft.members) && savedDraft.members.length > 0) {
+              const merged = savedDraft.members.map((m, idx) => ({
+                ...defaultMember,
+                ...m,
+                email: idx === 0 ? user.email : (m.email || '')
+              }));
+              setMembers(merged);
+            }
+            if (savedDraft.track) setTrack(savedDraft.track);
+            if (savedDraft.step && savedDraft.step >= 1 && savedDraft.step <= 6) {
+              setStep(savedDraft.step);
+            }
+            setDraftRestoredNotice(true);
+          } catch (e) {
+            console.warn('Draft restoration notice:', e);
           }
-          if (savedDraft.track) setTrack(savedDraft.track);
-          if (savedDraft.step && savedDraft.step >= 1 && savedDraft.step <= 6) {
-            setStep(savedDraft.step);
-          }
-          setDraftRestoredNotice(true);
-        } catch (e) {
-          console.warn('Draft restoration notice:', e);
         }
       }
     }

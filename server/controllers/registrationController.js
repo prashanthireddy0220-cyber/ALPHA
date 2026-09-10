@@ -743,56 +743,64 @@ export const verifyTeamPass = async (req, res) => {
   }
 };
 
-// Get Team details for participant dashboard (High-Performance Parallel Lookup)
+// Get Team details for participant dashboard (Strict verified user ownership)
 export const getMyTeam = async (req, res) => {
   try {
     const userEmail = (req.user?.email || '').trim().toLowerCase();
-    const userRegNo = userEmail.split('@')[0].toUpperCase();
+    if (!userEmail) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
 
     let team = null;
 
-    // 1. Direct teamId match on User model if available
+    // 1. If user has teamId, verify that the team exists AND strictly belongs to this user
     if (req.user.teamId) {
-      team = await Team.findOne({
+      const candidateTeam = await Team.findOne({
         $or: [
           { teamId: req.user.teamId },
           { teamId: req.user.teamId.toUpperCase() }
         ]
       }).populate('members').lean();
+
+      if (candidateTeam) {
+        const isLead = candidateTeam.leadEmail && candidateTeam.leadEmail.trim().toLowerCase() === userEmail;
+        const isMember = Array.isArray(candidateTeam.members) && candidateTeam.members.some(m => m.email && m.email.trim().toLowerCase() === userEmail);
+        const isOwner = candidateTeam.user && candidateTeam.user.toString() === req.user._id.toString();
+
+        if (isLead || isMember || isOwner) {
+          team = candidateTeam;
+        } else {
+          // Team exists but doesn't belong to this user! Clear stale teamId
+          await User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
+        }
+      } else {
+        // Team was deleted, clear stale teamId
+        await User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
+      }
     }
 
-    // 2. High-speed combined indexed search across Student and Team collections
+    // 2. If team not found by verified teamId, search strictly by user's exact email or user id
     if (!team) {
-      const emailRegex = userEmail ? new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
-      const regNoRegex = userRegNo ? new RegExp(`^${userRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
-
-      const studentDocs = await Student.find({
-        $or: [
-          ...(emailRegex ? [{ email: emailRegex }] : []),
-          ...(regNoRegex ? [{ regNo: regNoRegex }] : [])
-        ]
-      }).select('_id').lean();
-
+      const studentDocs = await Student.find({ email: userEmail }).select('_id').lean();
       const studentIds = studentDocs.map(s => s._id);
 
       team = await Team.findOne({
         $or: [
-          ...(emailRegex ? [{ leadEmail: emailRegex }] : []),
-          ...(regNoRegex ? [{ leadRegNo: regNoRegex }] : []),
-          ...(req.user._id ? [{ user: req.user._id }] : []),
+          { leadEmail: userEmail },
+          { user: req.user._id },
           ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
         ]
       }).populate('members').lean();
     }
 
     if (!team) {
-      if (req.user && req.user._id) {
-        User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
+      if (req.user && req.user._id && req.user.teamId) {
+        await User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
       }
       return res.status(404).json({ message: 'No registered team found for this account. Please register your team.' });
     }
 
-    // Background non-blocking sync of teamId on User model if missing
+    // Background sync of teamId on User model
     if (req.user._id && (!req.user.teamId || req.user.teamId !== team.teamId)) {
       User.findByIdAndUpdate(req.user._id, { teamId: team.teamId }).exec().catch(() => {});
     }

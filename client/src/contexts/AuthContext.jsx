@@ -30,7 +30,7 @@ axios.interceptors.request.use((config) => {
 });
 
 import { auth } from '../firebase';
-import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(initialUser);
@@ -113,6 +113,10 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async (preferRedirect = false) => {
     setLoading(true);
     try {
+      try {
+        await signOut(auth);
+      } catch (e) {}
+
       let email = '';
       let name = 'ALPHA Student';
       let firebaseErrorMsg = '';
@@ -157,6 +161,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (!email.endsWith('@klu.ac.in')) {
+        try {
+          await signOut(auth);
+        } catch (e) {}
         setLoading(false);
         return {
           success: false,
@@ -221,11 +228,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {}
     setUser(null);
     localStorage.removeItem('alpha_user');
     sessionStorage.removeItem('alpha_cached_team_dashboard');
     sessionStorage.clear();
+    try {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('alpha_reg_draft_') || k === 'alpha_reservation_id') {
+          localStorage.removeItem(k);
+        }
+      });
+    } catch (e) {}
     delete axios.defaults.headers.common['Authorization'];
   };
 

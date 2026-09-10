@@ -212,80 +212,66 @@ export const loginUser = async (req, res) => {
     }
 
     // -------------------------------------------------------------
-    // 4. GENERAL USER / REGISTRATION NO / EMAIL LOOKUP
+    // 4. GENERAL USER / GOOGLE AUTHENTICATION / EMAIL LOOKUP
     // -------------------------------------------------------------
     let targetEmail = cleanEmail;
     if (targetEmail && !targetEmail.includes('@')) {
       targetEmail = `${targetEmail}@klu.ac.in`;
     }
-
-    const emailRegex = targetEmail ? new RegExp(`^${targetEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
-    const targetRegNo = targetEmail ? targetEmail.split('@')[0].toUpperCase() : '';
-    const regNoRegex = targetRegNo ? new RegExp(`^${targetRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+    targetEmail = targetEmail.trim().toLowerCase();
 
     let user = await User.findOne({
       $or: [
-        ...(emailRegex ? [{ email: emailRegex }] : []),
+        ...(targetEmail ? [{ email: targetEmail }] : []),
         ...(upperInput ? [{ volunteerId: upperInput }] : [])
       ]
     });
 
-    // Auto-link registered team member to User account if User doc doesn't exist yet
+    // Auto-link registered team strictly by email if User doc doesn't exist yet
     if (!user && targetEmail) {
-      const studentDoc = await Student.findOne({
-        $or: [
-          ...(emailRegex ? [{ email: emailRegex }] : []),
-          ...(regNoRegex ? [{ regNo: regNoRegex }] : [])
-        ]
-      });
-
+      const studentDoc = await Student.findOne({ email: targetEmail });
       let team = null;
+
       if (studentDoc) {
         team = await Team.findOne({
           $or: [
             { members: studentDoc._id },
-            ...(emailRegex ? [{ leadEmail: emailRegex }] : []),
-            ...(regNoRegex ? [{ leadRegNo: regNoRegex }] : [])
+            { leadEmail: targetEmail }
           ]
         });
       } else {
-        team = await Team.findOne({
-          $or: [
-            ...(emailRegex ? [{ leadEmail: emailRegex }] : []),
-            ...(regNoRegex ? [{ leadRegNo: regNoRegex }] : [])
-          ]
-        });
+        team = await Team.findOne({ leadEmail: targetEmail });
       }
 
-      const fallbackName = (req.body.name || targetEmail.split('@')[0]).toUpperCase();
+      const displayName = req.body.name?.trim() || targetEmail.split('@')[0].toUpperCase();
       user = await User.create({
-        name: studentDoc?.name || team?.teamName || fallbackName,
-        email: targetEmail.toLowerCase(),
-        password: cleanInput || targetRegNo || 'password123',
+        name: displayName,
+        email: targetEmail,
+        password: cleanInput || 'password123',
         role: 'user',
         teamId: team ? team.teamId : undefined
       });
     }
 
-    // If user exists but teamId is not linked on User model, attempt to auto-link
-    if (user && !user.teamId && targetEmail) {
-      const studentDoc = await Student.findOne({
-        $or: [
-          ...(emailRegex ? [{ email: emailRegex }] : []),
-          ...(regNoRegex ? [{ regNo: regNoRegex }] : [])
-        ]
-      });
-      const team = await Team.findOne({
-        $or: [
-          ...(studentDoc ? [{ members: studentDoc._id }] : []),
-          ...(emailRegex ? [{ leadEmail: emailRegex }] : []),
-          ...(regNoRegex ? [{ leadRegNo: regNoRegex }] : [])
-        ]
-      });
-      if (team) {
-        user.teamId = team.teamId;
-        await user.save();
+    // If user exists, sync displayName if provided and link teamId strictly by email
+    if (user && targetEmail) {
+      if (req.body.name && req.body.name.trim() && user.name === 'ALPHA Student') {
+        user.name = req.body.name.trim();
       }
+
+      if (!user.teamId) {
+        const studentDoc = await Student.findOne({ email: targetEmail });
+        const team = await Team.findOne({
+          $or: [
+            ...(studentDoc ? [{ members: studentDoc._id }] : []),
+            { leadEmail: targetEmail }
+          ]
+        });
+        if (team) {
+          user.teamId = team.teamId;
+        }
+      }
+      await user.save();
     }
 
     if (!user) {
