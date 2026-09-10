@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { QRCodeSVG } from 'qrcode.react';
-import { Shield, Clock, AlertTriangle, CheckCircle, ArrowRight, ArrowLeft, Users, QrCode, Lock, Flame, MessageCircle } from 'lucide-react';
+import { Shield, Clock, AlertTriangle, CheckCircle, ArrowRight, ArrowLeft, Users, Building2, Copy, Lock, Flame, MessageCircle } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { TiltCard } from '../common/TiltCard';
 
@@ -13,6 +12,7 @@ export const MultiStepRegister = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [copiedField, setCopiedField] = useState(null);
 
   // Slot Reservation state (stored server-side with 5-minute timer)
   const [reservation, setReservation] = useState(null);
@@ -49,41 +49,92 @@ export const MultiStepRegister = () => {
   // Result state
   const [registrationResult, setRegistrationResult] = useState(null);
 
-  // 1. Restore reservation timer state on page refresh if user is on Payment Step
+  const clearSessionData = () => {
+    sessionStorage.removeItem('alpha_reservation_id');
+    sessionStorage.removeItem('alpha_registration_step');
+    sessionStorage.removeItem('alpha_team_name');
+    sessionStorage.removeItem('alpha_members');
+    sessionStorage.removeItem('alpha_track');
+    sessionStorage.removeItem('alpha_expires_at');
+  };
+
+  const handleCopy = (text, field) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  // 1. Restore reservation timer state on page refresh if user was on Payment Step
   useEffect(() => {
     const savedResId = sessionStorage.getItem('alpha_reservation_id');
-    if (savedResId && step === 4) {
+    const savedStep = sessionStorage.getItem('alpha_registration_step');
+    const savedTeamName = sessionStorage.getItem('alpha_team_name');
+    const savedMembers = sessionStorage.getItem('alpha_members');
+    const savedTrack = sessionStorage.getItem('alpha_track');
+    const savedExpiresAt = sessionStorage.getItem('alpha_expires_at');
+
+    if (savedResId && (savedStep === '4' || savedStep === 4)) {
+      setLoading(true);
       axios.get(`/api/registration/reservation-status/${savedResId}`)
         .then(res => {
-          if (res.data.valid) {
+          if (res.data.valid && !res.data.expired && res.data.remainingSeconds > 0) {
             setReservation(res.data);
             setTimerSeconds(res.data.remainingSeconds);
             if (res.data.teamName) setTeamName(res.data.teamName);
+            else if (savedTeamName) setTeamName(savedTeamName);
+
+            if (res.data.membersData && res.data.membersData.length > 0) {
+              setMembers(res.data.membersData);
+            } else if (savedMembers) {
+              try { setMembers(JSON.parse(savedMembers)); } catch (e) {}
+            }
+
+            if (res.data.track) setTrack(res.data.track);
+            else if (savedTrack) setTrack(savedTrack);
+
+            setStep(4);
           } else {
-            sessionStorage.removeItem('alpha_reservation_id');
-            setReservation(null);
+            clearSessionData();
             setStep(1);
-            setErrorMessage('Your payment session has expired. Please start the payment process again.');
+            setErrorMessage('Your 5-minute payment slot reservation has expired. Please start the registration process again.');
           }
         })
         .catch(() => {
-          sessionStorage.removeItem('alpha_reservation_id');
-          setReservation(null);
-        });
+          if (savedExpiresAt) {
+            const exp = new Date(savedExpiresAt).getTime();
+            const now = Date.now();
+            const remain = Math.max(0, Math.floor((exp - now) / 1000));
+            if (remain > 0) {
+              setStep(4);
+              setTimerSeconds(remain);
+              setReservation({ reservationId: savedResId, expiresAt: savedExpiresAt, remainingSeconds: remain });
+              if (savedTeamName) setTeamName(savedTeamName);
+              if (savedMembers) { try { setMembers(JSON.parse(savedMembers)); } catch (e) {} }
+              if (savedTrack) setTrack(savedTrack);
+              return;
+            }
+          }
+          clearSessionData();
+          setStep(1);
+          setErrorMessage('Your payment slot session has expired. Please start the registration process again.');
+        })
+        .finally(() => setLoading(false));
     }
-  }, [step]);
+  }, []);
 
   // 2. Server-side synchronized 5-minute timer countdown
   useEffect(() => {
     let interval = null;
-    if (reservation && timerSeconds > 0) {
+    if (step === 4 && timerSeconds > 0) {
       interval = setInterval(() => {
         setTimerSeconds(prev => {
           if (prev <= 1) {
             clearInterval(interval);
-            sessionStorage.removeItem('alpha_reservation_id');
+            clearSessionData();
             setReservation(null);
-            setErrorMessage('Your payment session has expired. Please start the payment process again.');
+            setErrorMessage('Your 5-minute payment slot reservation has expired. Please start the registration process again.');
             setStep(1);
             return 0;
           }
@@ -92,7 +143,7 @@ export const MultiStepRegister = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [reservation, timerSeconds]);
+  }, [step, timerSeconds]);
 
   const formatTimer = (secs) => {
     const m = Math.floor(secs / 60);
@@ -234,22 +285,42 @@ export const MultiStepRegister = () => {
         }
       }
 
-      setReservation(res.data);
-      setTimerSeconds(res.data.remainingSeconds || 300);
-      if (res.data.reservationId) {
-        sessionStorage.setItem('alpha_reservation_id', res.data.reservationId);
-      }
+      const resData = res.data;
+      setReservation(resData);
+      const remainingSecs = resData.remainingSeconds || 300;
+      setTimerSeconds(remainingSecs);
+
+      const resId = resData.reservationId || existingResId || `RES-${Date.now()}`;
+      const expiresAtIso = resData.expiresAt || new Date(Date.now() + remainingSecs * 1000).toISOString();
+
+      sessionStorage.setItem('alpha_reservation_id', resId);
+      sessionStorage.setItem('alpha_registration_step', '4');
+      sessionStorage.setItem('alpha_team_name', teamName.trim().toUpperCase());
+      sessionStorage.setItem('alpha_members', JSON.stringify(members));
+      sessionStorage.setItem('alpha_track', track);
+      sessionStorage.setItem('alpha_expires_at', expiresAtIso);
+
       setStep(4);
     } catch (err) {
       if (err.response?.status === 404 || err.response?.status === 403 || !err.response) {
         // Ultimate fallback: proceed with local 5-minute reservation timer if backend route is unavailable
+        const expiresAtIso = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        const resId = `RES-${Date.now()}`;
         const localReservation = {
-          reservationId: `RES-${Date.now()}`,
-          expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          reservationId: resId,
+          expiresAt: expiresAtIso,
           remainingSeconds: 300
         };
         setReservation(localReservation);
         setTimerSeconds(300);
+
+        sessionStorage.setItem('alpha_reservation_id', resId);
+        sessionStorage.setItem('alpha_registration_step', '4');
+        sessionStorage.setItem('alpha_team_name', teamName.trim().toUpperCase());
+        sessionStorage.setItem('alpha_members', JSON.stringify(members));
+        sessionStorage.setItem('alpha_track', track);
+        sessionStorage.setItem('alpha_expires_at', expiresAtIso);
+
         setStep(4);
       } else {
         setErrorMessage(err.response?.data?.message || 'Slot reservation failed. Capacity may be full.');
@@ -309,7 +380,7 @@ export const MultiStepRegister = () => {
         reservationId: savedResId
       });
 
-      sessionStorage.removeItem('alpha_reservation_id');
+      clearSessionData();
       setRegistrationResult(res.data);
       setStep(5); // Success step
     } catch (err) {
@@ -682,24 +753,111 @@ export const MultiStepRegister = () => {
         </TiltCard>
       )}
 
-      {/* STEP 4: Payment UPI QR & UTR / Screenshot Submission (5-Min Server-Side Timer Active) */}
+      {/* STEP 4: Bank Account Details & UTR / Screenshot Submission (5-Min Persistent Slot Lock Active) */}
       {step === 4 && (
-        <TiltCard className="p-8">
+        <TiltCard className="p-6 md:p-8">
+          {/* 5-Min Slot Lock Banner */}
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-cyan-950/80 via-slate-900 to-sky-950/80 border border-cyan-500/40 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(0,240,255,0.15)]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center animate-pulse">
+                <Clock className="w-5 h-5 text-cyan-300" />
+              </div>
+              <div>
+                <div className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                  <span>PAYMENT SLOT LOCKED (5-MIN TIMER)</span>
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-[10px] text-cyan-300 font-mono">REFRESH PERSISTENT</span>
+                </div>
+                <p className="text-[11px] text-slate-300">Your slot is reserved on server. Refreshing the page continues with the exact same time.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-950 px-4 py-2 rounded-xl border border-cyan-500/40">
+              <span className="text-[10px] text-slate-400 font-bold uppercase">TIME REMAINING:</span>
+              <span className="text-xl font-black font-mono text-cyan-300 tracking-wider text-glow">
+                {formatTimer(timerSeconds)}
+              </span>
+            </div>
+          </div>
+
           <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-            <QrCode className="w-5 h-5 text-cyan-400" />
-            <span>STEP 4: PAYMENT VERIFICATION</span>
+            <Building2 className="w-5 h-5 text-cyan-400" />
+            <span>STEP 4: BANK ACCOUNT TRANSFER & PAYMENT VERIFICATION</span>
           </h2>
-          <p className="text-xs text-slate-400 mb-6">Scan QR or use UPI ID to pay exact total amount before slot expires</p>
+          <p className="text-xs text-slate-400 mb-6">
+            Please transfer the total fee of <span className="text-cyan-300 font-bold text-sm">₹{totalFee}</span> ({members.length} members × ₹{settings.participantFee || 350}) to the official IEEE Student Branch Bank Account specified below before your slot expires.
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            {/* UPI QR & Info */}
-            <div className="p-6 rounded-2xl bg-slate-950 border border-sky-500/30 flex flex-col items-center justify-center text-center">
-              <div className="p-4 bg-white rounded-2xl shadow-xl mb-4">
-                <QRCodeSVG value={`upi://pay?pa=${settings.upiId || 'kareieee@upi'}&pn=KARE%20IEEE&am=${totalFee}&cu=INR`} size={180} />
+            {/* Official SB Bank Account Details Card */}
+            <div className="p-6 rounded-2xl bg-slate-950 border border-sky-500/30 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <span className="text-[11px] font-black text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Shield className="w-4 h-4" /> OFFICIAL SB ACCOUNT DETAILS
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-[10px] text-cyan-300 font-bold border border-cyan-500/30">DIRECT BANK TRANSFER</span>
               </div>
-              <div className="text-xs font-bold text-white mb-1">UPI ID: <span className="text-cyan-300 font-mono">{settings.upiId || 'kareieee@upi'}</span></div>
-              <div className="text-sm font-black text-cyan-300 mt-2 text-glow">TOTAL AMOUNT: ₹{totalFee}</div>
-              <span className="text-[10px] text-slate-400 mt-1">({members.length} members × ₹{settings.participantFee || 350})</span>
+
+              {/* Account Name */}
+              <div className="text-xs">
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Account Name</span>
+                <span className="font-bold text-white text-sm">IEEE STUDENT BRANCH</span>
+              </div>
+
+              {/* HIGHLIGHTED Account Number */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-cyan-950/70 to-slate-900 border-2 border-cyan-400/80 shadow-[0_0_25px_rgba(0,240,255,0.25)] flex items-center justify-between">
+                <div>
+                  <span className="text-cyan-300 text-[10px] font-extrabold uppercase tracking-widest block">ACCOUNT NUMBER (HIGHLIGHTED)</span>
+                  <span className="font-mono text-white text-lg md:text-xl font-black tracking-widest">{settings.bankAccountNumber || '335602011000121'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(settings.bankAccountNumber || '335602011000121', 'acc')}
+                  className="px-3 py-1.5 rounded-lg bg-cyan-400 text-black text-xs font-black uppercase hover:bg-cyan-300 transition-all cursor-pointer flex items-center gap-1 shadow-md"
+                >
+                  {copiedField === 'acc' ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedField === 'acc' ? 'COPIED!' : 'COPY'}</span>
+                </button>
+              </div>
+
+              {/* Bank Name & Branch Name */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Bank Name</span>
+                  <span className="font-bold text-slate-200">{settings.bankName || 'UNION BANK OF INDIA'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Branch Name</span>
+                  <span className="font-bold text-slate-200">{settings.bankBranch || 'KRISHNANKOIL, WATRAP'}</span>
+                </div>
+              </div>
+
+              {/* HIGHLIGHTED IFSC Code */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-sky-950/70 to-slate-900 border-2 border-sky-400/80 shadow-[0_0_25px_rgba(56,189,248,0.25)] flex items-center justify-between">
+                <div>
+                  <span className="text-sky-300 text-[10px] font-extrabold uppercase tracking-widest block">IFSC CODE (HIGHLIGHTED)</span>
+                  <span className="font-mono text-white text-base md:text-lg font-black tracking-widest">{settings.bankIfsc || 'UBIN0562734'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(settings.bankIfsc || 'UBIN0562734', 'ifsc')}
+                  className="px-3 py-1.5 rounded-lg bg-sky-400 text-black text-xs font-black uppercase hover:bg-sky-300 transition-all cursor-pointer flex items-center gap-1 shadow-md"
+                >
+                  {copiedField === 'ifsc' ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedField === 'ifsc' ? 'COPIED!' : 'COPY'}</span>
+                </button>
+              </div>
+
+              {/* MICR Code & Payable Fee */}
+              <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-slate-800">
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">MICR Code</span>
+                  <span className="font-mono font-bold text-slate-300">{settings.bankMicr || '626026503'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Total Payable Amount</span>
+                  <span className="font-bold text-cyan-300 text-sm">₹{totalFee}</span>
+                </div>
+              </div>
             </div>
 
             {/* Form Inputs */}

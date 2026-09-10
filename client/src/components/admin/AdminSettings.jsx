@@ -111,17 +111,73 @@ export const AdminSettings = () => {
         </TiltCard>
 
         <TiltCard className="p-6">
-          <h2 className="text-base font-bold text-white mb-4">PAYMENT & COMMUNITY DETAILS</h2>
+          <h2 className="text-base font-bold text-white mb-4">PAYMENT BANK ACCOUNT DETAILS</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label className="block font-bold text-slate-300 uppercase mb-1">UPI ID *</label>
+              <label className="block font-bold text-slate-300 uppercase mb-1">ACCOUNT NAME *</label>
               <input
                 type="text"
-                value={form.upiId || 'kareieee@upi'}
-                onChange={(e) => handleChange('upiId', e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+                value={form.bankAccountName || 'IEEE STUDENT BRANCH'}
+                onChange={(e) => handleChange('bankAccountName', e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold"
               />
             </div>
+
+            <div>
+              <label className="block font-bold text-cyan-300 uppercase mb-1">ACCOUNT NUMBER (HIGHLIGHTED) *</label>
+              <input
+                type="text"
+                value={form.bankAccountNumber || '335602011000121'}
+                onChange={(e) => handleChange('bankAccountNumber', e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-cyan-500/50 text-cyan-300 font-mono font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-300 uppercase mb-1">BANK NAME *</label>
+              <input
+                type="text"
+                value={form.bankName || 'UNION BANK OF INDIA'}
+                onChange={(e) => handleChange('bankName', e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-300 uppercase mb-1">BRANCH NAME *</label>
+              <input
+                type="text"
+                value={form.bankBranch || 'KRISHNANKOIL, WATRAP'}
+                onChange={(e) => handleChange('bankBranch', e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-sky-300 uppercase mb-1">IFSC CODE (HIGHLIGHTED) *</label>
+              <input
+                type="text"
+                value={form.bankIfsc || 'UBIN0562734'}
+                onChange={(e) => handleChange('bankIfsc', e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-sky-500/50 text-sky-300 font-mono font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-300 uppercase mb-1">MICR CODE *</label>
+              <input
+                type="text"
+                value={form.bankMicr || '626026503'}
+                onChange={(e) => handleChange('bankMicr', e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono font-semibold"
+              />
+            </div>
+          </div>
+        </TiltCard>
+
+        <TiltCard className="p-6">
+          <h2 className="text-base font-bold text-white mb-4">COMMUNITY & EVENT INFORMATION</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
 
             <div>
               <label className="block font-bold text-slate-300 uppercase mb-1">WHATSAPP COMMUNITY LINK *</label>

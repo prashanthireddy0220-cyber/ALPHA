@@ -121,6 +121,12 @@ const seedInitialData = async () => {
         participantFee: 350,
         teamFee: 1400,
         upiId: 'kareieee@upi',
+        bankAccountName: 'IEEE STUDENT BRANCH',
+        bankAccountNumber: '335602011000121',
+        bankName: 'UNION BANK OF INDIA',
+        bankBranch: 'KRISHNANKOIL, WATRAP',
+        bankIfsc: 'UBIN0562734',
+        bankMicr: '626026503',
         eventName: 'ALPHA 2026',
         eventTagline: 'RISE. CONQUER. RULE.',
         eventDate: 'OCTOBER 1 - 2, 2026',
@@ -140,8 +146,14 @@ const seedInitialData = async () => {
       });
       console.log('[Seed] Event settings initialized.');
     } else {
-      // Ensure date & social links are updated
+      // Ensure date, bank details & social links are updated
       settings.eventDate = 'OCTOBER 1 - 2, 2026';
+      settings.bankAccountName = 'IEEE STUDENT BRANCH';
+      settings.bankAccountNumber = '335602011000121';
+      settings.bankName = 'UNION BANK OF INDIA';
+      settings.bankBranch = 'KRISHNANKOIL, WATRAP';
+      settings.bankIfsc = 'UBIN0562734';
+      settings.bankMicr = '626026503';
       settings.communityLink = 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyls';
       settings.instagramLink = 'https://www.instagram.com/kare_ieee_eds_official/';
       settings.linkedinLink = 'https://www.linkedin.com/in/ieee-education-society-kare-97b490381/';
