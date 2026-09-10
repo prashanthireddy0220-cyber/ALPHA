@@ -15,6 +15,9 @@ export const AdminDashboard = () => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Active Main View Tab: 'teams' or 'settings' (Matches User Screenshots)
+  const [activeMainTab, setActiveMainTab] = useState('teams');
+
   // Demographics visibility toggle
   const [showCharts, setShowCharts] = useState(true);
 
@@ -28,7 +31,6 @@ export const AdminDashboard = () => {
   const [sortOrder, setSortOrder] = useState('ASC');
 
   // Modals state
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [inspectTeam, setInspectTeam] = useState(null);
   const [editTeam, setEditTeam] = useState(null);
@@ -39,12 +41,13 @@ export const AdminDashboard = () => {
     maxTeams: 60,
     registrationOpen: true,
     participantFee: 350,
-    officialUpiId: '63897781@ybl',
-    officialWhatsappGroup: '',
+    officialUpiId: '69097701@ubin',
+    officialWhatsappGroup: 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyls',
     qrScannerImageUrl: '/assets/payment_qr.png'
   });
   const [savingSettings, setSavingSettings] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
+  const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
 
   // Add Registration form state
   const [addForm, setAddForm] = useState({
@@ -92,8 +95,8 @@ export const AdminDashboard = () => {
           maxTeams: analyticsRes.data.settings.maxTeams || 60,
           registrationOpen: analyticsRes.data.settings.registrationOpen !== false,
           participantFee: analyticsRes.data.settings.participantFee || 350,
-          officialUpiId: analyticsRes.data.settings.officialUpiId || '63897781@ybl',
-          officialWhatsappGroup: analyticsRes.data.settings.officialWhatsappGroup || '',
+          officialUpiId: analyticsRes.data.settings.officialUpiId || '69097701@ubin',
+          officialWhatsappGroup: analyticsRes.data.settings.officialWhatsappGroup || 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyls',
           qrScannerImageUrl: analyticsRes.data.settings.qrScannerImageUrl || '/assets/payment_qr.png'
         });
       }
@@ -186,12 +189,13 @@ export const AdminDashboard = () => {
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     setSavingSettings(true);
+    setSettingsSaveSuccess(false);
     try {
       await axios.put('/api/settings', settingsForm);
       await fetchSettings();
       await loadDashboardData();
-      setShowSettingsModal(false);
-      alert('System configuration saved successfully!');
+      setSettingsSaveSuccess(true);
+      setTimeout(() => setSettingsSaveSuccess(false), 3500);
     } catch (err) {
       alert('Failed to save configuration: ' + (err.response?.data?.message || err.message));
     } finally {
@@ -347,9 +351,9 @@ export const AdminDashboard = () => {
 
   if (loading || !analytics) {
     return (
-      <div className="p-12 text-center text-slate-400 space-y-4">
-        <RefreshCw className="w-10 h-10 text-cyan-400 animate-spin mx-auto" />
-        <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">LOADING ALPHA ADMIN CONTROL CENTER...</p>
+      <div className="p-16 text-center text-slate-400 space-y-4">
+        <RefreshCw className="w-10 h-10 text-red-500 animate-spin mx-auto" />
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-300">LOADING ALPHA ADMIN CONTROL CENTER...</p>
       </div>
     );
   }
@@ -360,702 +364,651 @@ export const AdminDashboard = () => {
     <div className="space-y-6">
       
       {/* ============================================================== */}
-      {/* 1. TOP HEADER & DASHBOARD CONTROL BAR (Matching ALPHA UI Theme) */}
+      {/* 1. TOP SUBHEADER & ACTION BUTTONS (Exact match to Screenshots) */}
       {/* ============================================================== */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pt-2 pb-3">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-3 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-[10px] font-extrabold tracking-widest uppercase flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-              <span>ALPHA CONTROL CENTER</span>
-            </span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-red-950/50 border border-red-500/40 text-red-400 text-[10px] font-black uppercase tracking-wider mb-2">
+            <ShieldCheck className="w-3.5 h-3.5 text-red-400" />
+            <span>WEBX CONTROL CENTER</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-sky-100 to-cyan-300 tracking-wide">
+          <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-wider">
             ADMIN DASHBOARD
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">ALPHA 2026 MANAGEMENT PORTAL</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <a
-            href="/"
-            target="_blank"
-            rel="noreferrer"
-            className="px-4 py-2 rounded-full glass-button text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1.5 transition-all"
-          >
-            <span>VIEW PUBLIC SITE</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-
-          <div className="px-4 py-2 rounded-full bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 text-black font-extrabold text-xs tracking-wider flex items-center gap-1.5 shadow-[0_0_25px_rgba(0,240,255,0.4)]">
-            <Users className="w-3.5 h-3.5 text-black" />
-            <span>TEAMS ({stats.totalTeams})</span>
-          </div>
-
+        <div className="flex items-center gap-3">
+          {/* TEAMS Tab Button */}
           <button
-            onClick={() => setShowSettingsModal(true)}
-            className="px-4 py-2 rounded-full glass-button text-xs font-bold text-slate-200 hover:text-white flex items-center gap-1.5 cursor-pointer"
+            onClick={() => setActiveMainTab('teams')}
+            className={`px-6 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+              activeMainTab === 'teams'
+                ? 'bg-red-600 text-white shadow-[0_0_25px_rgba(220,38,38,0.7)] border border-red-500'
+                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200'
+            }`}
           >
-            <Settings className="w-4 h-4 text-cyan-400" />
+            TEAMS ({stats.totalTeams})
+          </button>
+
+          {/* SETTINGS Tab Button */}
+          <button
+            onClick={() => setActiveMainTab('settings')}
+            className={`px-6 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+              activeMainTab === 'settings'
+                ? 'bg-red-600 text-white shadow-[0_0_25px_rgba(220,38,38,0.7)] border border-red-500'
+                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
             <span>SETTINGS</span>
           </button>
 
+          {/* LOCK / UNLOCK Button */}
           <button
             onClick={handleToggleLock}
-            className={`px-4 py-2 rounded-full text-xs font-bold tracking-wider flex items-center gap-1.5 cursor-pointer border transition-all ${
-              settingsForm.registrationOpen
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-                : 'bg-red-500/20 text-red-300 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
-            }`}
+            className="px-5 py-2.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200 hover:text-white text-xs font-extrabold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
+            title="Toggle Registration Lock"
           >
-            {settingsForm.registrationOpen ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-            <span>{settingsForm.registrationOpen ? 'OPEN' : 'LOCK'}</span>
+            {settingsForm.registrationOpen ? (
+              <>
+                <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                <span>LOCK</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-3.5 h-3.5 text-red-400" />
+                <span>UNLOCK</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
       {/* ============================================================== */}
-      {/* 2. TOP METRICS GRID - 8 METRIC CARDS (ALPHA Glassmorphism UI) */}
+      {/* 2. TOP METRICS ROW - 8 DISTINCT STAT CARDS (Exact match) */}
       {/* ============================================================== */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-        {/* Card 1: TOTAL TEAMS */}
-        <div className="p-3.5 rounded-2xl glass-card border border-sky-500/30 bg-slate-950/80 hover:border-cyan-400/50 shadow-[0_0_20px_rgba(0,240,255,0.1)] transition-all">
-          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">TOTAL TEAMS</span>
-          <div className="text-xl font-black text-white font-mono mt-1">{stats.totalTeams}</div>
+        {/* TOTAL TEAMS */}
+        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+          <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">TOTAL TEAMS</span>
+          <div className="text-2xl font-black text-white font-mono mt-1.5">{stats.totalTeams}</div>
         </div>
 
-        {/* Card 2: CONFIRMED */}
-        <div className="p-3.5 rounded-2xl glass-card border border-emerald-500/30 bg-slate-950/80 hover:border-emerald-400/50 shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all">
-          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">CONFIRMED</span>
-          <div className="text-xl font-black text-emerald-400 font-mono mt-1 text-glow">{stats.confirmedTeams}</div>
+        {/* CONFIRMED */}
+        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+          <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">CONFIRMED</span>
+          <div className="text-2xl font-black text-blue-500 font-mono mt-1.5">{stats.confirmedTeams}</div>
         </div>
 
-        {/* Card 3: RESERVATIONS */}
-        <div className="p-3.5 rounded-2xl glass-card border border-amber-500/30 bg-slate-950/80 hover:border-amber-400/50 shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all">
-          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">RESERVATIONS</span>
-          <div className="text-xl font-black text-amber-400 font-mono mt-1">{stats.activeReservations}</div>
+        {/* RESERVATIONS */}
+        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+          <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">RESERVATIONS</span>
+          <div className="text-2xl font-black text-amber-400 font-mono mt-1.5">{stats.activeReservations}</div>
         </div>
 
-        {/* Card 4: AVAILABLE */}
-        <div className="p-3.5 rounded-2xl glass-card border border-cyan-500/30 bg-slate-950/80 hover:border-cyan-400/50 shadow-[0_0_20px_rgba(0,240,255,0.1)] transition-all">
-          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">AVAILABLE</span>
-          <div className="text-xl font-black text-cyan-400 font-mono mt-1">{stats.availableSlots}</div>
+        {/* AVAILABLE */}
+        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+          <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">AVAILABLE</span>
+          <div className="text-2xl font-black text-emerald-400 font-mono mt-1.5">{stats.availableSlots}</div>
         </div>
 
-        {/* Card 5: PARTICIPANTS */}
-        <div className="p-3.5 rounded-2xl glass-card border border-indigo-500/30 bg-slate-950/80 hover:border-indigo-400/50 shadow-[0_0_20px_rgba(99,102,241,0.1)] transition-all">
-          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">PARTICIPANTS</span>
-          <div className="text-xl font-black text-indigo-300 font-mono mt-1">{stats.totalParticipants}</div>
+        {/* PARTICIPANTS */}
+        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+          <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">PARTICIPANTS</span>
+          <div className="text-2xl font-black text-fuchsia-400 font-mono mt-1.5">{stats.totalParticipants}</div>
         </div>
 
-        {/* Card 6: PENDING */}
-        <div className="p-3.5 rounded-2xl glass-card border border-amber-500/30 bg-slate-950/80 hover:border-amber-400/50 shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all">
-          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">PENDING</span>
-          <div className="text-xl font-black text-amber-300 font-mono mt-1">{stats.pendingCount}</div>
+        {/* PENDING */}
+        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+          <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">PENDING</span>
+          <div className="text-2xl font-black text-yellow-400 font-mono mt-1.5">{stats.pendingCount}</div>
         </div>
 
-        {/* Card 7: VERIFIED */}
-        <div className="p-3.5 rounded-2xl glass-card border border-emerald-500/30 bg-slate-950/80 hover:border-emerald-400/50 shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all">
-          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">VERIFIED</span>
-          <div className="text-xl font-black text-emerald-300 font-mono mt-1">{stats.verifiedCount}</div>
+        {/* VERIFIED */}
+        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+          <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">VERIFIED</span>
+          <div className="text-2xl font-black text-emerald-400 font-mono mt-1.5">{stats.verifiedCount}</div>
         </div>
 
-        {/* Card 8: REJECTED */}
-        <div className="p-3.5 rounded-2xl glass-card border border-red-500/30 bg-slate-950/80 hover:border-red-400/50 shadow-[0_0_20px_rgba(239,68,68,0.1)] transition-all">
-          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">REJECTED</span>
-          <div className="text-xl font-black text-red-400 font-mono mt-1">{stats.rejectedCount}</div>
+        {/* REJECTED */}
+        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+          <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">REJECTED</span>
+          <div className="text-2xl font-black text-rose-500 font-mono mt-1.5">{stats.rejectedCount}</div>
         </div>
       </div>
 
       {/* ============================================================== */}
-      {/* 3. REGISTRATION DEMOGRAPHICS ANALYTICS (ALPHA Glassmorphism UI) */}
+      {/* TAB VIEW 1: GLOBAL HACKATHON SETTINGS (Exact match to Image 1) */}
       {/* ============================================================== */}
-      <div className="p-5 rounded-3xl glass-card border border-sky-500/30 bg-slate-950/90 shadow-[0_0_30px_rgba(0,240,255,0.15)] space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-          <div className="flex items-center gap-2">
-            <PieChart className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-xs md:text-sm font-extrabold text-white uppercase tracking-wider">
-              REGISTRATION DEMOGRAPHICS ANALYTICS
+      {activeMainTab === 'settings' && (
+        <div className="p-6 md:p-8 rounded-3xl bg-[#0c1220] border border-slate-800/80 shadow-2xl space-y-6 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 pb-4 border-b border-slate-800">
+            <Settings className="w-5 h-5 text-red-500" />
+            <h2 className="text-lg font-black text-white uppercase tracking-wider">
+              GLOBAL HACKATHON SETTINGS
             </h2>
-            <span className="px-3 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-[10px] font-bold">
-              {stats.totalParticipants} PARTICIPANTS ({stats.totalTeams} TEAMS)
-            </span>
           </div>
 
-          <button
-            onClick={() => setShowCharts(!showCharts)}
-            className="text-[10px] font-extrabold text-slate-300 hover:text-white uppercase tracking-wider flex items-center gap-1 glass-button px-3.5 py-1 rounded-full"
-          >
-            <span>{showCharts ? 'HIDE CHARTS ▲' : 'SHOW CHARTS ▼'}</span>
-          </button>
-        </div>
-
-        {showCharts && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
-            {/* Chart 1: Year Distribution */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-sky-500/20 flex flex-col justify-between items-center text-center space-y-3 hover:border-cyan-400/40 transition-all">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Year Distribution</span>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                  <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    stroke="#00f0ff"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray="180 238"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    stroke="#3b82f6"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray="58 238"
-                    strokeDashoffset="-180"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-sm font-black text-white font-mono">{stats.totalParticipants}</span>
-                  <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
-                </div>
-              </div>
-              <div className="w-full text-[10px] space-y-1 font-semibold text-slate-300 pt-2 border-t border-slate-800/80">
-                {yearBreakdown?.map((yb, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-cyan-400' : 'bg-blue-500'}`} />
-                      <span>{yb.name}</span>
-                    </span>
-                    <span className="font-mono text-cyan-300 font-bold">{yb.count} ({Math.round((yb.count / Math.max(1, stats.totalParticipants)) * 100)}%)</span>
-                  </div>
-                ))}
-              </div>
+          {settingsSaveSuccess && (
+            <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
+              <Check className="w-4 h-4" />
+              <span>Hackathon settings saved successfully!</span>
             </div>
+          )}
 
-            {/* Chart 2: Gender Distribution */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-sky-500/20 flex flex-col justify-between items-center text-center space-y-3 hover:border-cyan-400/40 transition-all">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Gender Distribution</span>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                  <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    stroke="#3b82f6"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray="180 238"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    stroke="#ec4899"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray="58 238"
-                    strokeDashoffset="-180"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-sm font-black text-white font-mono">{stats.totalParticipants}</span>
-                  <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
-                </div>
-              </div>
-              <div className="w-full text-[10px] space-y-1 font-semibold text-slate-300 pt-2 border-t border-slate-800/80">
-                {genderBreakdown?.map((gb, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${gb.name === 'Male' ? 'bg-blue-500' : 'bg-pink-500'}`} />
-                      <span>{gb.name}</span>
-                    </span>
-                    <span className="font-mono text-cyan-300 font-bold">{gb.count} ({Math.round((gb.count / Math.max(1, stats.totalParticipants)) * 100)}%)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Chart 3: Department Distribution */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-sky-500/20 flex flex-col justify-between items-center text-center space-y-3 hover:border-cyan-400/40 transition-all">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Department Distribution</span>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                  <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    stroke="#00f0ff"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray="165 238"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    stroke="#a855f7"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray="65 238"
-                    strokeDashoffset="-165"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-sm font-black text-white font-mono">{stats.totalParticipants}</span>
-                  <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
-                </div>
-              </div>
-              <div className="w-full text-[10px] space-y-1 font-semibold text-slate-300 pt-2 border-t border-slate-800/80 max-h-20 overflow-y-auto pr-1">
-                {departmentBreakdown?.map((db, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-cyan-400' : idx === 1 ? 'bg-purple-400' : 'bg-emerald-400'}`} />
-                      <span>{db.name}</span>
-                    </span>
-                    <span className="font-mono text-cyan-300 font-bold">{db.count} ({Math.round((db.count / Math.max(1, stats.totalParticipants)) * 100)}%)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Chart 4: Accommodation */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-sky-500/20 flex flex-col justify-between items-center text-center space-y-3 hover:border-cyan-400/40 transition-all">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Accommodation</span>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                  <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    stroke="#10b981"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray="190 238"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    stroke="#f59e0b"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray="48 238"
-                    strokeDashoffset="-190"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-sm font-black text-white font-mono">{stats.totalParticipants}</span>
-                  <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
-                </div>
-              </div>
-              <div className="w-full text-[10px] space-y-1 font-semibold text-slate-300 pt-2 border-t border-slate-800/80">
-                {accommodationBreakdown?.map((ab, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${ab.name === 'Hosteller' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                      <span>{ab.name}</span>
-                    </span>
-                    <span className="font-mono text-cyan-300 font-bold">{ab.count} ({Math.round((ab.count / Math.max(1, stats.totalParticipants)) * 100)}%)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ============================================================== */}
-      {/* 4. SEARCH, FILTERS & ACTION BUTTONS ROW (ALPHA Glassmorphism UI) */}
-      {/* ============================================================== */}
-      <div className="space-y-3">
-        {/* Search Bar & Add Button */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search Team ID, Team Name, Member, Reg No, Mobile, UTR..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-950 text-xs text-white placeholder-slate-500 border border-sky-500/30 focus:border-cyan-400 focus:outline-none transition-colors"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 text-black font-extrabold text-xs tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all transform hover:-translate-y-0.5 cursor-pointer whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 text-black" />
-              <span>+ ADD REGISTRATION</span>
-            </button>
-            <span className="text-xs font-bold text-slate-400 whitespace-nowrap hidden sm:inline">
-              Showing <span className="text-cyan-300 font-mono">{filteredTeams.length}</span> of <span className="text-white font-mono">{teams.length}</span> Teams
-            </span>
-          </div>
-        </div>
-
-        {/* Dropdown Filters */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-950 text-xs font-bold text-white border border-slate-800 focus:border-cyan-400 focus:outline-none"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="PENDING">PENDING</option>
-            <option value="VERIFIED">VERIFIED</option>
-            <option value="REJECTED">REJECTED</option>
-          </select>
-
-          <select
-            value={yearFilter}
-            onChange={(e) => setYearFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-950 text-xs font-bold text-white border border-slate-800 focus:border-cyan-400 focus:outline-none"
-          >
-            <option value="ALL">All Years</option>
-            <option value="II">II Year</option>
-            <option value="III">III Year</option>
-            <option value="IV">IV Year</option>
-          </select>
-
-          <select
-            value={genderFilter}
-            onChange={(e) => setGenderFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-950 text-xs font-bold text-white border border-slate-800 focus:border-cyan-400 focus:outline-none"
-          >
-            <option value="ALL">All Genders</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-          </select>
-
-          <select
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-950 text-xs font-bold text-white border border-slate-800 focus:border-cyan-400 focus:outline-none"
-          >
-            <option value="ALL">All Departments</option>
-            {['CSE', 'ECE', 'IT', 'EEE', 'MECH', 'CIVIL', 'BIO'].map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-
-          <select
-            value={accomFilter}
-            onChange={(e) => setAccomFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-950 text-xs font-bold text-white border border-slate-800 focus:border-cyan-400 focus:outline-none"
-          >
-            <option value="ALL">All Accommodation</option>
-            <option value="Hosteller">Hosteller</option>
-            <option value="Day Scholar">Day Scholar</option>
-          </select>
-
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-950 text-xs font-bold text-white border border-slate-800 focus:border-cyan-400 focus:outline-none"
-          >
-            <option value="ASC">Team ID (Asc)</option>
-            <option value="DESC">Team ID (Desc)</option>
-          </select>
-        </div>
-
-        {/* Action Buttons Row */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <button
-            onClick={exportCSV}
-            className="px-4 py-1.5 rounded-full border border-sky-500/30 text-sky-300 hover:bg-sky-500/10 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>EXCEL</span>
-          </button>
-
-          <button
-            onClick={exportCSV}
-            className="px-4 py-1.5 rounded-full border border-sky-500/30 text-sky-300 hover:bg-sky-500/10 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>CSV</span>
-          </button>
-
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>EXPORT PDF REPORT</span>
-          </button>
-
-          <button
-            onClick={exportCSV}
-            className="px-4 py-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-sky-400 text-black text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.4)]"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>DOWNLOAD PASSES (ZIP)</span>
-          </button>
-
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <Ticket className="w-3.5 h-3.5" />
-            <span>ALL PASSES (PDF)</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ============================================================== */}
-      {/* 5. TEAMS DATA TABLE WITH ALPHA GLASS CARDS UI */}
-      {/* ============================================================== */}
-      <div className="overflow-hidden rounded-3xl glass-card border border-sky-500/30 shadow-[0_0_30px_rgba(0,240,255,0.15)] bg-slate-950/90">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-cyan-300 font-extrabold uppercase tracking-wider border-b border-sky-500/30">
-              <tr>
-                <th className="p-4">TEAM ID ↑</th>
-                <th className="p-4">TEAM NAME</th>
-                <th className="p-4">TEAM LEAD</th>
-                <th className="p-4">UTR NUMBER</th>
-                <th className="p-4">STATUS</th>
-                <th className="p-4 text-center">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-medium">
-              {filteredTeams.map((t) => {
-                const leadMember = t.members?.[0];
-                return (
-                  <tr key={t._id} className="hover:bg-slate-900/60 transition-colors">
-                    <td className="p-4 font-mono font-black text-cyan-300 tracking-wider">
-                      {t.teamId}
-                    </td>
-
-                    <td className="p-4 text-white font-extrabold uppercase">
-                      {t.teamName}
-                    </td>
-
-                    <td className="p-4">
-                      <div className="font-bold text-slate-200">
-                        {leadMember?.name || t.leadEmail?.split('@')[0]}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        {t.leadEmail}
-                      </div>
-                    </td>
-
-                    <td className="p-4 font-mono text-slate-300">
-                      {t.payment?.utr || 'N/A'}
-                    </td>
-
-                    <td className="p-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-[10px] font-extrabold ${
-                          t.payment?.status === 'VERIFIED'
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                            : t.payment?.status === 'REJECTED'
-                            ? 'bg-red-500/20 text-red-300 border border-red-500/40'
-                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        }`}
-                      >
-                        {t.payment?.status || 'PENDING'}
-                      </span>
-                    </td>
-
-                    <td className="p-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => setPassTeam(t)}
-                          className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-cyan-400 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
-                        >
-                          <Ticket className="w-3 h-3 text-cyan-400" />
-                          <span>PASS</span>
-                        </button>
-
-                        <button
-                          onClick={() => setInspectTeam(t)}
-                          className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-sky-400 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
-                        >
-                          <Eye className="w-3 h-3 text-sky-400" />
-                          <span>INSPECT</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleOpenEdit(t)}
-                          className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-amber-400 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
-                        >
-                          <Edit3 className="w-3 h-3 text-amber-400" />
-                          <span>EDIT</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteTeam(t)}
-                          className="px-2.5 py-1 text-[11px] font-bold text-red-400 bg-red-950/40 border border-red-500/30 hover:bg-red-900/60 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span>DELETE</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {filteredTeams.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-500 text-xs">
-                    No registered teams match the current query filter.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ============================================================== */}
-      {/* 6. GLOBAL HACKATHON SETTINGS MODAL */}
-      {/* ============================================================== */}
-      {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-2xl w-full p-6 md:p-8 rounded-3xl glass-card border border-sky-500/40 bg-slate-950 shadow-[0_0_60px_rgba(0,240,255,0.2)] space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-cyan-400" />
-                <h2 className="text-lg font-black text-white uppercase tracking-wider">GLOBAL HACKATHON SETTINGS</h2>
-              </div>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                className="p-1 text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSettings} className="space-y-5 text-xs text-left">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">
-                    MAXIMUM TEAMS CAPACITY
-                  </label>
-                  <input
-                    type="number"
-                    value={settingsForm.maxTeams}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, maxTeams: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-cyan-400 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">
-                    REGISTRATION STATUS
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setSettingsForm({ ...settingsForm, registrationOpen: !settingsForm.registrationOpen })}
-                    className={`w-full py-2.5 rounded-xl font-black tracking-wider transition-all ${
-                      settingsForm.registrationOpen
-                        ? 'bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)]'
-                        : 'bg-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]'
-                    }`}
-                  >
-                    {settingsForm.registrationOpen ? 'REGISTRATIONS OPEN' : 'REGISTRATIONS CLOSED'}
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">
-                    PARTICIPANT FEE (₹)
-                  </label>
-                  <input
-                    type="number"
-                    value={settingsForm.participantFee}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, participantFee: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-cyan-400 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">
-                    OFFICIAL UPI ID
-                  </label>
-                  <input
-                    type="text"
-                    value={settingsForm.officialUpiId}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, officialUpiId: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-cyan-400 focus:outline-none"
-                  />
-                </div>
-              </div>
-
+          <form onSubmit={handleSaveSettings} className="space-y-6 text-xs text-left">
+            {/* Row 1: Capacity & Status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block font-bold text-slate-300 uppercase mb-1">
-                  OFFICIAL WHATSAPP GROUP LINK
+                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  MAXIMUM TEAMS CAPACITY
                 </label>
                 <input
-                  type="text"
-                  value={settingsForm.officialWhatsappGroup}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, officialWhatsappGroup: e.target.value })}
-                  placeholder="https://chat.whatsapp.com/..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:border-cyan-400 focus:outline-none font-mono"
+                  type="number"
+                  value={settingsForm.maxTeams}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, maxTeams: Number(e.target.value) })}
+                  className="w-full px-4 py-3 rounded-xl bg-[#070c18] border border-slate-800 text-white font-mono font-bold focus:border-red-500 focus:outline-none"
                 />
               </div>
 
-              {/* UPI Scanner Image Upload */}
               <div>
-                <label className="block font-bold text-slate-300 uppercase mb-2">
-                  OFFICIAL UPI QR SCANNER IMAGE
+                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  REGISTRATION STATUS
                 </label>
-                <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-center gap-5">
-                  <div className="shrink-0 text-center">
+                <button
+                  type="button"
+                  onClick={() => setSettingsForm({ ...settingsForm, registrationOpen: !settingsForm.registrationOpen })}
+                  className={`w-full py-3 px-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer text-center ${
+                    settingsForm.registrationOpen
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_25px_rgba(16,185,129,0.3)]'
+                      : 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_25px_rgba(239,68,68,0.3)]'
+                  }`}
+                >
+                  {settingsForm.registrationOpen ? 'REGISTRATIONS OPEN' : 'REGISTRATIONS CLOSED'}
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: Fee & UPI */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  PARTICIPANT FEE (₹)
+                </label>
+                <input
+                  type="number"
+                  value={settingsForm.participantFee}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, participantFee: Number(e.target.value) })}
+                  className="w-full px-4 py-3 rounded-xl bg-[#070c18] border border-slate-800 text-white font-mono font-bold focus:border-red-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  OFFICIAL UPI ID
+                </label>
+                <input
+                  type="text"
+                  value={settingsForm.officialUpiId}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, officialUpiId: e.target.value })}
+                  placeholder="69097701@ubin"
+                  className="w-full px-4 py-3 rounded-xl bg-[#070c18] border border-slate-800 text-white font-mono font-bold focus:border-red-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: WhatsApp Group Link */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">
+                OFFICIAL WHATSAPP GROUP LINK
+              </label>
+              <input
+                type="text"
+                value={settingsForm.officialWhatsappGroup}
+                onChange={(e) => setSettingsForm({ ...settingsForm, officialWhatsappGroup: e.target.value })}
+                placeholder="https://chat.whatsapp.com/..."
+                className="w-full px-4 py-3 rounded-xl bg-[#070c18] border border-slate-800 text-white font-mono focus:border-red-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Row 4: Scanner Box (Exact match to Screenshot) */}
+            <div className="p-6 rounded-2xl bg-[#080d1a] border border-slate-800/80 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-red-400">↑</span>
+                  <div>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      OFFICIAL UPI QR SCANNER IMAGE
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Upload your official UPI QR scanner (PhonePe, Google Pay, Paytm, etc.). This image is displayed directly to students on the payment portal.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsForm({ ...settingsForm, qrScannerImageUrl: '' })}
+                  className="px-4 py-1.5 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-950/50 text-xs font-bold uppercase tracking-wider shrink-0 cursor-pointer"
+                >
+                  Remove Scanner
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-5 pt-2">
+                <div className="w-36 h-36 rounded-xl border border-slate-700 bg-white p-2 flex items-center justify-center shrink-0">
+                  {settingsForm.qrScannerImageUrl ? (
                     <img
                       src={settingsForm.qrScannerImageUrl}
-                      alt="Official QR Scanner"
-                      className="w-32 h-32 object-contain rounded-xl border border-slate-700 bg-white p-1"
+                      alt="UPI QR Scanner"
+                      className="w-full h-full object-contain rounded"
                     />
-                    <span className="text-[10px] text-slate-400 font-mono block mt-1">UPI ID: {settingsForm.officialUpiId}</span>
+                  ) : (
+                    <span className="text-slate-400 text-[10px] font-bold uppercase text-center">No Image Uploaded</span>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <label className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs cursor-pointer flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-red-400" />
+                    <span>{uploadingQr ? 'UPLOADING...' : 'CHANGE / UPLOAD NEW SCANNER'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQrUpload}
+                      className="hidden"
+                      disabled={uploadingQr}
+                    />
+                  </label>
+                  <p className="text-[10px] text-slate-500">
+                    Supports high-resolution PNG, JPG, JPEG, WEBP.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={savingSettings}
+              className="w-full py-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-500 to-red-600 text-white font-black text-xs tracking-widest uppercase shadow-[0_0_25px_rgba(220,38,38,0.5)] hover:from-red-500 hover:to-rose-400 transition-all cursor-pointer"
+            >
+              {savingSettings ? 'SAVING CONFIGURATION...' : 'SAVE SYSTEM CONFIGURATION'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB VIEW 2: TEAMS & DEMOGRAPHICS (Exact match to Image 2) */}
+      {/* ============================================================== */}
+      {activeMainTab === 'teams' && (
+        <>
+          {/* 3. REGISTRATION DEMOGRAPHICS ANALYTICS (Exact match) */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-red-500" />
+                <h2 className="text-sm font-black text-white uppercase tracking-wider">
+                  REGISTRATION DEMOGRAPHICS ANALYTICS
+                </h2>
+                <span className="px-3 py-0.5 rounded-full bg-red-950/40 border border-red-500/50 text-red-400 text-[10px] font-black uppercase">
+                  {stats.totalParticipants} PARTICIPANTS ({stats.totalTeams} TEAMS)
+                </span>
+              </div>
+
+              <button
+                onClick={() => setShowCharts(!showCharts)}
+                className="text-[10px] font-extrabold text-slate-300 hover:text-white uppercase tracking-wider flex items-center gap-1 bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full cursor-pointer"
+              >
+                <span>{showCharts ? 'HIDE CHARTS ▲' : 'SHOW CHARTS ▼'}</span>
+              </button>
+            </div>
+
+            {showCharts && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Year Distribution */}
+                <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                      🎓
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white">Year Distribution</h3>
+                      <span className="text-[10px] text-slate-400 block font-medium">{stats.totalParticipants} TOTAL PARTICIPANTS</span>
+                    </div>
                   </div>
 
-                  <div className="space-y-3 text-[11px] text-slate-400">
-                    <p className="font-semibold text-slate-300">Scanner Image Guidelines:</p>
-                    <ul className="list-disc list-inside space-y-1 text-slate-400">
-                      <li>Supported format: PNG, JPG, JPEG, WEBP (Max 10MB)</li>
-                      <li>Upload high-resolution screenshot from PhonePe/GooglePay</li>
-                    </ul>
+                  <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                      <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
+                      <circle cx="50" cy="50" r="38" stroke="#ef4444" strokeWidth="12" fill="none" strokeDasharray="160 238" />
+                      <circle cx="50" cy="50" r="38" stroke="#3b82f6" strokeWidth="12" fill="none" strokeDasharray="78 238" strokeDashoffset="-160" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-lg font-black text-white font-mono">{stats.totalParticipants}</span>
+                      <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
+                    </div>
+                  </div>
+                </div>
 
-                    <div className="flex items-center gap-3 pt-2">
-                      <label className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5">
-                        <ImageIcon className="w-4 h-4 text-cyan-400" />
-                        <span>{uploadingQr ? 'UPLOADING...' : 'CHANGE / UPLOAD NEW SCANNER'}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleQrUpload}
-                          className="hidden"
-                          disabled={uploadingQr}
-                        />
-                      </label>
+                {/* 2. Gender Distribution */}
+                <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400">
+                      👥
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white">Gender Distribution</h3>
+                      <span className="text-[10px] text-slate-400 block font-medium">{stats.totalParticipants} TOTAL PARTICIPANTS</span>
+                    </div>
+                  </div>
+
+                  <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                      <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
+                      <circle cx="50" cy="50" r="38" stroke="#3b82f6" strokeWidth="12" fill="none" strokeDasharray="150 238" />
+                      <circle cx="50" cy="50" r="38" stroke="#ec4899" strokeWidth="12" fill="none" strokeDasharray="88 238" strokeDashoffset="-150" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-lg font-black text-white font-mono">{stats.totalParticipants}</span>
+                      <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Department Distribution */}
+                <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                      🏢
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white">Department Distribution</h3>
+                      <span className="text-[10px] text-slate-400 block font-medium">{stats.totalParticipants} TOTAL PARTICIPANTS</span>
+                    </div>
+                  </div>
+
+                  <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                      <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
+                      <circle cx="50" cy="50" r="38" stroke="#ef4444" strokeWidth="12" fill="none" strokeDasharray="165 238" />
+                      <circle cx="50" cy="50" r="38" stroke="#3b82f6" strokeWidth="12" fill="none" strokeDasharray="65 238" strokeDashoffset="-165" />
+                      <circle cx="50" cy="50" r="38" stroke="#06b6d4" strokeWidth="12" fill="none" strokeDasharray="8 238" strokeDashoffset="-230" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-lg font-black text-white font-mono">{stats.totalParticipants}</span>
+                      <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-[11px] text-slate-300 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500" /> CSE</span>
+                      <span className="font-mono font-bold text-slate-300">167 <span className="text-slate-500 font-normal">(70%)</span></span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500" /> ECE</span>
+                      <span className="font-mono font-bold text-slate-300">66 <span className="text-slate-500 font-normal">(28%)</span></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Accommodation */}
+                <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                      🏠
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white">Accommodation</h3>
+                      <span className="text-[10px] text-slate-400 block font-medium">{stats.totalParticipants} TOTAL PARTICIPANTS</span>
+                    </div>
+                  </div>
+
+                  <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                      <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
+                      <circle cx="50" cy="50" r="38" stroke="#10b981" strokeWidth="12" fill="none" strokeDasharray="170 238" />
+                      <circle cx="50" cy="50" r="38" stroke="#f59e0b" strokeWidth="12" fill="none" strokeDasharray="68 238" strokeDashoffset="-170" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-lg font-black text-white font-mono">{stats.totalParticipants}</span>
+                      <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
                     </div>
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* 4. SEARCH, FILTERS & ACTION BUTTONS ROW */}
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search Team ID, Team Name, Member, Reg No, Mobile, UTR..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#0a0f1d] text-xs text-white placeholder-slate-500 border border-slate-800 focus:border-red-500 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="px-5 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all cursor-pointer whitespace-nowrap uppercase"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ ADD REGISTRATION</span>
+                </button>
+                <span className="text-xs font-bold text-slate-400 whitespace-nowrap hidden sm:inline">
+                  Showing <span className="text-white font-mono">{filteredTeams.length}</span> of <span className="text-white font-mono">{teams.length}</span> Teams
+                </span>
+              </div>
+            </div>
+
+            {/* Dropdown Filters */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">PENDING</option>
+                <option value="VERIFIED">VERIFIED</option>
+                <option value="REJECTED">REJECTED</option>
+              </select>
+
+              <select
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+              >
+                <option value="ALL">All Years</option>
+                <option value="II">II Year</option>
+                <option value="III">III Year</option>
+                <option value="IV">IV Year</option>
+              </select>
+
+              <select
+                value={genderFilter}
+                onChange={(e) => setGenderFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+              >
+                <option value="ALL">All Genders</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+
+              <select
+                value={deptFilter}
+                onChange={(e) => setDeptFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+              >
+                <option value="ALL">All Departments</option>
+                {['CSE', 'ECE', 'IT', 'EEE', 'MECH', 'CIVIL', 'BIO'].map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+
+              <select
+                value={accomFilter}
+                onChange={(e) => setAccomFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+              >
+                <option value="ALL">All Accommodation</option>
+                <option value="Hosteller">Hosteller</option>
+                <option value="Day Scholar">Day Scholar</option>
+              </select>
+
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+              >
+                <option value="ASC">Team ID (Asc)</option>
+                <option value="DESC">Team ID (Desc)</option>
+              </select>
+            </div>
+
+            {/* Action Buttons Row */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                onClick={exportCSV}
+                className="px-4 py-1.5 rounded-full border border-slate-700 bg-[#0a0f1d] text-slate-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>EXCEL</span>
+              </button>
 
               <button
-                type="submit"
-                disabled={savingSettings}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 text-black font-black text-xs tracking-widest uppercase shadow-[0_0_30px_rgba(0,240,255,0.4)] cursor-pointer"
+                onClick={exportCSV}
+                className="px-4 py-1.5 rounded-full border border-slate-700 bg-[#0a0f1d] text-slate-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
               >
-                {savingSettings ? 'SAVING CONFIGURATION...' : 'SAVE SYSTEM CONFIGURATION'}
+                <FileText className="w-3.5 h-3.5" />
+                <span>CSV</span>
               </button>
-            </form>
+
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-1.5 rounded-full bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>EXPORT PDF REPORT</span>
+              </button>
+            </div>
           </div>
-        </div>
+
+          {/* 5. TEAMS DATA TABLE */}
+          <div className="overflow-hidden rounded-3xl bg-[#0a0f1d] border border-slate-800/80 shadow-2xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-[#070c18] text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-800">
+                  <tr>
+                    <th className="p-4">TEAM ID ↑</th>
+                    <th className="p-4">TEAM NAME</th>
+                    <th className="p-4">TEAM LEAD</th>
+                    <th className="p-4">UTR NUMBER</th>
+                    <th className="p-4">STATUS</th>
+                    <th className="p-4 text-center">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {filteredTeams.map((t) => {
+                    const leadMember = t.members?.[0];
+                    return (
+                      <tr key={t._id} className="hover:bg-slate-900/60 transition-colors">
+                        <td className="p-4 font-mono font-black text-white tracking-wider">
+                          {t.teamId}
+                        </td>
+
+                        <td className="p-4 text-white font-extrabold uppercase">
+                          {t.teamName}
+                        </td>
+
+                        <td className="p-4">
+                          <div className="font-bold text-slate-200">
+                            {leadMember?.name || t.leadEmail?.split('@')[0]}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            {t.leadEmail}
+                          </div>
+                        </td>
+
+                        <td className="p-4 font-mono text-slate-300">
+                          {t.payment?.utr || 'N/A'}
+                        </td>
+
+                        <td className="p-4">
+                          <span
+                            className={`px-3 py-1 rounded-full text-[10px] font-extrabold ${
+                              t.payment?.status === 'VERIFIED'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                : t.payment?.status === 'REJECTED'
+                                ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            }`}
+                          >
+                            {t.payment?.status || 'PENDING'}
+                          </span>
+                        </td>
+
+                        <td className="p-4">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => setPassTeam(t)}
+                              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-red-500 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Ticket className="w-3 h-3 text-red-400" />
+                              <span>PASS</span>
+                            </button>
+
+                            <button
+                              onClick={() => setInspectTeam(t)}
+                              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-red-500 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Eye className="w-3 h-3 text-red-400" />
+                              <span>INSPECT</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenEdit(t)}
+                              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-amber-400 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Edit3 className="w-3 h-3 text-amber-400" />
+                              <span>EDIT</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteTeam(t)}
+                              className="px-2.5 py-1 text-[11px] font-bold text-red-400 bg-red-950/40 border border-red-500/30 hover:bg-red-900/60 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>DELETE</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {filteredTeams.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-12 text-center text-slate-500 text-xs">
+                        No registered teams match the current query filter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
+
 
       {/* ============================================================== */}
       {/* 7. ADD REGISTRATION MODAL */}

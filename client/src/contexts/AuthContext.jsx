@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
         const result = await signInWithPopup(auth, provider);
         if (result?.user?.email) {
           email = result.user.email.trim().toLowerCase();
@@ -77,11 +78,13 @@ export const AuthProvider = ({ children }) => {
       } catch (fbErr) {
         console.error('Firebase popup error:', fbErr);
         if (fbErr.code === 'auth/unauthorized-domain') {
-          firebaseErrorMsg = 'This domain is not authorized for Google Sign-In in Firebase Console.';
+          firebaseErrorMsg = 'This deployment domain is not authorized in Firebase Console. Add this domain to Firebase Console > Authentication > Settings > Authorized domains.';
         } else if (fbErr.code === 'auth/popup-closed-by-user') {
-          firebaseErrorMsg = 'Google Sign-In popup was closed. Please try signing in again.';
+          firebaseErrorMsg = 'Google Sign-In popup was closed. Please try again.';
         } else if (fbErr.code === 'auth/popup-blocked') {
-          firebaseErrorMsg = 'Google Sign-In popup was blocked by your browser. Please allow popups.';
+          firebaseErrorMsg = 'Google Sign-In popup was blocked by your browser. Please allow popups for this site.';
+        } else if (fbErr.code === 'auth/network-request-failed') {
+          firebaseErrorMsg = 'Network error during Google authentication. Check your internet connection or Firebase Authorized Domains.';
         } else {
           firebaseErrorMsg = fbErr.message || 'Firebase Google Sign-In failed.';
         }
@@ -91,7 +94,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return {
           success: false,
-          message: firebaseErrorMsg || 'Google Sign-In popup was closed or cancelled. Please try signing in again.'
+          message: firebaseErrorMsg || 'Google Sign-In cancelled. Please try again.'
         };
       }
 
@@ -103,7 +106,20 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      const res = await axios.post('/api/auth/login', { email, password: 'password123', name });
+      // Call backend login with retry in case Render server is waking up
+      let res;
+      try {
+        res = await axios.post('/api/auth/login', { email, password: 'password123', name });
+      } catch (firstErr) {
+        // If network error / timeout (e.g. Render cold start), retry once after a short delay
+        if (!firstErr.response || firstErr.code === 'ERR_NETWORK' || firstErr.code === 'ECONNABORTED') {
+          await new Promise(resolve => setTimeout(resolve, 2500));
+          res = await axios.post('/api/auth/login', { email, password: 'password123', name });
+        } else {
+          throw firstErr;
+        }
+      }
+
       const data = res.data;
       sessionStorage.removeItem('alpha_cached_team_dashboard');
       setUser(data);
@@ -112,7 +128,11 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: data };
     } catch (err) {
       setLoading(false);
-      return { success: false, message: err.response?.data?.message || err.message || 'Google Sign-In failed.' };
+      const isNetError = !err.response || err.code === 'ERR_NETWORK' || err.message?.includes('Network Error');
+      const msg = isNetError
+        ? 'Backend API server connection error. If the server was sleeping, please retry in a few seconds.'
+        : (err.response?.data?.message || err.message || 'Google Sign-In failed.');
+      return { success: false, message: msg };
     }
   };
 
