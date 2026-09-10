@@ -26,7 +26,10 @@ export const LogoFormation = ({ onComplete }) => {
   }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl overflow-hidden pointer-events-none">
+    <div
+      onClick={onComplete}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl overflow-hidden pointer-events-auto cursor-pointer select-none"
+    >
       <AnimatePresence mode="wait">
         {/* Stage 1: Cyan Particles Converge to Center */}
         {stage === 1 && (
