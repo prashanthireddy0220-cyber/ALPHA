@@ -73,10 +73,19 @@ export const reservePaymentSlot = async (req, res) => {
       return res.status(400).json({ message: 'Registration is currently closed by the administrator.' });
     }
 
-    const { teamName, members, track, reservationId: existingResId } = req.body;
+    let { teamName, members, leadRegNo: legacyRegNo, track, reservationId: existingResId } = req.body;
 
-    if (!teamName || !members || !Array.isArray(members) || members.length === 0) {
-      return res.status(400).json({ message: 'Team details and member information are required.' });
+    if (!teamName || !teamName.trim()) {
+      return res.status(400).json({ message: 'Team Name and Lead Registration Number required' });
+    }
+
+    if (!members || !Array.isArray(members) || members.length === 0) {
+      if (legacyRegNo) {
+        const cleanReg = legacyRegNo.trim().toUpperCase();
+        members = [{ regNo: cleanReg, email: `${cleanReg.toLowerCase()}@klu.ac.in` }];
+      } else {
+        return res.status(400).json({ message: 'Team details and member information are required.' });
+      }
     }
 
     const normalizedTeamName = teamName.trim().toUpperCase();
