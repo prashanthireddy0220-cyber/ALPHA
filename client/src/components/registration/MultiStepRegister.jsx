@@ -96,6 +96,7 @@ export const MultiStepRegister = () => {
   const [screenshotFile, setScreenshotFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [screenshotUrl, setScreenshotUrl] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
 
   // Result state
   const [registrationResult, setRegistrationResult] = useState(null);
@@ -564,6 +565,14 @@ export const MultiStepRegister = () => {
     if (!file) return;
     setScreenshotFile(file);
     setUploadProgress(0);
+
+    // Create local object URL for instant image preview display
+    try {
+      const localUrl = URL.createObjectURL(file);
+      setPreviewUrl(localUrl);
+    } catch (err) {
+      console.warn('Could not create object URL for preview:', err);
+    }
 
     const formData = new FormData();
     formData.append('screenshot', file);
@@ -1389,7 +1398,7 @@ export const MultiStepRegister = () => {
                   </div>
                 )}
 
-                {screenshotUrl && (
+                {(previewUrl || screenshotUrl) && (
                   <div className="mt-3 space-y-2">
                     <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
                       <CheckCircle className="w-3.5 h-3.5" /> Screenshot uploaded successfully
@@ -1399,20 +1408,12 @@ export const MultiStepRegister = () => {
                         <span className="text-[10px] font-extrabold text-cyan-300 uppercase tracking-wider">
                           PAYMENT RECEIPT PREVIEW
                         </span>
-                        <a
-                          href={screenshotUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[11px] text-sky-400 hover:text-sky-300 underline font-semibold flex items-center gap-1"
-                        >
-                          View Full Image ↗
-                        </a>
                       </div>
-                      <div className="rounded-xl overflow-hidden border border-slate-800 bg-black/60 max-h-56 flex items-center justify-center">
+                      <div className="rounded-xl overflow-hidden border border-slate-800 bg-black/60 max-h-64 flex items-center justify-center p-2">
                         <img
-                          src={screenshotUrl}
+                          src={previewUrl || screenshotUrl}
                           alt="Uploaded Payment Receipt"
-                          className="w-full max-h-56 object-contain rounded-lg"
+                          className="w-full max-h-60 object-contain rounded-lg shadow-md"
                         />
                       </div>
                     </div>
