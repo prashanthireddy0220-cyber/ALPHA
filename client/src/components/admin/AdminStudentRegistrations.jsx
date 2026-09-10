@@ -5,6 +5,7 @@ import {
   AlertTriangle, Eye, RefreshCw, UserPlus, Check, X, ShieldCheck
 } from 'lucide-react';
 import { TiltCard } from '../common/TiltCard';
+import { getScreenshotUrl } from '../../utils/imageUrl';
 
 export const AdminStudentRegistrations = () => {
   const [teams, setTeams] = useState([]);
@@ -375,7 +376,7 @@ export const AdminStudentRegistrations = () => {
                       <td className="py-4 px-6">
                         {t.payment?.screenshotUrl ? (
                           <button
-                            onClick={() => setSelectedProofUrl(t.payment.screenshotUrl)}
+                            onClick={() => setSelectedProofUrl(getScreenshotUrl(t.payment.screenshotUrl))}
                             className="px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-300 text-[11px] font-bold flex items-center gap-1 hover:bg-sky-500/20 transition-all"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -651,7 +652,7 @@ export const AdminStudentRegistrations = () => {
             </div>
             <div className="max-h-[70vh] overflow-auto flex items-center justify-center p-2 rounded-2xl bg-black">
               <img
-                src={selectedProofUrl}
+                src={getScreenshotUrl(selectedProofUrl)}
                 alt="Payment Proof"
                 className="max-w-full h-auto max-h-[60vh] object-contain rounded-xl"
               />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, Filter, CheckCircle, XCircle, Eye, ExternalLink, ShieldCheck, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
 import { TiltCard } from '../common/TiltCard';
+import { getScreenshotUrl } from '../../utils/imageUrl';
 
 export const AdminTeams = () => {
   const [teams, setTeams] = useState([]);
@@ -283,12 +284,12 @@ export const AdminTeams = () => {
                 {selectedTeam.payment?.screenshotUrl ? (
                   <div className="space-y-2">
                     <img
-                      src={selectedTeam.payment.screenshotUrl}
+                      src={getScreenshotUrl(selectedTeam.payment.screenshotUrl)}
                       alt="Payment Screenshot"
                       className="w-full max-h-48 object-contain rounded-xl border border-slate-800 bg-black"
                     />
                     <a
-                      href={selectedTeam.payment.screenshotUrl}
+                      href={getScreenshotUrl(selectedTeam.payment.screenshotUrl)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-[11px] font-bold text-cyan-400 hover:underline flex items-center gap-1"

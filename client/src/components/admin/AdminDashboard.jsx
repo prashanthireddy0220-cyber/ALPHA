@@ -8,6 +8,7 @@ import {
   PieChart, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles
 } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { getScreenshotUrl } from '../../utils/imageUrl';
 
 export const AdminDashboard = () => {
   const { settings, fetchSettings } = useSettings();
@@ -1192,12 +1193,12 @@ export const AdminDashboard = () => {
                 {inspectTeam.payment?.screenshotUrl ? (
                   <div className="space-y-2">
                     <img
-                      src={inspectTeam.payment.screenshotUrl}
+                      src={getScreenshotUrl(inspectTeam.payment.screenshotUrl)}
                       alt="Payment Screenshot"
                       className="w-full max-h-48 object-contain rounded-xl border border-slate-800 bg-black p-1"
                     />
                     <a
-                      href={inspectTeam.payment.screenshotUrl}
+                      href={getScreenshotUrl(inspectTeam.payment.screenshotUrl)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-[11px] font-bold text-cyan-400 hover:underline flex items-center gap-1"

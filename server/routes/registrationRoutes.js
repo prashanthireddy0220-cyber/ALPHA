@@ -31,7 +31,8 @@ router.post('/upload-screenshot', upload.single('screenshot'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
-  const fileUrl = `/uploads/${req.file.filename}`;
+  const backendBase = (process.env.BACKEND_URL || 'https://alpha-backend-zvhx.onrender.com').replace(/\/$/, '');
+  const fileUrl = `${backendBase}/uploads/${req.file.filename}`;
   res.json({
     success: true,
     url: fileUrl,
