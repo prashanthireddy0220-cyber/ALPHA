@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
   Users, CheckCircle, Clock, ShieldCheck, Lock, Unlock,
   Plus, Settings, FileSpreadsheet, RefreshCw, Activity,
   Search, Filter, Eye, ExternalLink, Download, FileText,
   Trash2, Edit3, X, Check, AlertTriangle, Layers, Ticket,
-  PieChart, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles
+  PieChart, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles,
+  Printer, ArrowUpRight
 } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { getScreenshotUrl } from '../../utils/imageUrl';
+import { OfficialEventPass } from '../common/OfficialEventPass';
 
 export const AdminDashboard = () => {
   const { settings, fetchSettings } = useSettings();
@@ -16,7 +18,7 @@ export const AdminDashboard = () => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Active Main View Tab: 'teams' or 'settings' (Matches User Screenshots)
+  // Active Main View Tab: 'teams' or 'settings' (Matches User Reference)
   const [activeMainTab, setActiveMainTab] = useState('teams');
 
   // Demographics visibility toggle
@@ -29,13 +31,14 @@ export const AdminDashboard = () => {
   const [genderFilter, setGenderFilter] = useState('ALL');
   const [deptFilter, setDeptFilter] = useState('ALL');
   const [accomFilter, setAccomFilter] = useState('ALL');
-  const [sortOrder, setSortOrder] = useState('ASC');
+  const [sortOrder, setSortOrder] = useState('DESC');
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
   const [inspectTeam, setInspectTeam] = useState(null);
   const [editTeam, setEditTeam] = useState(null);
   const [passTeam, setPassTeam] = useState(null);
+  const [showAllPassesModal, setShowAllPassesModal] = useState(false);
 
   // Settings form state
   const [settingsForm, setSettingsForm] = useState({
@@ -75,21 +78,24 @@ export const AdminDashboard = () => {
   });
   const [editingReg, setEditingReg] = useState(false);
 
-  // Inspect rejection reason
+  // Rejection note
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Fetch all analytics and teams
-  const loadDashboardData = async () => {
+  // Instant SWR Load (0ms Perceived Latency with sessionStorage cache)
+  const loadDashboardData = async (isBackground = false) => {
     try {
-      setLoading(true);
+      if (!isBackground && !analytics) {
+        setLoading(true);
+      }
       const [analyticsRes, teamsRes] = await Promise.all([
         axios.get('/api/admin/analytics'),
         axios.get('/api/admin/teams')
       ]);
 
       setAnalytics(analyticsRes.data);
-      setTeams(teamsRes.data || []);
+      const teamsData = teamsRes.data || [];
+      setTeams(teamsData);
 
       if (analyticsRes.data?.settings) {
         setSettingsForm({
@@ -101,6 +107,13 @@ export const AdminDashboard = () => {
           qrScannerImageUrl: analyticsRes.data.settings.qrScannerImageUrl || '/assets/payment_qr.png'
         });
       }
+
+      // Persist to session cache
+      sessionStorage.setItem('alpha_admin_cache', JSON.stringify({
+        analytics: analyticsRes.data,
+        teams: teamsData,
+        timestamp: Date.now()
+      }));
     } catch (err) {
       console.error('Failed to load admin dashboard data:', err);
     } finally {
@@ -109,67 +122,160 @@ export const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    loadDashboardData();
+    // 1. Instant Cache Hydration
+    try {
+      const cached = sessionStorage.getItem('alpha_admin_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.analytics && parsed.teams) {
+          setAnalytics(parsed.analytics);
+          setTeams(parsed.teams);
+          if (parsed.analytics.settings) {
+            setSettingsForm({
+              maxTeams: parsed.analytics.settings.maxTeams || 60,
+              registrationOpen: parsed.analytics.settings.registrationOpen !== false,
+              participantFee: parsed.analytics.settings.participantFee || 350,
+              officialUpiId: parsed.analytics.settings.officialUpiId || '69097701@ubin',
+              officialWhatsappGroup: parsed.analytics.settings.officialWhatsappGroup || 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyls',
+              qrScannerImageUrl: parsed.analytics.settings.qrScannerImageUrl || '/assets/payment_qr.png'
+            });
+          }
+          setLoading(false);
+        }
+      }
+    } catch (e) {
+      console.warn('Cache read error:', e);
+    }
+
+    // 2. Fetch fresh data in background
+    loadDashboardData(false);
   }, []);
 
   // Filter and Sort teams logic
-  const filteredTeams = teams.filter((t) => {
-    // Search
-    if (search) {
-      const q = search.toLowerCase().trim();
-      const matchId = t.teamId?.toLowerCase().includes(q);
-      const matchName = t.teamName?.toLowerCase().includes(q);
-      const matchLead = t.leadEmail?.toLowerCase().includes(q) || t.leadRegNo?.toLowerCase().includes(q);
-      const matchUtr = t.payment?.utr?.toLowerCase().includes(q);
-      const matchMember = t.members?.some(
-        (m) =>
-          m.name?.toLowerCase().includes(q) ||
-          m.regNo?.toLowerCase().includes(q) ||
-          m.mobile?.includes(q)
-      );
-      if (!matchId && !matchName && !matchLead && !matchUtr && !matchMember) return false;
-    }
+  const filteredTeams = useMemo(() => {
+    return teams.filter((t) => {
+      // Search
+      if (search) {
+        const q = search.toLowerCase().trim();
+        const matchId = t.teamId?.toLowerCase().includes(q);
+        const matchName = t.teamName?.toLowerCase().includes(q);
+        const matchLead = t.leadEmail?.toLowerCase().includes(q) || t.leadRegNo?.toLowerCase().includes(q);
+        const matchUtr = t.payment?.utr?.toLowerCase().includes(q);
+        const matchMember = t.members?.some(
+          (m) =>
+            m.name?.toLowerCase().includes(q) ||
+            m.regNo?.toLowerCase().includes(q) ||
+            m.mobile?.includes(q)
+        );
+        if (!matchId && !matchName && !matchLead && !matchUtr && !matchMember) return false;
+      }
 
-    // Status Filter
-    if (statusFilter !== 'ALL') {
-      const st = t.payment?.status || 'PENDING';
-      if (st !== statusFilter) return false;
-    }
+      // Status Filter
+      if (statusFilter !== 'ALL') {
+        const st = t.payment?.status || 'PENDING';
+        if (st !== statusFilter) return false;
+      }
 
-    // Year Filter
-    if (yearFilter !== 'ALL') {
-      const matchYear = t.members?.some((m) => m.year === yearFilter || m.year?.includes(yearFilter));
-      if (!matchYear) return false;
-    }
+      // Year Filter
+      if (yearFilter !== 'ALL') {
+        const matchYear = t.members?.some((m) => m.year === yearFilter || m.year?.includes(yearFilter));
+        if (!matchYear) return false;
+      }
 
-    // Gender Filter
-    if (genderFilter !== 'ALL') {
-      const matchGender = t.members?.some(
-        (m) => (m.gender || 'Male').toLowerCase() === genderFilter.toLowerCase()
-      );
-      if (!matchGender) return false;
-    }
+      // Gender Filter
+      if (genderFilter !== 'ALL') {
+        const matchGender = t.members?.some(
+          (m) => (m.gender || 'Male').toLowerCase() === genderFilter.toLowerCase()
+        );
+        if (!matchGender) return false;
+      }
 
-    // Department Filter
-    if (deptFilter !== 'ALL') {
-      const matchDept = t.members?.some((m) => m.department === deptFilter);
-      if (!matchDept) return false;
-    }
+      // Department Filter
+      if (deptFilter !== 'ALL') {
+        const matchDept = t.members?.some((m) => (m.department || 'CSE').toUpperCase() === deptFilter.toUpperCase());
+        if (!matchDept) return false;
+      }
 
-    // Accommodation Filter
-    if (accomFilter !== 'ALL') {
-      const matchAccom = t.members?.some((m) => (m.accommodation || 'Day Scholar') === accomFilter);
-      if (!matchAccom) return false;
-    }
+      // Accommodation Filter
+      if (accomFilter !== 'ALL') {
+        const matchAccom = t.members?.some((m) => (m.accommodation || 'Day Scholar') === accomFilter);
+        if (!matchAccom) return false;
+      }
 
-    return true;
-  }).sort((a, b) => {
-    if (sortOrder === 'ASC') {
-      return a.teamId.localeCompare(b.teamId, undefined, { numeric: true, sensitivity: 'base' });
-    } else {
-      return b.teamId.localeCompare(a.teamId, undefined, { numeric: true, sensitivity: 'base' });
-    }
-  });
+      return true;
+    }).sort((a, b) => {
+      if (sortOrder === 'ASC') {
+        return (a.teamId || '').localeCompare(b.teamId || '', undefined, { numeric: true, sensitivity: 'base' });
+      } else {
+        return (b.teamId || '').localeCompare(a.teamId || '', undefined, { numeric: true, sensitivity: 'base' });
+      }
+    });
+  }, [teams, search, statusFilter, yearFilter, genderFilter, deptFilter, accomFilter, sortOrder]);
+
+  // Compute Live Demographics from Loaded Teams & Members
+  const computedDemographics = useMemo(() => {
+    let totalParticipants = 0;
+    const yearCounts = { 'Year II': 0, 'Year III': 0, 'Year IV': 0 };
+    const genderCounts = { Male: 0, Female: 0 };
+    const deptCounts = { CSE: 0, ECE: 0, IT: 0, EEE: 0, MECH: 0, CIVIL: 0, BIO: 0, OTHERS: 0 };
+    const accomCounts = { Hosteller: 0, 'Day Scholar': 0 };
+
+    teams.forEach((t) => {
+      (t.members || []).forEach((m) => {
+        totalParticipants += 1;
+
+        // Year
+        const y = m.year || 'III';
+        if (y.includes('II') && !y.includes('III')) yearCounts['Year II'] += 1;
+        else if (y.includes('III')) yearCounts['Year III'] += 1;
+        else if (y.includes('IV')) yearCounts['Year IV'] += 1;
+        else yearCounts['Year III'] += 1;
+
+        // Gender
+        const g = (m.gender || 'Male').toLowerCase() === 'female' ? 'Female' : 'Male';
+        genderCounts[g] += 1;
+
+        // Dept
+        const d = (m.department || 'CSE').toUpperCase();
+        if (deptCounts[d] !== undefined) deptCounts[d] += 1;
+        else deptCounts.OTHERS += 1;
+
+        // Accommodation
+        const a = (m.accommodation || 'Day Scholar').toLowerCase().includes('hostel') ? 'Hosteller' : 'Day Scholar';
+        accomCounts[a] += 1;
+      });
+    });
+
+    const fallbackTotal = analytics?.stats?.totalParticipants || totalParticipants || 1;
+
+    return {
+      totalParticipants: totalParticipants || analytics?.stats?.totalParticipants || 0,
+      totalTeams: teams.length,
+      year: [
+        { label: 'Year III', count: yearCounts['Year III'], color: '#ef4444' },
+        { label: 'Year IV', count: yearCounts['Year IV'], color: '#3b82f6' },
+        { label: 'Year II', count: yearCounts['Year II'], color: '#10b981' }
+      ].filter(item => item.count > 0 || totalParticipants === 0),
+      gender: [
+        { label: 'Male', count: genderCounts.Male, color: '#3b82f6' },
+        { label: 'Female', count: genderCounts.Female, color: '#ec4899' }
+      ],
+      dept: [
+        { label: 'CSE', count: deptCounts.CSE, color: '#ef4444' },
+        { label: 'ECE', count: deptCounts.ECE, color: '#3b82f6' },
+        { label: 'IT', count: deptCounts.IT, color: '#06b6d4' },
+        { label: 'EEE', count: deptCounts.EEE, color: '#f59e0b' },
+        { label: 'MECH', count: deptCounts.MECH, color: '#8b5cf6' },
+        { label: 'CIVIL', count: deptCounts.CIVIL, color: '#10b981' },
+        { label: 'BIO', count: deptCounts.BIO, color: '#ec4899' },
+        { label: 'OTHERS', count: deptCounts.OTHERS, color: '#64748b' }
+      ].filter(item => item.count > 0 || (item.label === 'CSE' && totalParticipants === 0)),
+      accom: [
+        { label: 'Hosteller', count: accomCounts.Hosteller, color: '#10b981' },
+        { label: 'Day Scholar', count: accomCounts['Day Scholar'], color: '#f59e0b' }
+      ]
+    };
+  }, [teams, analytics]);
 
   // Toggle Registration Lock
   const handleToggleLock = async () => {
@@ -180,7 +286,7 @@ export const AdminDashboard = () => {
       await axios.put('/api/settings', { registrationOpen: newStatus });
       setSettingsForm((prev) => ({ ...prev, registrationOpen: newStatus }));
       await fetchSettings();
-      await loadDashboardData();
+      await loadDashboardData(true);
     } catch (err) {
       alert('Failed to toggle registration: ' + (err.response?.data?.message || err.message));
     }
@@ -194,7 +300,7 @@ export const AdminDashboard = () => {
     try {
       await axios.put('/api/settings', settingsForm);
       await fetchSettings();
-      await loadDashboardData();
+      await loadDashboardData(true);
       setSettingsSaveSuccess(true);
       setTimeout(() => setSettingsSaveSuccess(false), 3500);
     } catch (err) {
@@ -244,7 +350,7 @@ export const AdminDashboard = () => {
         utr: '',
         status: 'VERIFIED'
       });
-      await loadDashboardData();
+      await loadDashboardData(true);
       alert('Registration added successfully!');
     } catch (err) {
       alert('Failed to add registration: ' + (err.response?.data?.message || err.message));
@@ -274,7 +380,10 @@ export const AdminDashboard = () => {
     try {
       await axios.put(`/api/admin/teams/${editTeam._id}/edit`, editForm);
       setEditTeam(null);
-      await loadDashboardData();
+      if (inspectTeam && inspectTeam._id === editTeam._id) {
+        setInspectTeam(null);
+      }
+      await loadDashboardData(true);
       alert('Team updated successfully!');
     } catch (err) {
       alert('Failed to update team: ' + (err.response?.data?.message || err.message));
@@ -293,7 +402,7 @@ export const AdminDashboard = () => {
       });
       setInspectTeam(null);
       setRejectionReason('');
-      await loadDashboardData();
+      await loadDashboardData(true);
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to update payment status');
     } finally {
@@ -303,12 +412,15 @@ export const AdminDashboard = () => {
 
   // Delete Team
   const handleDeleteTeam = async (team) => {
-    if (!window.confirm(`Are you sure you want to delete team ${team.teamName} (${team.teamId})? This action cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to delete team "${team.teamName}" (${team.teamId})? This action cannot be undone.`)) {
       return;
     }
     try {
       await axios.delete(`/api/admin/teams/${team._id}`);
-      await loadDashboardData();
+      if (inspectTeam && inspectTeam._id === team._id) {
+        setInspectTeam(null);
+      }
+      await loadDashboardData(true);
       alert(`Team ${team.teamId} deleted successfully.`);
     } catch (err) {
       alert('Failed to delete team: ' + (err.response?.data?.message || err.message));
@@ -317,18 +429,33 @@ export const AdminDashboard = () => {
 
   // Export CSV
   const exportCSV = () => {
-    if (filteredTeams.length === 0) return;
-    const headers = ['Team ID', 'Team Name', 'Lead Name', 'Lead Reg No', 'Lead Email', 'UTR Number', 'Amount', 'Status', 'Registered At'];
+    if (filteredTeams.length === 0) {
+      alert('No teams to export');
+      return;
+    }
+    const headers = [
+      'Team ID',
+      'Team Name',
+      'Lead Name',
+      'Lead Reg No',
+      'Lead Email',
+      'Members Count',
+      'UTR Number',
+      'Amount (INR)',
+      'Status',
+      'Registration Date'
+    ];
     const rows = filteredTeams.map((t) => [
-      t.teamId,
+      t.teamId || '',
       `"${(t.teamName || '').replace(/"/g, '""')}"`,
       `"${(t.members?.[0]?.name || '').replace(/"/g, '""')}"`,
-      t.leadRegNo || '',
+      t.leadRegNo || t.members?.[0]?.regNo || '',
       t.leadEmail || '',
+      t.members?.length || 0,
       t.payment?.utr || '',
       t.payment?.amount || 0,
       t.payment?.status || 'PENDING',
-      t.createdAt ? new Date(t.createdAt).toISOString() : ''
+      t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''
     ]);
 
     const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
@@ -336,78 +463,128 @@ export const AdminDashboard = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `ALPHA_Teams_Export_${Date.now()}.csv`);
+    link.setAttribute('download', `ALPHA_Teams_Export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Print PDF Pass
-  const handlePrintPass = (team) => {
+  // Print PDF Passes
+  const handlePrintSinglePass = (team) => {
     setPassTeam(team);
-    setTimeout(() => {
-      window.print();
-    }, 300);
   };
 
-  if (loading || !analytics) {
+  if (loading && !analytics) {
     return (
-      <div className="p-16 text-center text-slate-400 space-y-4">
+      <div className="p-20 text-center text-slate-400 space-y-4">
         <RefreshCw className="w-10 h-10 text-red-500 animate-spin mx-auto" />
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-300">LOADING ALPHA ADMIN CONTROL CENTER...</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-300">
+          LOADING ALPHA ADMIN CONTROL CENTER...
+        </p>
       </div>
     );
   }
 
-  const { stats, yearBreakdown, genderBreakdown, departmentBreakdown, accommodationBreakdown } = analytics;
+  const stats = analytics?.stats || {
+    totalTeams: teams.length,
+    confirmedTeams: teams.filter(t => t.payment?.status === 'VERIFIED').length,
+    activeReservations: 0,
+    availableSlots: Math.max(0, 60 - teams.length),
+    totalParticipants: computedDemographics.totalParticipants,
+    pendingCount: teams.filter(t => t.payment?.status === 'PENDING').length,
+    verifiedCount: teams.filter(t => t.payment?.status === 'VERIFIED').length,
+    rejectedCount: teams.filter(t => t.payment?.status === 'REJECTED').length
+  };
+
+  // Helper for dynamic SVG Donut rendering
+  const renderDonutSVG = (slices, total) => {
+    const radius = 38;
+    const circumference = 2 * Math.PI * radius; // ~238.76
+    const safeTotal = total > 0 ? total : slices.reduce((acc, s) => acc + s.count, 0);
+
+    if (safeTotal === 0) {
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+          <circle cx="50" cy="50" r={radius} stroke="#1e293b" strokeWidth="12" fill="none" />
+        </svg>
+      );
+    }
+
+    let cumulativeOffset = 0;
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+        <circle cx="50" cy="50" r={radius} stroke="#1e293b" strokeWidth="12" fill="none" />
+        {slices.map((slice, idx) => {
+          const sliceLen = (slice.count / safeTotal) * circumference;
+          const offset = cumulativeOffset;
+          cumulativeOffset += sliceLen;
+          return (
+            <circle
+              key={idx}
+              cx="50"
+              cy="50"
+              r={radius}
+              stroke={slice.color}
+              strokeWidth="12"
+              fill="none"
+              strokeDasharray={`${sliceLen} ${circumference}`}
+              strokeDashoffset={-offset}
+              strokeLinecap="butt"
+              className="transition-all duration-500"
+            />
+          );
+        })}
+      </svg>
+    );
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 select-none">
       
       {/* ============================================================== */}
-      {/* 1. TOP SUBHEADER & ACTION BUTTONS (Exact match to Screenshots) */}
+      {/* 1. TOP SUBHEADER & ACTION BUTTONS (Exact match to Reference) */}
       {/* ============================================================== */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pt-2 pb-3">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pt-1 pb-2">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-red-950/50 border border-red-500/40 text-red-400 text-[10px] font-black uppercase tracking-wider mb-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-red-950/50 border border-red-500/40 text-red-400 text-[10px] font-black uppercase tracking-wider mb-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-red-400" />
-            <span>WEBX CONTROL CENTER</span>
+            <span>ALPHA CONTROL CENTER</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-wider">
             ADMIN DASHBOARD
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* TEAMS Tab Button */}
           <button
             onClick={() => setActiveMainTab('teams')}
-            className={`px-6 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+            className={`px-5 py-2 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
               activeMainTab === 'teams'
-                ? 'bg-red-600 text-white shadow-[0_0_25px_rgba(220,38,38,0.7)] border border-red-500'
-                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200'
+                ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)] border border-red-500'
+                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-300'
             }`}
           >
-            TEAMS ({stats.totalTeams})
+            TEAMS ({stats.totalTeams || teams.length})
           </button>
 
           {/* SETTINGS Tab Button */}
           <button
             onClick={() => setActiveMainTab('settings')}
-            className={`px-6 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-5 py-2 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
               activeMainTab === 'settings'
-                ? 'bg-red-600 text-white shadow-[0_0_25px_rgba(220,38,38,0.7)] border border-red-500'
-                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200'
+                ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)] border border-red-500'
+                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-300'
             }`}
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-3.5 h-3.5" />
             <span>SETTINGS</span>
           </button>
 
           {/* LOCK / UNLOCK Button */}
           <button
             onClick={handleToggleLock}
-            className="px-5 py-2.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200 hover:text-white text-xs font-extrabold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
+            className="px-4 py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
             title="Toggle Registration Lock"
           >
             {settingsForm.registrationOpen ? (
@@ -428,58 +605,58 @@ export const AdminDashboard = () => {
       {/* ============================================================== */}
       {/* 2. TOP METRICS ROW - 8 DISTINCT STAT CARDS (Exact match) */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
         {/* TOTAL TEAMS */}
-        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
           <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">TOTAL TEAMS</span>
-          <div className="text-2xl font-black text-white font-mono mt-1.5">{stats.totalTeams}</div>
+          <div className="text-2xl font-black text-white font-mono mt-1">{stats.totalTeams}</div>
         </div>
 
         {/* CONFIRMED */}
-        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
           <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">CONFIRMED</span>
-          <div className="text-2xl font-black text-blue-500 font-mono mt-1.5">{stats.confirmedTeams}</div>
+          <div className="text-2xl font-black text-blue-500 font-mono mt-1">{stats.confirmedTeams}</div>
         </div>
 
         {/* RESERVATIONS */}
-        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
           <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">RESERVATIONS</span>
-          <div className="text-2xl font-black text-amber-400 font-mono mt-1.5">{stats.activeReservations}</div>
+          <div className="text-2xl font-black text-amber-400 font-mono mt-1">{stats.activeReservations || 0}</div>
         </div>
 
         {/* AVAILABLE */}
-        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
           <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">AVAILABLE</span>
-          <div className="text-2xl font-black text-emerald-400 font-mono mt-1.5">{stats.availableSlots}</div>
+          <div className="text-2xl font-black text-emerald-400 font-mono mt-1">{stats.availableSlots}</div>
         </div>
 
         {/* PARTICIPANTS */}
-        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
           <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">PARTICIPANTS</span>
-          <div className="text-2xl font-black text-fuchsia-400 font-mono mt-1.5">{stats.totalParticipants}</div>
+          <div className="text-2xl font-black text-fuchsia-400 font-mono mt-1">{stats.totalParticipants}</div>
         </div>
 
         {/* PENDING */}
-        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
           <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">PENDING</span>
-          <div className="text-2xl font-black text-yellow-400 font-mono mt-1.5">{stats.pendingCount}</div>
+          <div className="text-2xl font-black text-yellow-400 font-mono mt-1">{stats.pendingCount}</div>
         </div>
 
         {/* VERIFIED */}
-        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
           <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">VERIFIED</span>
-          <div className="text-2xl font-black text-emerald-400 font-mono mt-1.5">{stats.verifiedCount}</div>
+          <div className="text-2xl font-black text-emerald-400 font-mono mt-1">{stats.verifiedCount}</div>
         </div>
 
         {/* REJECTED */}
-        <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 shadow-md">
           <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">REJECTED</span>
-          <div className="text-2xl font-black text-rose-500 font-mono mt-1.5">{stats.rejectedCount}</div>
+          <div className="text-2xl font-black text-rose-500 font-mono mt-1">{stats.rejectedCount}</div>
         </div>
       </div>
 
       {/* ============================================================== */}
-      {/* TAB VIEW 1: GLOBAL HACKATHON SETTINGS (Exact match to Image 1) */}
+      {/* TAB VIEW 1: GLOBAL HACKATHON SETTINGS */}
       {/* ============================================================== */}
       {activeMainTab === 'settings' && (
         <div className="p-6 md:p-8 rounded-3xl bg-[#0c1220] border border-slate-800/80 shadow-2xl space-y-6 animate-in fade-in duration-200">
@@ -498,7 +675,6 @@ export const AdminDashboard = () => {
           )}
 
           <form onSubmit={handleSaveSettings} className="space-y-6 text-xs text-left">
-            {/* Row 1: Capacity & Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">
@@ -521,8 +697,8 @@ export const AdminDashboard = () => {
                   onClick={() => setSettingsForm({ ...settingsForm, registrationOpen: !settingsForm.registrationOpen })}
                   className={`w-full py-3 px-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer text-center ${
                     settingsForm.registrationOpen
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_25px_rgba(16,185,129,0.3)]'
-                      : 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_25px_rgba(239,68,68,0.3)]'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                      : 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]'
                   }`}
                 >
                   {settingsForm.registrationOpen ? 'REGISTRATIONS OPEN' : 'REGISTRATIONS CLOSED'}
@@ -530,7 +706,6 @@ export const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Row 2: Fee & UPI */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">
@@ -558,7 +733,6 @@ export const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Row 3: WhatsApp Group Link */}
             <div>
               <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">
                 OFFICIAL WHATSAPP GROUP LINK
@@ -572,7 +746,6 @@ export const AdminDashboard = () => {
               />
             </div>
 
-            {/* Row 4: Scanner Box (Exact match to Screenshot) */}
             <div className="p-6 rounded-2xl bg-[#080d1a] border border-slate-800/80 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -582,7 +755,7 @@ export const AdminDashboard = () => {
                       OFFICIAL UPI QR SCANNER IMAGE
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Upload your official UPI QR scanner (PhonePe, Google Pay, Paytm, etc.). This image is displayed directly to students on the payment portal.
+                      Upload your official UPI QR scanner. Displayed directly on the payment portal.
                     </p>
                   </div>
                 </div>
@@ -631,7 +804,7 @@ export const AdminDashboard = () => {
             <button
               type="submit"
               disabled={savingSettings}
-              className="w-full py-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-500 to-red-600 text-white font-black text-xs tracking-widest uppercase shadow-[0_0_25px_rgba(220,38,38,0.5)] hover:from-red-500 hover:to-rose-400 transition-all cursor-pointer"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-500 to-red-600 text-white font-black text-xs tracking-widest uppercase shadow-[0_0_25px_rgba(220,38,38,0.5)] hover:from-red-500 hover:to-rose-400 transition-all cursor-pointer"
             >
               {savingSettings ? 'SAVING CONFIGURATION...' : 'SAVE SYSTEM CONFIGURATION'}
             </button>
@@ -640,142 +813,198 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* TAB VIEW 2: TEAMS & DEMOGRAPHICS (Exact match to Image 2) */}
+      {/* TAB VIEW 2: TEAMS & DEMOGRAPHICS (Exact match to Reference) */}
       {/* ============================================================== */}
       {activeMainTab === 'teams' && (
         <>
-          {/* 3. REGISTRATION DEMOGRAPHICS ANALYTICS (Exact match) */}
-          <div className="space-y-4">
+          {/* 3. REGISTRATION DEMOGRAPHICS ANALYTICS */}
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <PieChart className="w-4 h-4 text-red-500" />
-                <h2 className="text-sm font-black text-white uppercase tracking-wider">
+                <h2 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
                   REGISTRATION DEMOGRAPHICS ANALYTICS
                 </h2>
                 <span className="px-3 py-0.5 rounded-full bg-red-950/40 border border-red-500/50 text-red-400 text-[10px] font-black uppercase">
-                  {stats.totalParticipants} PARTICIPANTS ({stats.totalTeams} TEAMS)
+                  {computedDemographics.totalParticipants} PARTICIPANTS ({stats.totalTeams} TEAMS)
                 </span>
               </div>
 
               <button
                 onClick={() => setShowCharts(!showCharts)}
-                className="text-[10px] font-extrabold text-slate-300 hover:text-white uppercase tracking-wider flex items-center gap-1 bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full cursor-pointer"
+                className="text-[10px] font-extrabold text-slate-300 hover:text-white uppercase tracking-wider flex items-center gap-1 bg-slate-900 border border-slate-700 px-3 py-1 rounded-full cursor-pointer"
               >
                 <span>{showCharts ? 'HIDE CHARTS ▲' : 'SHOW CHARTS ▼'}</span>
               </button>
             </div>
 
             {showCharts && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                 {/* 1. Year Distribution */}
-                <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xs">
                       🎓
                     </div>
                     <div>
                       <h3 className="text-xs font-black text-white">Year Distribution</h3>
-                      <span className="text-[10px] text-slate-400 block font-medium">{stats.totalParticipants} TOTAL PARTICIPANTS</span>
+                      <span className="text-[9px] text-slate-400 block font-medium">
+                        {computedDemographics.totalParticipants} TOTAL PARTICIPANTS
+                      </span>
                     </div>
                   </div>
 
-                  <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
-                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                      <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                      <circle cx="50" cy="50" r="38" stroke="#ef4444" strokeWidth="12" fill="none" strokeDasharray="160 238" />
-                      <circle cx="50" cy="50" r="38" stroke="#3b82f6" strokeWidth="12" fill="none" strokeDasharray="78 238" strokeDashoffset="-160" />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-lg font-black text-white font-mono">{stats.totalParticipants}</span>
+                  <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
+                    {renderDonutSVG(computedDemographics.year, computedDemographics.totalParticipants)}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                      <span className="text-base font-black text-white font-mono">{computedDemographics.totalParticipants}</span>
                       <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
                     </div>
+                  </div>
+
+                  <div className="space-y-1 text-[11px] text-slate-300 pt-1 border-t border-slate-800/60">
+                    {computedDemographics.year.map((item, idx) => {
+                      const pct = computedDemographics.totalParticipants > 0
+                        ? Math.round((item.count / computedDemographics.totalParticipants) * 100)
+                        : 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-slate-400">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                            {item.label}
+                          </span>
+                          <span className="font-mono font-bold text-slate-200">
+                            {item.count} <span className="text-slate-500 font-normal">({pct}%)</span>
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* 2. Gender Distribution */}
-                <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400">
+                <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 text-xs">
                       👥
                     </div>
                     <div>
                       <h3 className="text-xs font-black text-white">Gender Distribution</h3>
-                      <span className="text-[10px] text-slate-400 block font-medium">{stats.totalParticipants} TOTAL PARTICIPANTS</span>
+                      <span className="text-[9px] text-slate-400 block font-medium">
+                        {computedDemographics.totalParticipants} TOTAL PARTICIPANTS
+                      </span>
                     </div>
                   </div>
 
-                  <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
-                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                      <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                      <circle cx="50" cy="50" r="38" stroke="#3b82f6" strokeWidth="12" fill="none" strokeDasharray="150 238" />
-                      <circle cx="50" cy="50" r="38" stroke="#ec4899" strokeWidth="12" fill="none" strokeDasharray="88 238" strokeDashoffset="-150" />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-lg font-black text-white font-mono">{stats.totalParticipants}</span>
+                  <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
+                    {renderDonutSVG(computedDemographics.gender, computedDemographics.totalParticipants)}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                      <span className="text-base font-black text-white font-mono">{computedDemographics.totalParticipants}</span>
                       <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
                     </div>
+                  </div>
+
+                  <div className="space-y-1 text-[11px] text-slate-300 pt-1 border-t border-slate-800/60">
+                    {computedDemographics.gender.map((item, idx) => {
+                      const pct = computedDemographics.totalParticipants > 0
+                        ? Math.round((item.count / computedDemographics.totalParticipants) * 100)
+                        : 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-slate-400">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                            {item.label}
+                          </span>
+                          <span className="font-mono font-bold text-slate-200">
+                            {item.count} <span className="text-slate-500 font-normal">({pct}%)</span>
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* 3. Department Distribution */}
-                <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 text-xs">
                       🏢
                     </div>
                     <div>
                       <h3 className="text-xs font-black text-white">Department Distribution</h3>
-                      <span className="text-[10px] text-slate-400 block font-medium">{stats.totalParticipants} TOTAL PARTICIPANTS</span>
+                      <span className="text-[9px] text-slate-400 block font-medium">
+                        {computedDemographics.totalParticipants} TOTAL PARTICIPANTS
+                      </span>
                     </div>
                   </div>
 
-                  <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
-                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                      <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                      <circle cx="50" cy="50" r="38" stroke="#ef4444" strokeWidth="12" fill="none" strokeDasharray="165 238" />
-                      <circle cx="50" cy="50" r="38" stroke="#3b82f6" strokeWidth="12" fill="none" strokeDasharray="65 238" strokeDashoffset="-165" />
-                      <circle cx="50" cy="50" r="38" stroke="#06b6d4" strokeWidth="12" fill="none" strokeDasharray="8 238" strokeDashoffset="-230" />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-lg font-black text-white font-mono">{stats.totalParticipants}</span>
+                  <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
+                    {renderDonutSVG(computedDemographics.dept, computedDemographics.totalParticipants)}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                      <span className="text-base font-black text-white font-mono">{computedDemographics.totalParticipants}</span>
                       <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
                     </div>
                   </div>
 
-                  <div className="space-y-1 text-[11px] text-slate-300 pt-1">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500" /> CSE</span>
-                      <span className="font-mono font-bold text-slate-300">167 <span className="text-slate-500 font-normal">(70%)</span></span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500" /> ECE</span>
-                      <span className="font-mono font-bold text-slate-300">66 <span className="text-slate-500 font-normal">(28%)</span></span>
-                    </div>
+                  <div className="space-y-1 text-[11px] text-slate-300 pt-1 border-t border-slate-800/60">
+                    {computedDemographics.dept.slice(0, 4).map((item, idx) => {
+                      const pct = computedDemographics.totalParticipants > 0
+                        ? Math.round((item.count / computedDemographics.totalParticipants) * 100)
+                        : 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-slate-400">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                            {item.label}
+                          </span>
+                          <span className="font-mono font-bold text-slate-200">
+                            {item.count} <span className="text-slate-500 font-normal">({pct}%)</span>
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* 4. Accommodation */}
-                <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <div className="p-4 rounded-2xl bg-[#0a0f1d] border border-slate-800/80 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xs">
                       🏠
                     </div>
                     <div>
                       <h3 className="text-xs font-black text-white">Accommodation</h3>
-                      <span className="text-[10px] text-slate-400 block font-medium">{stats.totalParticipants} TOTAL PARTICIPANTS</span>
+                      <span className="text-[9px] text-slate-400 block font-medium">
+                        {computedDemographics.totalParticipants} TOTAL PARTICIPANTS
+                      </span>
                     </div>
                   </div>
 
-                  <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
-                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                      <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                      <circle cx="50" cy="50" r="38" stroke="#10b981" strokeWidth="12" fill="none" strokeDasharray="170 238" />
-                      <circle cx="50" cy="50" r="38" stroke="#f59e0b" strokeWidth="12" fill="none" strokeDasharray="68 238" strokeDashoffset="-170" />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-lg font-black text-white font-mono">{stats.totalParticipants}</span>
+                  <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
+                    {renderDonutSVG(computedDemographics.accom, computedDemographics.totalParticipants)}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                      <span className="text-base font-black text-white font-mono">{computedDemographics.totalParticipants}</span>
                       <span className="text-[8px] text-slate-400 font-bold uppercase">STUDENTS</span>
                     </div>
+                  </div>
+
+                  <div className="space-y-1 text-[11px] text-slate-300 pt-1 border-t border-slate-800/60">
+                    {computedDemographics.accom.map((item, idx) => {
+                      const pct = computedDemographics.totalParticipants > 0
+                        ? Math.round((item.count / computedDemographics.totalParticipants) * 100)
+                        : 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-slate-400">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                            {item.label}
+                          </span>
+                          <span className="font-mono font-bold text-slate-200">
+                            {item.count} <span className="text-slate-500 font-normal">({pct}%)</span>
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -799,7 +1028,7 @@ export const AdminDashboard = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="px-5 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all cursor-pointer whitespace-nowrap uppercase"
+                  className="px-5 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs tracking-wider flex items-center gap-1.5 shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all cursor-pointer whitespace-nowrap uppercase"
                 >
                   <Plus className="w-4 h-4" />
                   <span>+ ADD REGISTRATION</span>
@@ -815,7 +1044,7 @@ export const AdminDashboard = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none cursor-pointer"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="PENDING">PENDING</option>
@@ -826,7 +1055,7 @@ export const AdminDashboard = () => {
               <select
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none cursor-pointer"
               >
                 <option value="ALL">All Years</option>
                 <option value="II">II Year</option>
@@ -837,7 +1066,7 @@ export const AdminDashboard = () => {
               <select
                 value={genderFilter}
                 onChange={(e) => setGenderFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none cursor-pointer"
               >
                 <option value="ALL">All Genders</option>
                 <option value="Male">Male</option>
@@ -847,7 +1076,7 @@ export const AdminDashboard = () => {
               <select
                 value={deptFilter}
                 onChange={(e) => setDeptFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none cursor-pointer"
               >
                 <option value="ALL">All Departments</option>
                 {['CSE', 'ECE', 'IT', 'EEE', 'MECH', 'CIVIL', 'BIO'].map((d) => (
@@ -858,7 +1087,7 @@ export const AdminDashboard = () => {
               <select
                 value={accomFilter}
                 onChange={(e) => setAccomFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none cursor-pointer"
               >
                 <option value="ALL">All Accommodation</option>
                 <option value="Hosteller">Hosteller</option>
@@ -868,20 +1097,20 @@ export const AdminDashboard = () => {
               <select
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-[#0a0f1d] text-xs font-bold text-white border border-slate-800 focus:border-red-500 focus:outline-none cursor-pointer"
               >
-                <option value="ASC">Team ID (Asc)</option>
-                <option value="DESC">Team ID (Desc)</option>
+                <option value="DESC">Team ID Desc</option>
+                <option value="ASC">Team ID Asc</option>
               </select>
             </div>
 
-            {/* Action Buttons Row */}
+            {/* Action Buttons Row (Exact match) */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
                 onClick={exportCSV}
                 className="px-4 py-1.5 rounded-full border border-slate-700 bg-[#0a0f1d] text-slate-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
                 <span>EXCEL</span>
               </button>
 
@@ -889,7 +1118,7 @@ export const AdminDashboard = () => {
                 onClick={exportCSV}
                 className="px-4 py-1.5 rounded-full border border-slate-700 bg-[#0a0f1d] text-slate-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <FileText className="w-3.5 h-3.5" />
+                <FileText className="w-3.5 h-3.5 text-blue-400" />
                 <span>CSV</span>
               </button>
 
@@ -900,6 +1129,22 @@ export const AdminDashboard = () => {
                 <Download className="w-3.5 h-3.5" />
                 <span>EXPORT PDF REPORT</span>
               </button>
+
+              <button
+                onClick={() => setShowAllPassesModal(true)}
+                className="px-4 py-1.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_15px_rgba(220,38,38,0.4)]"
+              >
+                <Ticket className="w-3.5 h-3.5" />
+                <span>DOWNLOAD PASSES (ZIP)</span>
+              </button>
+
+              <button
+                onClick={() => setShowAllPassesModal(true)}
+                className="px-4 py-1.5 rounded-full bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                <span>ALL PASSES (PDF)</span>
+              </button>
             </div>
           </div>
 
@@ -909,7 +1154,7 @@ export const AdminDashboard = () => {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-[#070c18] text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-800">
                   <tr>
-                    <th className="p-4">TEAM ID ↑</th>
+                    <th className="p-4">TEAM ID {sortOrder === 'ASC' ? '↑' : '↓'}</th>
                     <th className="p-4">TEAM NAME</th>
                     <th className="p-4">TEAM LEAD</th>
                     <th className="p-4">UTR NUMBER</th>
@@ -922,7 +1167,7 @@ export const AdminDashboard = () => {
                     const leadMember = t.members?.[0];
                     return (
                       <tr key={t._id} className="hover:bg-slate-900/60 transition-colors">
-                        <td className="p-4 font-mono font-black text-white tracking-wider">
+                        <td className="p-4 font-mono font-black text-red-400 tracking-wider">
                           {t.teamId}
                         </td>
 
@@ -960,10 +1205,10 @@ export const AdminDashboard = () => {
                         <td className="p-4">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
-                              onClick={() => setPassTeam(t)}
-                              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-red-500 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                              onClick={() => handlePrintSinglePass(t)}
+                              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-slate-900/90 border border-slate-700 hover:border-cyan-400 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                             >
-                              <Ticket className="w-3 h-3 text-red-400" />
+                              <Ticket className="w-3 h-3 text-cyan-400" />
                               <span>PASS</span>
                             </button>
 
@@ -1010,21 +1255,276 @@ export const AdminDashboard = () => {
         </>
       )}
 
+      {/* ============================================================== */}
+      {/* 6. INSPECT / AUDIT TEAM MODAL (Exact match to User Screenshot 1) */}
+      {/* ============================================================== */}
+      {inspectTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+          <div className="max-w-3xl w-full p-6 md:p-8 rounded-3xl bg-[#090e1a] border border-slate-800 shadow-[0_0_60px_rgba(0,0,0,0.9)] max-h-[92vh] overflow-y-auto space-y-6 text-left animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-800">
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono font-bold text-red-400 uppercase tracking-widest block">
+                  {inspectTeam.teamId}
+                </span>
+                <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-wider">
+                  {inspectTeam.teamName}
+                </h2>
+                
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                    <span>★ TEAM LEAD: {inspectTeam.members?.[0]?.name || 'TEAM LEAD'} ({inspectTeam.leadRegNo || inspectTeam.members?.[0]?.regNo || 'N/A'})</span>
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    • {inspectTeam.leadEmail}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => handleOpenEdit(inspectTeam)}
+                  className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900/90 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>EDIT TEAM</span>
+                </button>
+
+                <button
+                  onClick={() => setInspectTeam(null)}
+                  className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 2-Column Body (Exact match to Screenshot 1) */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              
+              {/* Left Column: UTR & Screenshot Proof */}
+              <div className="md:col-span-5 space-y-4">
+                {/* UTR Box */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black text-red-400 uppercase tracking-wider block">
+                    UTR / TRANS REF NO:
+                  </span>
+                  <div className="p-3.5 rounded-xl bg-red-950/30 border border-red-500/50 text-center shadow-inner">
+                    <span className="text-lg md:text-xl font-black font-mono text-red-400 tracking-widest block select-all">
+                      {inspectTeam.payment?.utr || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Screenshot Proof */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                      CLOUDINARY SCREENSHOT PROOF:
+                    </span>
+                    {(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl) && (
+                      <a
+                        href={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] font-bold text-cyan-400 hover:underline flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Open Full</span>
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="p-2 rounded-2xl bg-black/60 border border-slate-800 flex items-center justify-center min-h-64 relative overflow-hidden group">
+                    {(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl) ? (
+                      <div className="w-full text-center space-y-2">
+                        <img
+                          src={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
+                          alt="Payment Screenshot Proof"
+                          className="w-full max-h-72 object-contain rounded-xl mx-auto shadow-md"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fallback = e.currentTarget.parentElement?.querySelector('.img-fallback-box');
+                            if (fallback) fallback.classList.remove('hidden');
+                          }}
+                        />
+                        <div className="img-fallback-box hidden p-6 text-center space-y-2">
+                          <p className="text-xs font-bold text-amber-400">Preview image could not be rendered.</p>
+                          <a
+                            href={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-300 text-xs font-bold"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> View Raw Proof Link
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center p-8 text-slate-500 text-xs font-bold">
+                        No Screenshot Uploaded
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Optional Rejection Reason */}
+                <div className="space-y-1 pt-1">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase">
+                    REJECTION REASON (IF REJECTING):
+                  </label>
+                  <input
+                    type="text"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="e.g. Invalid UTR / duplicate transaction"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-red-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: 4 Team Members List */}
+              <div className="md:col-span-7 space-y-3">
+                <div className="flex items-center justify-between pb-1">
+                  <span className="text-xs font-black text-slate-300 uppercase tracking-wider">
+                    {inspectTeam.members?.length || 4} TEAM MEMBERS:
+                  </span>
+                  <button
+                    onClick={() => handleOpenEdit(inspectTeam)}
+                    className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>EDIT</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {inspectTeam.members?.map((m, idx) => {
+                    const isLead = idx === 0;
+                    return (
+                      <div
+                        key={m._id || idx}
+                        className={`p-3.5 rounded-2xl text-xs space-y-1.5 transition-all ${
+                          isLead
+                            ? 'bg-red-950/20 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                            : 'bg-slate-900/70 border border-slate-800/90'
+                        }`}
+                      >
+                        {/* Title & Badge */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-white uppercase">
+                              {idx + 1}. {m.name} ({m.regNo})
+                            </span>
+                            {isLead && (
+                              <span className="px-2 py-0.5 rounded bg-red-600 text-white font-black text-[9px] uppercase tracking-wider">
+                                ★ TEAM LEAD
+                              </span>
+                            )}
+                          </div>
+                          {isLead && (
+                            <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest font-mono">
+                              (LEAD)
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Subtitle Details: Dept, Year, Sec, Mobile */}
+                        <div className="text-[11px] text-slate-300">
+                          {m.department || 'CSE'} • Year {m.year || 'II'} • Sec: {m.section || '24SRS'} • <span className="font-mono text-slate-200">{m.mobile || 'N/A'}</span>
+                        </div>
+
+                        {/* Accommodation */}
+                        <div className="text-[11px] text-slate-400">
+                          Accomn: <span className="text-slate-200 font-semibold">{m.accommodation || 'Day Scholar'}{m.accommodation === 'Hosteller' && m.hostel ? ` (${m.hostel}${m.roomNumber ? ` / ${m.roomNumber}` : ''})` : ''}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {(!inspectTeam.members || inspectTeam.members.length === 0) && (
+                    <div className="p-6 text-center text-slate-500 text-xs">
+                      No member records found for this team.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer: 5 Buttons in Row (Exact match to Screenshot 1) */}
+            <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* 1. DELETE TEAM */}
+                <button
+                  onClick={() => handleDeleteTeam(inspectTeam)}
+                  className="px-4 py-2.5 rounded-xl border border-red-500/50 bg-red-950/40 hover:bg-red-900/60 text-red-300 font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  <span>DELETE TEAM</span>
+                </button>
+
+                {/* 2. EDIT TEAM DETAILS */}
+                <button
+                  onClick={() => handleOpenEdit(inspectTeam)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>EDIT TEAM DETAILS</span>
+                </button>
+
+                {/* 3. PASS (PDF) */}
+                <button
+                  onClick={() => {
+                    setPassTeam(inspectTeam);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-cyan-300 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Ticket className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>PASS (PDF)</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {/* 4. REJECT */}
+                <button
+                  disabled={actionLoading}
+                  onClick={() => handleUpdatePaymentStatus(inspectTeam._id, 'REJECTED')}
+                  className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(220,38,38,0.5)] transition-all cursor-pointer"
+                >
+                  {actionLoading ? 'PROCESSING...' : 'REJECT'}
+                </button>
+
+                {/* 5. VERIFY */}
+                <button
+                  disabled={actionLoading}
+                  onClick={() => handleUpdatePaymentStatus(inspectTeam._id, 'VERIFIED')}
+                  className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all cursor-pointer"
+                >
+                  {actionLoading ? 'PROCESSING...' : 'VERIFY'}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* 7. ADD REGISTRATION MODAL */}
       {/* ============================================================== */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-lg w-full p-6 rounded-3xl glass-card border border-sky-500/40 bg-slate-950 shadow-[0_0_50px_rgba(0,240,255,0.2)] space-y-5">
+          <div className="max-w-lg w-full p-6 rounded-3xl border border-red-500/40 bg-[#090e1a] shadow-2xl space-y-5 text-left animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h2 className="text-base font-black text-white uppercase tracking-wider">+ DIRECT ADMIN REGISTRATION</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddRegistration} className="space-y-4 text-xs text-left">
+            <form onSubmit={handleAddRegistration} className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-slate-300 uppercase mb-1">STUDENT FULL NAME *</label>
                 <input
@@ -1033,7 +1533,7 @@ export const AdminDashboard = () => {
                   value={addForm.studentName}
                   onChange={(e) => setAddForm({ ...addForm, studentName: e.target.value.toUpperCase() })}
                   placeholder="e.g. PRASHANTHI REDDY"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-cyan-400 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-red-500 focus:outline-none"
                 />
               </div>
 
@@ -1046,7 +1546,7 @@ export const AdminDashboard = () => {
                     value={addForm.regNo}
                     onChange={(e) => setAddForm({ ...addForm, regNo: e.target.value.toUpperCase() })}
                     placeholder="99240040717"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-cyan-400 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-red-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1054,7 +1554,7 @@ export const AdminDashboard = () => {
                   <select
                     value={addForm.department}
                     onChange={(e) => setAddForm({ ...addForm, department: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
                   >
                     {['CSE', 'ECE', 'IT', 'EEE', 'MECH', 'CIVIL'].map(d => (
                       <option key={d} value={d}>{d}</option>
@@ -1069,7 +1569,7 @@ export const AdminDashboard = () => {
                   <select
                     value={addForm.year}
                     onChange={(e) => setAddForm({ ...addForm, year: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
                   >
                     <option value="II">II Year</option>
                     <option value="III">III Year</option>
@@ -1082,8 +1582,8 @@ export const AdminDashboard = () => {
                     type="text"
                     value={addForm.section}
                     onChange={(e) => setAddForm({ ...addForm, section: e.target.value.toUpperCase() })}
-                    placeholder="S08"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
+                    placeholder="24SRS"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1093,7 +1593,7 @@ export const AdminDashboard = () => {
                     value={addForm.mobile}
                     onChange={(e) => setAddForm({ ...addForm, mobile: e.target.value })}
                     placeholder="9999999999"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
                   />
                 </div>
               </div>
@@ -1106,7 +1606,7 @@ export const AdminDashboard = () => {
                     value={addForm.utr}
                     onChange={(e) => setAddForm({ ...addForm, utr: e.target.value })}
                     placeholder="459821937188"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1114,7 +1614,7 @@ export const AdminDashboard = () => {
                   <select
                     value={addForm.status}
                     onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
                   >
                     <option value="VERIFIED">VERIFIED</option>
                     <option value="PENDING">PENDING</option>
@@ -1126,7 +1626,7 @@ export const AdminDashboard = () => {
               <button
                 type="submit"
                 disabled={addingReg}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 text-black font-extrabold text-xs tracking-wider uppercase cursor-pointer shadow-lg"
+                className="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg"
               >
                 {addingReg ? 'ADDING REGISTRATION...' : 'CONFIRM & ADD REGISTRATION'}
               </button>
@@ -1136,116 +1636,21 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 8. INSPECT / AUDIT TEAM MODAL */}
-      {/* ============================================================== */}
-      {inspectTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-3xl w-full p-6 md:p-8 rounded-3xl glass-card border border-sky-500/40 bg-slate-950 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div>
-                <span className="text-[10px] font-extrabold text-cyan-400 uppercase tracking-widest block">AUDIT TEAM REGISTRATION</span>
-                <h2 className="text-xl font-black text-white">{inspectTeam.teamName} ({inspectTeam.teamId})</h2>
-              </div>
-              <button onClick={() => setInspectTeam(null)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Member Roster Grid */}
-            <div>
-              <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Team Participants ({inspectTeam.members?.length || 0} Members)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                {inspectTeam.members?.map((m, idx) => (
-                  <div key={m._id || idx} className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                    <div className="font-extrabold text-white flex justify-between">
-                      <span>{m.name}</span>
-                      <span className="font-mono text-cyan-400">{m.regNo}</span>
-                    </div>
-                    <div className="text-slate-400 text-[11px]">Dept: {m.department} | Year: {m.year} | Sec: {m.section}</div>
-                    <div className="text-slate-400 text-[11px]">Mobile: {m.mobile} | {m.accommodation}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Payment Details */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-              <div>
-                <h3 className="font-bold text-cyan-400 uppercase mb-2">Payment Audit Info</h3>
-                <p className="text-slate-300">UTR Number: <span className="font-mono font-bold text-white">{inspectTeam.payment?.utr}</span></p>
-                <p className="text-slate-300 mt-1">Amount Paid: <span className="font-bold text-cyan-300">₹{inspectTeam.payment?.amount}</span></p>
-                <p className="text-slate-300 mt-1">Status: <span className="font-bold text-amber-300">{inspectTeam.payment?.status}</span></p>
-
-                <div className="mt-3">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rejection Note (If Rejecting)</label>
-                  <input
-                    type="text"
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="Reason for rejection"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-bold text-cyan-400 uppercase mb-2">Payment Screenshot Preview</h3>
-                {inspectTeam.payment?.screenshotUrl ? (
-                  <div className="space-y-2">
-                    <img
-                      src={getScreenshotUrl(inspectTeam.payment.screenshotUrl)}
-                      alt="Payment Screenshot"
-                      className="w-full max-h-48 object-contain rounded-xl border border-slate-800 bg-black p-1"
-                    />
-                    <a
-                      href={getScreenshotUrl(inspectTeam.payment.screenshotUrl)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[11px] font-bold text-cyan-400 hover:underline flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" /> View Original Image
-                    </a>
-                  </div>
-                ) : (
-                  <p className="text-slate-500">No screenshot attached</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                disabled={actionLoading}
-                onClick={() => handleUpdatePaymentStatus(inspectTeam._id, 'REJECTED')}
-                className="w-1/2 py-3 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-500/40 text-red-300 font-extrabold text-xs tracking-wider"
-              >
-                REJECT PAYMENT
-              </button>
-              <button
-                disabled={actionLoading}
-                onClick={() => handleUpdatePaymentStatus(inspectTeam._id, 'VERIFIED')}
-                className="w-1/2 py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black font-extrabold text-xs tracking-wider shadow-lg"
-              >
-                VERIFY & CONFIRM TEAM
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* 9. EDIT TEAM MODAL */}
+      {/* 8. EDIT TEAM MODAL */}
       {/* ============================================================== */}
       {editTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-md w-full p-6 rounded-3xl glass-card border border-sky-500/40 bg-slate-950 shadow-2xl space-y-4">
+          <div className="max-w-md w-full p-6 rounded-3xl border border-amber-500/40 bg-[#090e1a] shadow-2xl space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h2 className="text-base font-black text-white uppercase tracking-wider">EDIT TEAM ({editTeam.teamId})</h2>
-              <button onClick={() => setEditTeam(null)} className="text-slate-400 hover:text-white">
+              <h2 className="text-base font-black text-white uppercase tracking-wider">
+                EDIT TEAM ({editTeam.teamId})
+              </h2>
+              <button onClick={() => setEditTeam(null)} className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs text-left">
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-slate-300 uppercase mb-1">TEAM NAME</label>
                 <input
@@ -1253,7 +1658,7 @@ export const AdminDashboard = () => {
                   required
                   value={editForm.teamName}
                   onChange={(e) => setEditForm({ ...editForm, teamName: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-extrabold uppercase focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-extrabold uppercase focus:outline-none"
                 />
               </div>
 
@@ -1264,7 +1669,7 @@ export const AdminDashboard = () => {
                   required
                   value={editForm.leadEmail}
                   onChange={(e) => setEditForm({ ...editForm, leadEmail: e.target.value.toLowerCase() })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
                 />
               </div>
 
@@ -1275,7 +1680,7 @@ export const AdminDashboard = () => {
                     type="text"
                     value={editForm.utr}
                     onChange={(e) => setEditForm({ ...editForm, utr: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1283,7 +1688,7 @@ export const AdminDashboard = () => {
                   <select
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
                   >
                     <option value="PENDING">PENDING</option>
                     <option value="VERIFIED">VERIFIED</option>
@@ -1295,7 +1700,7 @@ export const AdminDashboard = () => {
               <button
                 type="submit"
                 disabled={editingReg}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 text-black font-extrabold text-xs tracking-wider uppercase cursor-pointer shadow-lg"
+                className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg"
               >
                 {editingReg ? 'SAVING CHANGES...' : 'SAVE TEAM CHANGES'}
               </button>
@@ -1305,109 +1710,79 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 10. EVENT PASS PREVIEW MODAL */}
+      {/* 9. SINGLE PASS PREVIEW MODAL */}
       {/* ============================================================== */}
       {passTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-2xl w-full p-6 md:p-8 rounded-3xl glass-card border border-sky-500/40 bg-slate-950 shadow-[0_0_60px_rgba(0,240,255,0.3)] space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 print:hidden">
-              <span className="text-xs font-black text-cyan-400 uppercase tracking-wider">OFFICIAL ADMISSION PASS PREVIEW</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
+          <div className="max-w-4xl w-full p-4 md:p-6 rounded-3xl bg-[#090e1a] border border-cyan-500/40 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 no-print">
+              <span className="text-xs font-black text-cyan-400 uppercase tracking-wider">
+                OFFICIAL ADMISSION PASS PREVIEW ({passTeam.teamId})
+              </span>
+              <button
+                onClick={() => setPassTeam(null)}
+                className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <OfficialEventPass
+              team={passTeam}
+              members={passTeam.members || []}
+              payment={passTeam.payment || {}}
+              eventSettings={analytics?.settings || settings}
+              showActions={true}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 10. ALL PASSES PRINT MODAL */}
+      {/* ============================================================== */}
+      {showAllPassesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md overflow-y-auto">
+          <div className="max-w-5xl w-full p-6 rounded-3xl bg-[#090e1a] border border-red-500/40 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800 sticky top-0 bg-[#090e1a] z-20 no-print">
+              <div>
+                <h2 className="text-lg font-black text-white uppercase tracking-wider">
+                  ALL PASSES PRINT / EXPORT ({filteredTeams.length} TEAMS)
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Ready to print all passes in high resolution.
+                </p>
+              </div>
+
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => handlePrintPass(passTeam)}
-                  className="px-4 py-1.5 rounded-xl bg-cyan-400 text-black font-extrabold text-xs shadow-md flex items-center gap-1"
+                  onClick={() => window.print()}
+                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center gap-2 cursor-pointer shadow-lg"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>PRINT / DOWNLOAD PASS</span>
+                  <Printer className="w-4 h-4" />
+                  <span>PRINT ALL PASSES</span>
                 </button>
-                <button onClick={() => setPassTeam(null)} className="text-slate-400 hover:text-white">
+                <button
+                  onClick={() => setShowAllPassesModal(false)}
+                  className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* PASS CONTENT CARD */}
-            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-6 text-left relative overflow-hidden">
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <img src="/assets/kare_logo.jpg" alt="KARE Logo" className="w-12 h-12 rounded-full border border-sky-400/40" />
-                  <div>
-                    <h2 className="text-base font-black text-white tracking-wider">ALPHA 2026 OFFICIAL PASS</h2>
-                    <p className="text-[11px] font-bold text-cyan-400 tracking-wider">KARE IEEE EDUCATION SOCIETY</p>
-                  </div>
-                </div>
-
-                <div className="text-right flex flex-col items-end">
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-black uppercase mb-2">
-                    ● ACTIVE ADMISSION PASS
-                  </span>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://alpha-ieee-eds.vercel.app/verify/${passTeam.teamId}`}
-                    alt="QR Verification"
-                    className="w-20 h-20 bg-white p-1 rounded-xl border border-slate-700"
+            <div className="space-y-8">
+              {filteredTeams.map((t, idx) => (
+                <div key={t._id || idx} className="page-break-after">
+                  <OfficialEventPass
+                    team={t}
+                    members={t.members || []}
+                    payment={t.payment || {}}
+                    eventSettings={analytics?.settings || settings}
+                    showActions={false}
                   />
-                  <span className="text-[9px] font-mono text-slate-400 block mt-1">SCAN TO VERIFY</span>
                 </div>
-              </div>
-
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">TEAM NAME</span>
-                <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-wider">{passTeam.teamName}</h1>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-sky-300 text-black font-extrabold text-[10px]">TEAM LEAD</span>
-                  <span className="text-xs font-bold text-slate-300">{passTeam.members?.[0]?.name} ({passTeam.leadEmail})</span>
-                </div>
-                <div className="text-2xl font-black text-cyan-400 font-mono mt-2 tracking-wider">
-                  TEAM ID: {passTeam.teamId}
-                </div>
-              </div>
-
-              {/* Event Details Grid */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[9px] font-bold text-slate-500 block uppercase">EVENT VENUE</span>
-                  <span className="text-xs font-extrabold text-white">8th Block Seminar Hall</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[9px] font-bold text-slate-500 block uppercase">REPORTING TIME</span>
-                  <span className="text-xs font-extrabold text-white">08:30 AM, 1st October</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[9px] font-bold text-slate-500 block uppercase">PAYMENT REF (UTR)</span>
-                  <span className="text-xs font-mono font-extrabold text-cyan-400">{passTeam.payment?.utr || 'N/A'}</span>
-                </div>
-              </div>
-
-              {/* Participants Roster */}
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                  TEAM PARTICIPANTS ({passTeam.members?.length || 0} MEMBERS)
-                </span>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  {passTeam.members?.map((m, idx) => (
-                    <div
-                      key={m._id || idx}
-                      className={`p-3 rounded-xl border ${idx === 0 ? 'bg-cyan-950/20 border-cyan-500/40' : 'bg-slate-900 border-slate-800'}`}
-                    >
-                      <div className="flex justify-between items-center font-extrabold">
-                        <span className="text-white">{idx + 1}. {m.name}</span>
-                        <span className="font-mono text-cyan-300">{m.regNo}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-1">
-                        Dept: <span className="font-bold text-white">{m.department}</span> | Year: <span className="font-bold text-white">{m.year}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        Mobile: <span className="font-mono text-slate-300">{m.mobile}</span> | Accomm: <span className="font-bold text-slate-300">{m.accommodation}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500 font-mono">
-                <span>OFFICIAL VERIFIED BADGE • KARE IEEE HACKATHON 2026</span>
-                <span>PASS ID: {passTeam.teamId} • 2EE CREDITS COMPLIANT</span>
-              </div>
+              ))}
             </div>
           </div>
         </div>
