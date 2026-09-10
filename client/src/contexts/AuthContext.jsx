@@ -65,6 +65,7 @@ export const AuthProvider = ({ children }) => {
     try {
       let email = '';
       let name = 'ALPHA Student';
+      let firebaseErrorMsg = '';
 
       try {
         const provider = new GoogleAuthProvider();
@@ -74,14 +75,23 @@ export const AuthProvider = ({ children }) => {
           name = result.user.displayName || name;
         }
       } catch (fbErr) {
-        console.warn('Firebase popup notice:', fbErr.message);
+        console.error('Firebase popup error:', fbErr);
+        if (fbErr.code === 'auth/unauthorized-domain') {
+          firebaseErrorMsg = 'This domain is not authorized for Google Sign-In in Firebase Console.';
+        } else if (fbErr.code === 'auth/popup-closed-by-user') {
+          firebaseErrorMsg = 'Google Sign-In popup was closed. Please try signing in again.';
+        } else if (fbErr.code === 'auth/popup-blocked') {
+          firebaseErrorMsg = 'Google Sign-In popup was blocked by your browser. Please allow popups.';
+        } else {
+          firebaseErrorMsg = fbErr.message || 'Firebase Google Sign-In failed.';
+        }
       }
 
       if (!email) {
         setLoading(false);
         return {
           success: false,
-          message: 'Google Sign-In popup was closed or cancelled. Please try signing in again.'
+          message: firebaseErrorMsg || 'Google Sign-In popup was closed or cancelled. Please try signing in again.'
         };
       }
 
@@ -102,7 +112,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: data };
     } catch (err) {
       setLoading(false);
-      return { success: false, message: err.response?.data?.message || 'Google Sign-In failed.' };
+      return { success: false, message: err.response?.data?.message || err.message || 'Google Sign-In failed.' };
     }
   };
 
