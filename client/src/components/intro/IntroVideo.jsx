@@ -1,12 +1,12 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 export const IntroVideo = ({ onVideoEnd }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const fireBloomRef = useRef(null);
   const hasTriggeredEndRef = useRef(false);
   const fallbackTimerRef = useRef(null);
-  const [fireIntensity, setFireIntensity] = useState(0);
 
   const triggerEnd = () => {
     if (hasTriggeredEndRef.current) return;
@@ -37,29 +37,18 @@ export const IntroVideo = ({ onVideoEnd }) => {
     };
   }, []);
 
-  // Time update listener for video synchronization & fire illumination trigger
+  // Lightweight video ended / time update check without React state re-renders
   const handleTimeUpdate = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    const time = video.currentTime;
-
-    // Scene 3 & 4 (Fire blast sequence: 1.6s - 3.8s)
-    if (time >= 1.6 && time < 3.8) {
-      // Calculate normalized fire illumination progress
-      const intensity = Math.min(1, (time - 1.6) / 0.8);
-      setFireIntensity(intensity);
-    } else if (time < 1.6) {
-      setFireIntensity(0);
-    }
-
     // Cut video at 3.8s right before any pause symbol or static end frame
-    if (time >= 3.8) {
+    if (video.currentTime >= 3.8) {
       triggerEnd();
     }
   };
 
-  // Canvas particle overlay (Volumetric blue fog & cyan-white fire energy embers)
+  // Ultra-fast zero-re-render 60FPS Canvas particle & lighting overlay
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -76,22 +65,32 @@ export const IntroVideo = ({ onVideoEnd }) => {
     };
     window.addEventListener('resize', handleResize);
 
-    // Create 60 atmospheric fog & cyan fire particles
-    const particleCount = window.innerWidth < 768 ? 35 : 65;
+    // Create 50 lightweight atmospheric fog & cyan fire particles
+    const particleCount = window.innerWidth < 768 ? 25 : 50;
     const particles = Array.from({ length: particleCount }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      z: Math.random() * 2 + 0.5,
-      radius: Math.random() * 2.5 + 0.8,
+      radius: Math.random() * 2.2 + 0.8,
       color: Math.random() > 0.3 ? 'rgba(0, 240, 255, ' : 'rgba(255, 255, 255, ',
-      opacity: Math.random() * 0.6 + 0.2,
-      vx: (Math.random() - 0.5) * 0.6,
-      vy: -Math.random() * 1.2 - 0.4,
-      size: Math.random() * 3 + 1
+      opacity: Math.random() * 0.5 + 0.2,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: -Math.random() * 1.0 - 0.3
     }));
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
+
+      // Read video time directly without React state
+      const video = videoRef.current;
+      let fireIntensity = 0;
+      if (video && video.currentTime >= 1.6 && video.currentTime < 3.8) {
+        fireIntensity = Math.min(1, (video.currentTime - 1.6) / 0.8);
+      }
+
+      // Update fire bloom overlay directly via DOM ref (0 re-renders)
+      if (fireBloomRef.current) {
+        fireBloomRef.current.style.opacity = (fireIntensity * 0.45).toString();
+      }
 
       particles.forEach((p) => {
         p.x += p.vx * (1 + fireIntensity * 1.5);
@@ -104,11 +103,10 @@ export const IntroVideo = ({ onVideoEnd }) => {
         if (p.x < 0) p.x = width;
         if (p.x > width) p.x = 0;
 
-        // Render cyan-white fire ember with intense radial bloom
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius * (1 + fireIntensity * 0.8), 0, Math.PI * 2);
         ctx.fillStyle = `${p.color}${p.opacity * (0.5 + fireIntensity * 0.5)})`;
-        ctx.shadowBlur = 12 * (1 + fireIntensity * 1.2);
+        ctx.shadowBlur = 10 * (1 + fireIntensity * 1.2);
         ctx.shadowColor = '#00f0ff';
         ctx.fill();
       });
@@ -122,7 +120,7 @@ export const IntroVideo = ({ onVideoEnd }) => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(rafId);
     };
-  }, [fireIntensity]);
+  }, []); // Run once! Zero re-renders during video playback
 
   return (
     <motion.div
@@ -156,16 +154,17 @@ export const IntroVideo = ({ onVideoEnd }) => {
           style={{
             outline: 'none',
             WebkitTouchCallout: 'none',
-            WebkitUserSelect: 'none'
+            WebkitUserSelect: 'none',
+            willChange: 'transform'
           }}
         />
 
         {/* Scene 3 & 4: Cyan-White Fire Illumination Radial Light Bloom */}
         <div
-          className="absolute inset-0 pointer-events-none transition-opacity duration-300 ease-out"
+          ref={fireBloomRef}
+          className="absolute inset-0 pointer-events-none transition-opacity duration-200 ease-out opacity-0"
           style={{
-            opacity: fireIntensity * 0.45,
-            background: 'radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.4) 0%, rgba(14, 165, 233, 0.2) 40%, rgba(2, 6, 23, 0) 75%)',
+            background: 'radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.45) 0%, rgba(14, 165, 233, 0.2) 40%, rgba(2, 6, 23, 0) 75%)',
             mixBlendMode: 'screen'
           }}
         />
@@ -176,23 +175,11 @@ export const IntroVideo = ({ onVideoEnd }) => {
 
         {/* Interactive WebGL Fire Embers & Volumetric Particle Overlay */}
         <canvas ref={canvasRef} className="absolute inset-0 opacity-85 pointer-events-none" />
-
-        {/* Floating Skip Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            triggerEnd();
-          }}
-          className="absolute bottom-8 right-8 z-50 px-5 py-2.5 rounded-full bg-slate-950/70 hover:bg-slate-900 border border-cyan-400/40 text-cyan-300 text-xs font-black uppercase tracking-widest backdrop-blur-md shadow-[0_0_20px_rgba(0,240,255,0.3)] transition-all cursor-pointer flex items-center gap-2"
-        >
-          <span>SKIP INTRO</span>
-          <span>⏩</span>
-        </button>
       </div>
     </motion.div>
   );
 };
+
 
 
 
