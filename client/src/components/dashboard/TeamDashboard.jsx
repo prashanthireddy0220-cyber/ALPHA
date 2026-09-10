@@ -48,9 +48,15 @@ export const TeamDashboard = () => {
         localStorage.setItem('alpha_user', JSON.stringify(updatedUser));
       }
     } catch (err) {
-      if (!hasCache) {
-        setError(err.response?.data?.message || 'No team found for your account.');
+      setData(null);
+      sessionStorage.removeItem(cacheKey);
+      if (user?.teamId) {
+        const updatedUser = { ...user };
+        delete updatedUser.teamId;
+        setUser(updatedUser);
+        localStorage.setItem('alpha_user', JSON.stringify(updatedUser));
       }
+      setError(err.response?.data?.message || 'No registered team found for your account. Please register your team.');
     } finally {
       setLoading(false);
     }

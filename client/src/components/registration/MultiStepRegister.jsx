@@ -160,9 +160,16 @@ export const MultiStepRegister = () => {
         }
       })
       .catch((err) => {
-        // If 404 / team deleted, ensure clean state so user can register fresh
+        // If 404 / team deleted, ensure clean state so user can register fresh from scratch
         if (isMounted) {
           setExistingUserTeam(null);
+          sessionStorage.removeItem('alpha_cached_team_dashboard');
+          if (user?.teamId) {
+            const cleanUser = { ...user };
+            delete cleanUser.teamId;
+            setUser(cleanUser);
+            localStorage.setItem('alpha_user', JSON.stringify(cleanUser));
+          }
         }
       })
       .finally(() => {

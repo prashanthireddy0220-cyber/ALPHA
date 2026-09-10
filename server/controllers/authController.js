@@ -253,23 +253,25 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // If user exists, sync displayName if provided and link teamId strictly by email
+    // If user exists, sync displayName if provided and re-verify team ownership strictly by email
     if (user && targetEmail) {
       if (req.body.name && req.body.name.trim() && user.name === 'ALPHA Student') {
         user.name = req.body.name.trim();
       }
 
-      if (!user.teamId) {
-        const studentDoc = await Student.findOne({ email: targetEmail });
-        const team = await Team.findOne({
-          $or: [
-            ...(studentDoc ? [{ members: studentDoc._id }] : []),
-            { leadEmail: targetEmail }
-          ]
-        });
-        if (team) {
-          user.teamId = team.teamId;
-        }
+      const studentDoc = await Student.findOne({ email: targetEmail });
+      const team = await Team.findOne({
+        $or: [
+          ...(studentDoc ? [{ members: studentDoc._id }] : []),
+          { leadEmail: targetEmail }
+        ]
+      });
+
+      if (team) {
+        user.teamId = team.teamId;
+      } else {
+        // Team was deleted by admin or does not exist: purge stale teamId completely
+        user.teamId = undefined;
       }
       await user.save();
     }

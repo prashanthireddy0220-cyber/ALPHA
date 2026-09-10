@@ -423,9 +423,15 @@ export const deleteSingleRegistration = async (req, res) => {
       ]
     });
 
-    // 4. Unset teamId reference on all affected User accounts
+    // 4. Unset teamId reference on all affected User accounts (lead and all teammates)
     await User.updateMany(
-      { $or: [{ teamId: team.teamId }, { teamId: team._id }, ...(leadEmail ? [{ email: leadEmail }] : [])] },
+      {
+        $or: [
+          { teamId: team.teamId },
+          { teamId: team._id },
+          ...(allEmails.length > 0 ? [{ email: { $in: allEmails } }] : [])
+        ]
+      },
       { $unset: { teamId: 1 } }
     );
 
