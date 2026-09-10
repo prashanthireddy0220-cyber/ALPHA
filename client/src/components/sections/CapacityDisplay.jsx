@@ -1,36 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React from 'react';
 import { Users, Flame, Lock } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { TiltCard } from '../common/TiltCard';
 
 export const CapacityDisplay = () => {
   const { settings } = useSettings();
-  const [stats, setStats] = useState({
-    totalTeams: 0,
-    maxTeams: 60,
-    availableSlots: 60,
-    registrationOpen: true
-  });
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await axios.get('/api/registration/capacity-stats');
-        setStats(res.data);
-      } catch (err) {
-        // Fallback gracefully
-      }
-    };
-    fetchStats();
-  }, []);
+  const totalTeams = typeof settings?.totalTeams === 'number' ? settings.totalTeams : 0;
+  const maxTeams = settings?.maxTeams || 100;
+  const availableSlots = typeof settings?.availableSlots === 'number'
+    ? settings.availableSlots
+    : Math.max(0, maxTeams - totalTeams);
 
-  const totalTeams = typeof stats.totalTeams === 'number' ? stats.totalTeams : 0;
-  const maxTeams = settings.maxTeams || stats.maxTeams || 60;
-  const availableSlots = Math.max(0, maxTeams - totalTeams);
-  
   // Registration status is CLOSED if settings.registrationOpen === false or availableSlots === 0
-  const isRegClosed = settings.registrationOpen === false || stats.registrationOpen === false;
+  const isRegClosed = settings?.registrationOpen === false;
   const isFull = availableSlots === 0 || isRegClosed;
 
   const percent = Math.min(100, Math.round((totalTeams / maxTeams) * 100));
