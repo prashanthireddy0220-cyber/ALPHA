@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         if (fbErr.code === 'auth/unauthorized-domain') {
           firebaseErrorMsg = 'This deployment domain is not authorized in Firebase Console. Add this domain to Firebase Console > Authentication > Settings > Authorized domains.';
         } else if (fbErr.code === 'auth/popup-closed-by-user') {
-          firebaseErrorMsg = 'Google Sign-In popup was closed. Please try again.';
+          firebaseErrorMsg = 'Google Sign-In popup was closed before completing. Please try again.';
         } else if (fbErr.code === 'auth/popup-blocked') {
           firebaseErrorMsg = 'Google Sign-In popup was blocked by your browser. Please allow popups for this site.';
         } else if (fbErr.code === 'auth/network-request-failed') {
@@ -106,13 +106,24 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Call backend login with retry in case Render server is waking up
+      // Call backend login with automatic retry and localhost -> live fallback
       let res;
       try {
         res = await axios.post('/api/auth/login', { email, password: 'password123', name });
       } catch (firstErr) {
-        // If network error / timeout (e.g. Render cold start), retry once after a short delay
-        if (!firstErr.response || firstErr.code === 'ERR_NETWORK' || firstErr.code === 'ECONNABORTED') {
+        const isConnRefused = firstErr.code === 'ERR_NETWORK' || !firstErr.response;
+        const isUsingLocalhost = axios.defaults.baseURL && axios.defaults.baseURL.includes('localhost:5000');
+
+        if (isConnRefused && isUsingLocalhost) {
+          try {
+            console.warn('Localhost backend unreachable, falling back to live Render API...');
+            axios.defaults.baseURL = 'https://alpha-backend-zvhx.onrender.com';
+            res = await axios.post('/api/auth/login', { email, password: 'password123', name });
+          } catch (liveErr) {
+            throw liveErr;
+          }
+        } else if (isConnRefused || firstErr.code === 'ECONNABORTED') {
+          // If network error / timeout (e.g. Render cold start), retry once after a short delay
           await new Promise(resolve => setTimeout(resolve, 2500));
           res = await axios.post('/api/auth/login', { email, password: 'password123', name });
         } else {
