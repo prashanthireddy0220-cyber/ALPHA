@@ -1859,6 +1859,52 @@ export const AdminDashboard = () => {
         </div>
       )}
 
+      {/* ============================================================== */}
+      {/* 12. FULLSCREEN SCREENSHOT LIGHTBOX MODAL */}
+      {/* ============================================================== */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setFullscreenImage(null)}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-slate-900/80 border border-slate-700 text-white hover:bg-red-600 transition-all cursor-pointer shadow-xl"
+              title="Close"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={fullscreenImage}
+              alt="Payment Screenshot Zoom"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
+            />
+            <div className="mt-3 flex items-center gap-3">
+              <a
+                href={fullscreenImage}
+                download="payment-screenshot.png"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs uppercase flex items-center gap-1.5 transition-all shadow-lg cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Proof</span>
+              </a>
+              <button
+                onClick={() => setFullscreenImage(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

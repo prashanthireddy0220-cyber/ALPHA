@@ -38,8 +38,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.options('*', cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 import attendanceSessionRoutes from './routes/attendanceSessionRoutes.js';
 import volunteerRoutes from './routes/volunteerRoutes.js';
