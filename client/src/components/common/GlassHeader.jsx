@@ -123,14 +123,6 @@ export const GlassHeader = () => {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-2">
-              {user.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  className="px-3.5 py-1.5 text-xs font-bold tracking-wider text-cyan-300 border border-cyan-400/40 rounded-full hover:bg-cyan-500/20 transition-all"
-                >
-                  ADMIN PANEL
-                </Link>
-              )}
               {user.role === 'volunteer' && (
                 <Link
                   to="/attendance"
@@ -204,15 +196,6 @@ export const GlassHeader = () => {
           <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-2 mt-1">
             {user ? (
               <>
-                {user.role === 'admin' && (
-                  <Link
-                    to="/admin"
-                    onClick={() => setMobileOpen(false)}
-                    className="w-full text-center px-4 py-2.5 text-xs font-bold tracking-wider text-cyan-300 border border-cyan-400/40 rounded-xl bg-cyan-950/40"
-                  >
-                    ADMIN PANEL
-                  </Link>
-                )}
                 {user.role === 'volunteer' && (
                   <Link
                     to="/attendance"
