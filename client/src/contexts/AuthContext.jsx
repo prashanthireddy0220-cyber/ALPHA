@@ -49,6 +49,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       const data = res.data;
+      sessionStorage.removeItem('alpha_cached_team_dashboard');
       setUser(data);
       localStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
@@ -94,6 +95,7 @@ export const AuthProvider = ({ children }) => {
 
       const res = await axios.post('/api/auth/login', { email, password: 'password123', name });
       const data = res.data;
+      sessionStorage.removeItem('alpha_cached_team_dashboard');
       setUser(data);
       localStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
@@ -109,6 +111,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/register', { name, email, password });
       const data = res.data;
+      sessionStorage.removeItem('alpha_cached_team_dashboard');
       setUser(data);
       localStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
@@ -122,6 +125,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('alpha_user');
+    sessionStorage.removeItem('alpha_cached_team_dashboard');
+    sessionStorage.clear();
     delete axios.defaults.headers.common['Authorization'];
   };
 

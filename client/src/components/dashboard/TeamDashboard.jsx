@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 import { Shield, Clock, CheckCircle, XCircle, AlertCircle, Users, ExternalLink, Download, Flame, HelpCircle, Send } from 'lucide-react';
 import { AnnouncementCard } from './AnnouncementCard';
 import { TiltCard } from '../common/TiltCard';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const TeamDashboard = () => {
+  const { user, setUser } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,6 +40,12 @@ export const TeamDashboard = () => {
       const res = await axios.get('/api/registration/my-team');
       setData(res.data);
       sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+
+      if (res.data.team?.teamId && user && (!user.teamId || user.teamId !== res.data.team.teamId)) {
+        const updatedUser = { ...user, teamId: res.data.team.teamId };
+        setUser(updatedUser);
+        localStorage.setItem('alpha_user', JSON.stringify(updatedUser));
+      }
     } catch (err) {
       if (!hasCache) {
         setError(err.response?.data?.message || 'No team found for your account.');
@@ -81,12 +90,12 @@ export const TeamDashboard = () => {
     return (
       <div className="min-h-screen pt-36 px-4 max-w-md mx-auto text-center">
         <TiltCard className="p-8 md:p-10 rounded-3xl glass-card border border-sky-500/30 bg-slate-950/90 shadow-[0_0_50px_rgba(0,240,255,0.2)] flex flex-col items-center justify-center">
-          <a
-            href="/register"
-            className="w-full py-4 px-6 text-xs font-black tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.5)] transition-all uppercase tracking-wider inline-block cursor-pointer"
+          <Link
+            to="/register"
+            className="w-full py-4 px-6 text-xs font-black tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.5)] transition-all uppercase tracking-wider inline-block cursor-pointer text-center"
           >
             REGISTER A TEAM NOW
-          </a>
+          </Link>
         </TiltCard>
       </div>
     );
