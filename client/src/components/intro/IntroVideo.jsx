@@ -17,10 +17,10 @@ export const IntroVideo = ({ onVideoEnd }) => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Safety fallback timer at 7.5s (shortened dragon sequence)
+    // Safety fallback timer at 4.2s (cuts video cleanly before any pause symbol)
     fallbackTimerRef.current = setTimeout(() => {
       triggerEnd();
-    }, 7500);
+    }, 4200);
 
     // Attempt video playback smoothly
     const playPromise = video.play();
@@ -38,8 +38,8 @@ export const IntroVideo = ({ onVideoEnd }) => {
   const handleTimeUpdate = () => {
     const video = videoRef.current;
     if (video) {
-      // Transition at ~6.8 seconds right after dragon movement reveal (bypasses any end-of-video watermarks)
-      if (video.currentTime >= 6.8) {
+      // Cut video at 3.8s right before any pause frame appears in video stream
+      if (video.currentTime >= 3.8) {
         triggerEnd();
       }
     }
@@ -50,8 +50,9 @@ export const IntroVideo = ({ onVideoEnd }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, filter: 'blur(16px)' }}
-      transition={{ duration: 0.8, ease: 'easeOut' }}
-      className="fixed inset-0 z-50 w-screen h-screen bg-black overflow-hidden flex items-center justify-center pointer-events-none select-none"
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      onClick={triggerEnd}
+      className="fixed inset-0 z-50 w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-pointer select-none"
     >
       <video
         ref={videoRef}
