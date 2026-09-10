@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,8 +8,14 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { loginWithGoogle } = useAuth();
+  const { user, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate(user.teamId ? '/dashboard' : '/register', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -18,7 +24,7 @@ export const LoginPage = () => {
       const result = await loginWithGoogle();
       setLoading(false);
       if (result.success) {
-        navigate('/dashboard');
+        navigate(result.user?.teamId ? '/dashboard' : '/register');
       } else {
         setError(result.message || 'Google sign-in failed. Please try again.');
       }

@@ -41,7 +41,40 @@ const isKluEmail = (email) => {
   return email.trim().toLowerCase().endsWith('@klu.ac.in');
 };
 
-// Validate Team Details & Member Data (Step 2 -> Step 3) without locking a slot
+// Instant validation for Team Name (Unique, no double spaces, cannot start with "Team")
+export const checkTeamName = async (req, res) => {
+  try {
+    const rawInput = req.query.name || '';
+    const trimmed = rawInput.trim();
+
+    if (!trimmed) {
+      return res.json({ valid: true, message: '' });
+    }
+
+    if (/\s{2,}/.test(rawInput)) {
+      return res.status(400).json({ valid: false, message: 'Team name cannot contain two or more consecutive spaces.' });
+    }
+
+    if (/^team(\s|$)/i.test(trimmed)) {
+      return res.status(400).json({ valid: false, message: "Team name cannot start with the word 'Team'." });
+    }
+
+    const escaped = trimmed.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const existingTeam = await Team.findOne({
+      teamName: { $regex: new RegExp(`^${escaped}$`, 'i') }
+    });
+
+    if (existingTeam) {
+      return res.status(400).json({ valid: false, message: 'This team name is already taken by another team.' });
+    }
+
+    res.json({ valid: true, message: 'Team name is available!' });
+  } catch (error) {
+    res.status(500).json({ valid: false, message: error.message });
+  }
+};
+
+// Validate Team Details & Member Data without locking a slot
 export const validateDetails = async (req, res) => {
   try {
     const { teamName, members } = req.body;
@@ -50,9 +83,50 @@ export const validateDetails = async (req, res) => {
       return res.status(400).json({ message: 'Please enter a valid team name.' });
     }
 
+    // 1. Check two or more consecutive spaces
+    if (/\s{2,}/.test(teamName)) {
+      return res.status(400).json({ message: 'Team name cannot contain two or more consecutive spaces.' });
+    }
+
+    // 2. First word cannot be 'Team'
+    if (/^team(\s|$)/i.test(teamName.trim())) {
+      return res.status(400).json({ message: "Team name cannot start with the word 'Team'." });
+    }
+
+    // 3. One team per registering account check & verify at least one member matches login account
+    if (req.user) {
+      const userEmail = (req.user.email || '').trim().toLowerCase();
+      const userReg = userEmail.split('@')[0];
+
+      const existingUserTeam = await Team.findOne({
+        $or: [
+          { user: req.user._id },
+          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
+        ]
+      });
+      if (existingUserTeam) {
+        return res.status(400).json({
+          message: `This account (${req.user.email}) has already registered a team (${existingUserTeam.teamName} - ${existingUserTeam.teamId}). Each account can only register one team.`
+        });
+      }
+
+      if (members && Array.isArray(members)) {
+        const hasLoginMember = members.some(m => {
+          const r = (m.regNo || '').trim().toLowerCase();
+          const e = (m.email || (r ? `${r}@klu.ac.in` : '')).trim().toLowerCase();
+          return e === userEmail || (r && r === userReg);
+        });
+        if (!hasLoginMember) {
+          return res.status(400).json({
+            message: `At least one team member must have the registration number corresponding to your logged-in account (${req.user.email}).`
+          });
+        }
+      }
+    }
+
     const normalizedTeamName = teamName.trim().toUpperCase();
 
-    // Check duplicate team name (case-insensitive) in database
+    // 4. Check duplicate team name (case-insensitive) in database
     const existingTeam = await Team.findOne({
       teamName: { $regex: new RegExp(`^${normalizedTeamName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
     });
@@ -63,6 +137,18 @@ export const validateDetails = async (req, res) => {
 
     if (!members || !Array.isArray(members) || members.length === 0) {
       return res.status(400).json({ message: 'Team member details are required.' });
+    }
+
+    // 5. Check duplicate Registration Numbers within the same team
+    const regNos = members.map(m => (m.regNo || '').trim().toUpperCase()).filter(Boolean);
+    const seenRegs = new Set();
+    for (const r of regNos) {
+      if (seenRegs.has(r)) {
+        return res.status(400).json({
+          message: `Duplicate Registration Number '${r}' found within your team. Each team member must have a unique Registration Number.`
+        });
+      }
+      seenRegs.add(r);
     }
 
     // Validate KLU email and duplicate student participation across database strictly by Registration Number & Email
@@ -130,6 +216,47 @@ export const reservePaymentSlot = async (req, res) => {
       return res.status(400).json({ message: 'Team Name and Lead Registration Number required' });
     }
 
+    // Check two or more consecutive spaces
+    if (/\s{2,}/.test(teamName)) {
+      return res.status(400).json({ message: 'Team name cannot contain two or more consecutive spaces.' });
+    }
+
+    // First word cannot be 'Team'
+    if (/^team(\s|$)/i.test(teamName.trim())) {
+      return res.status(400).json({ message: "Team name cannot start with the word 'Team'." });
+    }
+
+    // Check if account already registered a team & verify at least one member matches login account
+    if (req.user) {
+      const userEmail = (req.user.email || '').trim().toLowerCase();
+      const userReg = userEmail.split('@')[0];
+
+      const existingUserTeam = await Team.findOne({
+        $or: [
+          { user: req.user._id },
+          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
+        ]
+      });
+      if (existingUserTeam) {
+        return res.status(400).json({
+          message: `This account (${req.user.email}) has already registered a team (${existingUserTeam.teamName}). Each account can only register one team.`
+        });
+      }
+
+      if (members && Array.isArray(members)) {
+        const hasLoginMember = members.some(m => {
+          const r = (m.regNo || '').trim().toLowerCase();
+          const e = (m.email || (r ? `${r}@klu.ac.in` : '')).trim().toLowerCase();
+          return e === userEmail || (r && r === userReg);
+        });
+        if (!hasLoginMember) {
+          return res.status(400).json({
+            message: `At least one team member must have the registration number corresponding to your logged-in account (${req.user.email}).`
+          });
+        }
+      }
+    }
+
     if (!members || !Array.isArray(members) || members.length === 0) {
       if (legacyRegNo) {
         const cleanReg = legacyRegNo.trim().toUpperCase();
@@ -137,6 +264,18 @@ export const reservePaymentSlot = async (req, res) => {
       } else {
         return res.status(400).json({ message: 'Team details and member information are required.' });
       }
+    }
+
+    // Check duplicate Registration Numbers within the team
+    const regNos = members.map(m => (m.regNo || '').trim().toUpperCase()).filter(Boolean);
+    const seenRegs = new Set();
+    for (const r of regNos) {
+      if (seenRegs.has(r)) {
+        return res.status(400).json({
+          message: `Duplicate Registration Number '${r}' found in your team. Each team member must have a unique Registration Number.`
+        });
+      }
+      seenRegs.add(r);
     }
 
     const normalizedTeamName = teamName.trim().toUpperCase();
@@ -272,6 +411,59 @@ export const submitRegistration = async (req, res) => {
 
     if (!teamName || !members || !Array.isArray(members) || members.length === 0) {
       return res.status(400).json({ message: 'Team name and member details are required.' });
+    }
+
+    // Check two or more consecutive spaces
+    if (/\s{2,}/.test(teamName)) {
+      return res.status(400).json({ message: 'Team name cannot contain two or more consecutive spaces.' });
+    }
+
+    // First word cannot be 'Team'
+    if (/^team(\s|$)/i.test(teamName.trim())) {
+      return res.status(400).json({ message: "Team name cannot start with the word 'Team'." });
+    }
+
+    // Check if account already registered a team & verify at least one member matches login account
+    if (req.user) {
+      const userEmail = (req.user.email || '').trim().toLowerCase();
+      const userReg = userEmail.split('@')[0];
+
+      const existingUserTeam = await Team.findOne({
+        $or: [
+          { user: req.user._id },
+          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
+        ]
+      });
+      if (existingUserTeam) {
+        return res.status(400).json({
+          message: `This account (${req.user.email}) has already registered a team (${existingUserTeam.teamName} - ${existingUserTeam.teamId}). Each account can only register one team.`
+        });
+      }
+
+      if (members && Array.isArray(members)) {
+        const hasLoginMember = members.some(m => {
+          const r = (m.regNo || '').trim().toLowerCase();
+          const e = (m.email || (r ? `${r}@klu.ac.in` : '')).trim().toLowerCase();
+          return e === userEmail || (r && r === userReg);
+        });
+        if (!hasLoginMember) {
+          return res.status(400).json({
+            message: `At least one team member must have the registration number corresponding to your logged-in account (${req.user.email}).`
+          });
+        }
+      }
+    }
+
+    // Check duplicate Registration Numbers within the team
+    const regNos = members.map(m => (m.regNo || '').trim().toUpperCase()).filter(Boolean);
+    const seenRegs = new Set();
+    for (const r of regNos) {
+      if (seenRegs.has(r)) {
+        return res.status(400).json({
+          message: `Duplicate Registration Number '${r}' found within your team. Each team member must have a unique Registration Number.`
+        });
+      }
+      seenRegs.add(r);
     }
 
     const normalizedTeamName = teamName.trim().toUpperCase();
