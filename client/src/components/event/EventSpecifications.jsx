@@ -66,7 +66,7 @@ export const EventSpecifications = () => {
                 <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
                 <div>
                   <span className="text-slate-400 font-medium">Venue:</span>{' '}
-                  <strong className="text-white font-bold">KS Auditorium, KARE</strong>
+                  <strong className="text-white font-bold">KS AUDITORIUM</strong>
                 </div>
               </li>
               <li className="flex items-start gap-3">

@@ -18,7 +18,7 @@ const eventSettingsSchema = new mongoose.Schema({
   eventTagline: { type: String, default: 'RISE. CONQUER. RULE.' },
   eventDate: { type: String, default: '1st–2nd October 2026' },
   eventTime: { type: String, default: '09:00 AM IST' },
-  venue: { type: String, default: 'KS KRISHNA AUDITORIUM' },
+  venue: { type: String, default: 'KS AUDITORIUM' },
   hackathonDuration: { type: String, default: '24 HOURS' },
   learningDuration: { type: String, default: '30 HOURS' },
   quizDuration: { type: String, default: '1 HOUR' },

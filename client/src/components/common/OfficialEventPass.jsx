@@ -16,7 +16,7 @@ export const OfficialEventPass = ({
   const leadName = team.leadName || lead.name || 'TEAM LEAD';
   const leadEmail = team.leadEmail || lead.email || '';
   const utr = payment.utr || team.utr || team.payment?.utr || 'N/A';
-  const venue = 'KS KRISHNA AUDITORIUM';
+  const venue = eventSettings.venue || team.venue || 'KS AUDITORIUM';
   const reportingTime = eventSettings.eventDate || team.eventDate || '08:30 AM, 1st October 2026';
   const track = team.track || 'AI & Machine Learning';
 

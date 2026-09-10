@@ -728,7 +728,7 @@ export const verifyTeamPass = async (req, res) => {
       utr: team.payment.utr,
       event: settings.eventName || 'ALPHA 2026',
       eventDate: settings.eventDate || 'OCTOBER 1 - 2, 2026',
-      venue: settings.venue || 'KS KRISHNA AUDITORIUM',
+      venue: settings.venue || 'KS AUDITORIUM',
       members: team.members.map(m => ({
         name: m.name,
         regNo: m.regNo,

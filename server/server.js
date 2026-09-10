@@ -130,7 +130,7 @@ const seedInitialData = async () => {
         eventName: 'ALPHA 2026',
         eventTagline: 'RISE. CONQUER. RULE.',
         eventDate: 'OCTOBER 1 - 2, 2026',
-        venue: 'KS KRISHNA AUDITORIUM',
+        venue: 'KS AUDITORIUM',
         hackathonDuration: '24 HOURS',
         learningDuration: '40 HOURS',
         quizDuration: '1 HOUR',
@@ -147,6 +147,7 @@ const seedInitialData = async () => {
       console.log('[Seed] Event settings initialized.');
     } else {
       // Ensure date, bank details & social links are updated
+      settings.venue = 'KS AUDITORIUM';
       settings.eventDate = 'OCTOBER 1 - 2, 2026';
       settings.bankAccountName = 'IEEE STUDENT BRANCH';
       settings.bankAccountNumber = '335602011000121';

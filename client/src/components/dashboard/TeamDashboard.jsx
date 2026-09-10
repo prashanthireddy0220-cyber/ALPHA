@@ -238,12 +238,12 @@ export const TeamDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <TiltCard className="p-6 text-center">
           <span className="text-[10px] text-slate-400 uppercase tracking-widest block mb-1">EVENT DATE</span>
-          <span className="text-base font-bold text-white">{eventSettings?.eventDate || 'MARCH 28 - 29, 2026'}</span>
+          <span className="text-base font-bold text-white">{eventSettings?.eventDate || 'OCTOBER 1 - 2, 2026'}</span>
         </TiltCard>
 
         <TiltCard className="p-6 text-center">
           <span className="text-[10px] text-slate-400 uppercase tracking-widest block mb-1">VENUE</span>
-          <span className="text-xs font-bold text-slate-200">{eventSettings?.venue || 'KS KRISHNA AUDITORIUM'}</span>
+          <span className="text-xs font-bold text-slate-200">{eventSettings?.venue || 'KS AUDITORIUM'}</span>
         </TiltCard>
 
         <TiltCard className="p-6 text-center">

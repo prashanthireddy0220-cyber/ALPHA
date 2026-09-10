@@ -1542,7 +1542,7 @@ export const MultiStepRegister = () => {
             members={members}
             payment={{ utr: utr }}
             eventSettings={{
-              venue: settings?.eventVenue || 'KS KRISHNA AUDITORIUM',
+              venue: settings?.venue || settings?.eventVenue || 'KS AUDITORIUM',
               eventDate: settings?.eventDate || '08:30 AM, 1st October 2026'
             }}
             showActions={true}

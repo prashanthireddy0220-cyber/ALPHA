@@ -56,7 +56,7 @@ export const TimelineSection = () => {
       num: '07',
       title: 'GRAND VICTORY & AWARDS CEREMONY',
       date: 'Mar 29, 2026 - 03:00 PM',
-      desc: 'Winner announcement, cash prize distribution of ₹1,50,000, and trophy crowning in KARE Auditorium.',
+      desc: 'Winner announcement, cash prize distribution of ₹1,50,000, and trophy crowning in KS AUDITORIUM.',
       icon: Trophy,
       status: 'Upcoming'
     }
