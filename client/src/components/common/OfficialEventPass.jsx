@@ -166,15 +166,10 @@ export const OfficialEventPass = ({
 
         {/* SECTION 3: Team Participants (4 Members) Grid */}
         <div className="relative z-10 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="text-[11px] font-black text-slate-200 tracking-widest uppercase">
-                TEAM PARTICIPANTS ({memberList.length} MEMBERS)
-              </span>
-            </div>
-            <span className="text-[9px] font-extrabold text-sky-300 uppercase px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30">
-              TRACK: {track}
+          <div className="flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-[11px] font-black text-slate-200 tracking-widest uppercase">
+              TEAM PARTICIPANTS ({memberList.length} MEMBERS)
             </span>
           </div>
 
