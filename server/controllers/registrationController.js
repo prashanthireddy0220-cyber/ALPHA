@@ -517,17 +517,17 @@ export const getMyTeam = async (req, res) => {
 
     // 2. High-speed combined indexed search across Student and Team collections
     if (!team) {
+      const emailRegex = userEmail ? new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+      const regNoRegex = userRegNo ? new RegExp(`^${userRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+
       const studentDocs = await Student.find({
         $or: [
-          { email: userEmail },
-          { regNo: userRegNo }
+          ...(emailRegex ? [{ email: emailRegex }] : []),
+          ...(regNoRegex ? [{ regNo: regNoRegex }] : [])
         ]
       }).select('_id').lean();
 
       const studentIds = studentDocs.map(s => s._id);
-
-      const emailRegex = userEmail ? new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
-      const regNoRegex = userRegNo ? new RegExp(`^${userRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
 
       team = await Team.findOne({
         $or: [

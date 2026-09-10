@@ -90,12 +90,33 @@ export const TeamDashboard = () => {
     return (
       <div className="min-h-screen pt-36 px-4 max-w-md mx-auto text-center">
         <TiltCard className="p-8 md:p-10 rounded-3xl glass-card border border-sky-500/30 bg-slate-950/90 shadow-[0_0_50px_rgba(0,240,255,0.2)] flex flex-col items-center justify-center">
-          <Link
-            to="/register"
-            className="w-full py-4 px-6 text-xs font-black tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.5)] transition-all uppercase tracking-wider inline-block cursor-pointer text-center"
-          >
-            REGISTER A TEAM NOW
-          </Link>
+          <div className="relative p-1.5 rounded-full bg-sky-500/10 border border-sky-400/40 shadow-[0_0_25px_rgba(0,240,255,0.4)] mb-4">
+            <img src="/assets/kare_logo.jpg" alt="KARE IEEE" className="w-12 h-12 rounded-full object-contain" />
+          </div>
+          <span className="text-[11px] font-extrabold text-sky-400 uppercase tracking-widest mb-1">
+            PARTICIPANT DASHBOARD
+          </span>
+          <h2 className="text-lg font-black text-white uppercase tracking-wide mb-2">
+            NO REGISTERED TEAM FOUND
+          </h2>
+          <p className="text-xs text-slate-300 mb-6 leading-relaxed">
+            Logged in as <strong className="text-cyan-300 font-mono">{user?.email || user?.name || 'Participant'}</strong>. Register your team to claim your spot and generate your official ALPHA Event Pass.
+          </p>
+
+          <div className="w-full space-y-3">
+            <Link
+              to="/register"
+              className="w-full py-3.5 px-6 text-xs font-black tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.5)] transition-all uppercase inline-block text-center"
+            >
+              REGISTER YOUR TEAM NOW
+            </Link>
+            <button
+              onClick={() => fetchTeamData()}
+              className="w-full py-3 px-6 text-xs font-bold tracking-wider text-sky-300 glass-button rounded-2xl transition-all"
+            >
+              RE-CHECK FOR REGISTERED PASS
+            </button>
+          </div>
         </TiltCard>
       </div>
     );
