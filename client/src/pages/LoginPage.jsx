@@ -72,7 +72,7 @@ export const LoginPage = () => {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full py-4 px-4 text-xs font-extrabold tracking-wider text-white bg-slate-900/90 hover:bg-slate-800 border border-sky-500/40 rounded-2xl shadow-[0_0_25px_rgba(0,240,255,0.3)] hover:shadow-[0_0_35px_rgba(0,240,255,0.6)] transition-all flex items-center justify-center gap-3 group cursor-pointer"
+            className="w-full py-4 px-4 text-xs font-extrabold tracking-wider text-white bg-slate-900/90 hover:bg-slate-800 border border-sky-500/40 rounded-2xl shadow-[0_0_25px_rgba(0,240,255,0.3)] hover:shadow-[0_0_35px_rgba(0,240,255,0.6)] transition-all flex items-center justify-center gap-3 group cursor-pointer relative z-30 pointer-events-auto"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path

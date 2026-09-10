@@ -66,10 +66,10 @@ export const HeroSection = () => {
         </p>
 
         {/* Call to Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-5 mb-8 w-full max-w-md justify-center">
+        <div className="flex flex-col sm:flex-row items-center gap-5 mb-8 w-full max-w-md justify-center relative z-20">
           <Link
             to={user ? "/register" : "/login"}
-            className="w-full sm:w-auto px-9 py-4 text-xs md:text-sm font-extrabold tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-full shadow-[0_0_40px_rgba(0,240,255,0.6)] hover:shadow-[0_0_60px_rgba(0,240,255,0.9)] transition-all transform hover:-translate-y-1 text-center flex items-center justify-center gap-2.5 group"
+            className="w-full sm:w-auto px-9 py-4 text-xs md:text-sm font-extrabold tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-full shadow-[0_0_40px_rgba(0,240,255,0.6)] hover:shadow-[0_0_60px_rgba(0,240,255,0.9)] transition-all transform hover:-translate-y-1 text-center flex items-center justify-center gap-2.5 group cursor-pointer pointer-events-auto"
           >
             <Flame className="w-5 h-5 text-black animate-bounce" />
             <span>{user ? 'REGISTER YOUR TEAM' : 'LOGIN TO REGISTER'}</span>
@@ -82,7 +82,7 @@ export const HeroSection = () => {
               const el = document.getElementById('about');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="w-full sm:w-auto px-9 py-4 text-xs md:text-sm font-bold tracking-wider text-sky-300 glass-button rounded-full text-center hover:border-sky-400"
+            className="w-full sm:w-auto px-9 py-4 text-xs md:text-sm font-bold tracking-wider text-sky-300 glass-button rounded-full text-center hover:border-sky-400 cursor-pointer pointer-events-auto"
           >
             EXPLORE ARENA
           </a>

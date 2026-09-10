@@ -56,13 +56,15 @@ export const TiltCard = ({ children, className = '', glowColor = 'rgba(56, 189, 
       {/* Light Reflection Sweep */}
       {isHovered && !reducedMotion && (
         <div
-          className="pointer-events-none absolute inset-0 z-20 transition-opacity duration-300 opacity-40"
+          className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300 opacity-40"
           style={{
             background: `radial-gradient(400px circle at ${glarePos.x}% ${glarePos.y}%, rgba(255, 255, 255, 0.25), transparent 70%)`
           }}
         />
       )}
-      {children}
+      <div className="relative z-10 w-full h-full">
+        {children}
+      </div>
     </div>
   );
 };
