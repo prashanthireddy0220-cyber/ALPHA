@@ -97,10 +97,7 @@ export const LoginPage = () => {
 
           <div className="mt-8 pt-4 border-t border-slate-800/80 text-center">
             <p className="text-[11px] text-slate-400">
-              Don't have a team registered yet?{' '}
-              <Link to="/register" className="text-cyan-300 font-bold hover:underline">
-                Register Team
-              </Link>
+              Sign in with Google above to proceed with team registration & access your dashboard.
             </p>
           </div>
         </TiltCard>

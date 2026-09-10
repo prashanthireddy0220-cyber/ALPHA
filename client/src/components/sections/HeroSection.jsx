@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Trophy, Calendar, MapPin, Users, ArrowRight, Flame, CreditCard, GraduationCap } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { TiltCard } from '../common/TiltCard';
 import { CapacityDisplay } from './CapacityDisplay';
 
 export const HeroSection = () => {
   const { settings } = useSettings();
+  const { user } = useAuth();
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
@@ -66,11 +68,11 @@ export const HeroSection = () => {
         {/* Call to Action Buttons */}
         <div className="flex flex-col sm:flex-row items-center gap-5 mb-8 w-full max-w-md justify-center">
           <Link
-            to="/register"
+            to={user ? "/register" : "/login"}
             className="w-full sm:w-auto px-9 py-4 text-xs md:text-sm font-extrabold tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-full shadow-[0_0_40px_rgba(0,240,255,0.6)] hover:shadow-[0_0_60px_rgba(0,240,255,0.9)] transition-all transform hover:-translate-y-1 text-center flex items-center justify-center gap-2.5 group"
           >
             <Flame className="w-5 h-5 text-black animate-bounce" />
-            <span>REGISTER YOUR TEAM</span>
+            <span>{user ? 'REGISTER YOUR TEAM' : 'LOGIN TO REGISTER'}</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
           <a
@@ -103,7 +105,7 @@ export const HeroSection = () => {
             </div>
             <div>
               <div className="text-xl md:text-2xl font-black text-white tracking-wide font-mono">
-                3rd–4th October
+                {settings?.eventDate || '1st–2nd October 2026'}
               </div>
               <div className="text-[10px] text-cyan-400 font-semibold mt-1">
                 2026 Edition

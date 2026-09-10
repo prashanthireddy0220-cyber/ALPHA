@@ -64,8 +64,14 @@ const MainApp = () => {
           <Route path="/sponsors" element={<HomePage />} />
           <Route path="/contact" element={<HomePage />} />
 
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/register"
+            element={
+              <ProtectedRoute allowedRoles={['user', 'admin']}>
+                <RegisterPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/dashboard"

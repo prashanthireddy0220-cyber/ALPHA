@@ -1416,7 +1416,7 @@ export const AdminDashboard = () => {
                 </div>
                 <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="text-[9px] font-bold text-slate-500 block uppercase">REPORTING TIME</span>
-                  <span className="text-xs font-extrabold text-white">08:30 AM, 3rd October</span>
+                  <span className="text-xs font-extrabold text-white">08:30 AM, 1st October</span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="text-[9px] font-bold text-slate-500 block uppercase">PAYMENT REF (UTR)</span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
@@ -12,6 +12,10 @@ export const MultiStepRegister = () => {
   const { settings } = useSettings();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   const draftKey = user?.email
     ? `alpha_reg_draft_${user.email.toLowerCase().trim()}`
@@ -233,6 +237,16 @@ export const MultiStepRegister = () => {
       updated[index][field] = value.toUpperCase().trim();
     } else if (field === 'mobile') {
       updated[index][field] = value.replace(/\D/g, '').slice(0, 10);
+    } else if (field === 'gender') {
+      updated[index][field] = value;
+      // Reset hostel if gender changes
+      updated[index]['hostel'] = '';
+    } else if (field === 'accommodation') {
+      updated[index][field] = value;
+      if (value !== 'Hosteller') {
+        updated[index]['hostel'] = '';
+        updated[index]['roomNumber'] = '';
+      }
     } else {
       updated[index][field] = value;
     }
@@ -745,12 +759,12 @@ export const MultiStepRegister = () => {
                         <select
                           value={m.hostel}
                           onChange={(e) => handleMemberChange(idx, 'hostel', e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none"
+                          disabled={!m.gender}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-sky-500/20 text-white text-xs font-semibold focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <option value="">Select Hostel</option>
-                          {m.gender === 'Female'
-                            ? ['LH-1', 'LH-2', 'LH-3', 'LH-4'].map(h => <option key={h} value={h}>{h}</option>)
-                            : ['MH-1', 'MH-2', 'MH-3', 'MH-4', 'MH-5', 'MH-6', 'MH-7'].map(h => <option key={h} value={h}>{h}</option>)}
+                          <option value="">{!m.gender ? 'Select Gender First' : 'Select Hostel'}</option>
+                          {m.gender === 'Female' && ['LH-1', 'LH-2', 'LH-3', 'LH-4'].map(h => <option key={h} value={h}>{h}</option>)}
+                          {m.gender === 'Male' && ['MH-1', 'MH-2', 'MH-3', 'MH-4', 'MH-5', 'MH-6', 'MH-7'].map(h => <option key={h} value={h}>{h}</option>)}
                         </select>
                       </div>
 

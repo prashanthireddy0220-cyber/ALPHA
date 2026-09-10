@@ -16,7 +16,7 @@ const eventSettingsSchema = new mongoose.Schema({
   qrImageUrl: { type: String, default: '/assets/payment_qr.png' },
   eventName: { type: String, default: 'ALPHA 2026' },
   eventTagline: { type: String, default: 'RISE. CONQUER. RULE.' },
-  eventDate: { type: String, default: '3rd–4th October' },
+  eventDate: { type: String, default: '1st–2nd October 2026' },
   eventTime: { type: String, default: '09:00 AM IST' },
   venue: { type: String, default: 'KS Auditorium, KARE' },
   hackathonDuration: { type: String, default: '24 HOURS' },
