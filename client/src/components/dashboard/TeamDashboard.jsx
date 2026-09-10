@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Shield, Clock, CheckCircle, XCircle, AlertCircle, Users, ExternalLink, Download, Flame, HelpCircle, Send, MessageCircle } from 'lucide-react';
 import { AnnouncementCard } from './AnnouncementCard';
 import { TiltCard } from '../common/TiltCard';
+import { OfficialEventPass } from '../common/OfficialEventPass';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const TeamDashboard = () => {
@@ -225,142 +226,13 @@ export const TeamDashboard = () => {
       </div>
 
       {/* 2. OFFICIAL EVENT PASS CARD */}
-      <TiltCard className="p-6 md:p-8 border border-sky-400/40 relative overflow-hidden bg-slate-950/80 shadow-[0_0_50px_rgba(0,240,255,0.15)]">
-        {/* Pass Header */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
-          <div className="flex items-center gap-3">
-            <div className="p-1 rounded-full bg-sky-500/10 border border-sky-400/30">
-              <img src="/assets/kare_logo.jpg" alt="Logo" className="w-10 h-10 md:w-12 md:h-12 rounded-full object-contain" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs md:text-sm font-black text-white tracking-widest uppercase">ALPHA 2026 OFFICIAL PASS</h2>
-                <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 text-[10px] font-bold border border-sky-400/30">
-                  {payment.status === 'VERIFIED' ? 'ADMISSION CONFIRMED' : 'PAYMENT PENDING'}
-                </span>
-              </div>
-              <p className="text-[11px] font-medium text-slate-400">KARE IEEE Education Society Student Branch</p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-2 text-xs font-bold text-black bg-gradient-to-r from-cyan-400 to-sky-300 hover:from-sky-300 hover:to-cyan-400 rounded-xl shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>DOWNLOAD PASS (PDF)</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Pass Core Body: Team & Lead Info + QR Code */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-6 items-center">
-          <div className="md:col-span-2 space-y-4">
-            <div>
-              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest block mb-0.5">TEAM NAME</span>
-              <h3 className="text-2xl md:text-3xl font-black text-white uppercase text-glow">{team.teamName}</h3>
-            </div>
-
-            <div className="flex flex-wrap gap-4 text-xs">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">TEAM LEAD</span>
-                <span className="font-bold text-cyan-300 uppercase">
-                  {team.members?.[0]?.name || 'LEAD'} ({team.leadEmail || team.members?.[0]?.email})
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">ASSIGNED TEAM ID</span>
-                <span className="text-xl font-black text-cyan-400 font-mono tracking-wider">{team.teamId}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Embedded Real QR Code Verification */}
-          <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-950 border border-sky-500/30 shadow-inner">
-            <div className="p-2 bg-white rounded-xl shadow-lg mb-2">
-              <QRCodeSVG value={`https://alpha-ieee-eds.vercel.app/verify/${team.teamId}`} size={110} />
-            </div>
-            <span className="text-[10px] text-cyan-300 font-bold uppercase tracking-wider font-mono">SCAN TO VERIFY</span>
-          </div>
-        </div>
-
-        {/* Event Meta Grid */}
-        <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-xs">
-          <div>
-            <span className="text-slate-400 block text-[10px] uppercase font-bold">EVENT VENUE</span>
-            <span className="font-bold text-white">{eventSettings?.venue || 'KARE Auditorium & CSE Tech Arena'}</span>
-          </div>
-          <div>
-            <span className="text-slate-400 block text-[10px] uppercase font-bold">REPORTING TIME / DATE</span>
-            <span className="font-bold text-cyan-300">{eventSettings?.eventDate || 'OCTOBER 1 - 2, 2026'}</span>
-          </div>
-          <div>
-            <span className="text-slate-400 block text-[10px] uppercase font-bold">PAYMENT REF (UTR)</span>
-            <span className="font-mono font-bold text-slate-200">{payment.utr || 'N/A'}</span>
-          </div>
-        </div>
-
-        {/* Team Participants Cards List */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-cyan-400" />
-              <span>TEAM PARTICIPANTS ({team.members?.length || 0} MEMBERS)</span>
-            </span>
-            <span className="text-[10px] text-cyan-300 font-semibold uppercase">TRACK: {team.track || 'AI & ML'}</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {team.members?.map((m, i) => (
-              <div key={i} className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs space-y-1.5 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <div className="font-extrabold text-white uppercase flex items-center gap-2">
-                    <span>{i + 1}. {m.name}</span>
-                    {i === 0 && (
-                      <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-[9px] text-cyan-300 font-extrabold border border-cyan-400/30 uppercase">
-                        TEAM LEAD
-                      </span>
-                    )}
-                  </div>
-                  <span className="px-2 py-0.5 rounded bg-sky-950 text-[10px] text-sky-300 font-mono font-bold border border-sky-500/30">
-                    {m.regNo}
-                  </span>
-                </div>
-
-                <div className="text-slate-400 text-[11px] flex flex-wrap gap-x-3 gap-y-1 pt-1 border-t border-slate-900">
-                  <span>Dept: <strong className="text-slate-200">{m.department || 'CSE'}</strong></span>
-                  <span>Year: <strong className="text-slate-200">{m.year || 'II'} ({m.section || 'A'})</strong></span>
-                  <span>Mobile: <strong className="text-slate-200">{m.mobile || 'N/A'}</strong></span>
-                </div>
-
-                <div className="text-[10px] text-slate-400">
-                  <span>Accommodation: <strong className="text-cyan-300">{m.accommodation || 'Day Scholar'}</strong></span>
-                  {m.accommodation === 'Hosteller' && m.hostel && (
-                    <span className="ml-2 text-slate-300">({m.hostel} - Rm {m.roomNumber || 'N/A'})</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer Notice */}
-        <div className="pt-4 mt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] text-slate-400 font-semibold uppercase">
-          <span>OFFICIAL VERIFIED BADGE — KARE IEEE HACKATHON 2026</span>
-          <a
-            href={eventSettings?.communityLink || 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyls'}
-            target="_blank"
-            rel="noreferrer"
-            className="text-emerald-300 hover:underline flex items-center gap-1"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>JOIN WHATSAPP COMMUNITY</span>
-          </a>
-          <span>NOTE: 2EE CREDITS COMPLIANT</span>
-        </div>
-      </TiltCard>
+      <OfficialEventPass
+        team={team}
+        members={team.members}
+        payment={payment}
+        eventSettings={eventSettings}
+        showActions={true}
+      />
 
       {/* 3. EVENT INFORMATION CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

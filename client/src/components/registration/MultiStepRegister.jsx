@@ -27,6 +27,7 @@ import {
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { TiltCard } from '../common/TiltCard';
+import { OfficialEventPass } from '../common/OfficialEventPass';
 
 export const MultiStepRegister = () => {
   const { settings } = useSettings();
@@ -1488,72 +1489,22 @@ export const MultiStepRegister = () => {
           </div>
 
           {/* Event Pass */}
-          <TiltCard className="p-8 border border-sky-400/40 relative overflow-hidden">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <img src="/assets/kare_logo.jpg" alt="Logo" className="w-12 h-12 rounded-full" />
-                <div>
-                  <h3 className="text-sm font-black text-white tracking-widest">KARE IEEE EDUCATION SOCIETY</h3>
-                  <span className="text-xs font-bold text-sky-400">ALPHA OFFICIAL EVENT PASS</span>
-                </div>
-              </div>
-              <div className="text-center md:text-right">
-                <span className="text-[10px] text-slate-400 uppercase tracking-widest block">TEAM ID</span>
-                <span className="text-2xl font-black text-cyan-300 font-mono text-glow">{registrationResult.teamId}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-6">
-              <div className="md:col-span-2 space-y-3">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase block">TEAM NAME</span>
-                  <span className="text-lg font-bold text-white uppercase font-mono">{registrationResult.teamName}</span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase block">TEAM LEAD</span>
-                  <span className="text-sm font-bold text-cyan-300 uppercase">{registrationResult.leadName} ({registrationResult.leadEmail})</span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase block mb-1">TEAM MEMBERS</span>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {members.map((m, i) => (
-                      <div key={i} className="p-2 rounded bg-slate-950 text-slate-200 border border-slate-800 uppercase font-mono text-[11px]">
-                        {i + 1}. {m.name} ({m.regNo})
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Real Embedded QR Code for Pass Verification */}
-              <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-950 border border-sky-500/20">
-                <div className="p-2 bg-white rounded-xl shadow-lg mb-2">
-                  <QRCodeSVG value={`https://alpha-ieee-eds.vercel.app/verify/${registrationResult.teamId}`} size={120} />
-                </div>
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">SCAN TO VERIFY PASS</span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <a
-                href="https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo"
-                target="_blank"
-                rel="noreferrer"
-                className="w-full sm:w-auto px-6 py-3 text-xs font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 rounded-xl text-center flex items-center justify-center gap-2 hover:bg-emerald-900/60 transition-all cursor-pointer"
-              >
-                <MessageCircle className="w-4 h-4 text-emerald-400" />
-                <span>JOIN OFFICIAL WHATSAPP GROUP</span>
-              </a>
-              <button
-                onClick={() => window.print()}
-                className="w-full sm:w-auto px-6 py-3 text-xs font-bold text-black bg-cyan-300 hover:bg-cyan-200 rounded-xl shadow-lg cursor-pointer"
-              >
-                DOWNLOAD / PRINT EVENT PASS
-              </button>
-            </div>
-          </TiltCard>
+          <OfficialEventPass
+            team={{
+              teamName: registrationResult.teamName,
+              teamId: registrationResult.teamId,
+              leadName: registrationResult.leadName,
+              leadEmail: registrationResult.leadEmail,
+              track: track
+            }}
+            members={members}
+            payment={{ utr: utr }}
+            eventSettings={{
+              venue: settings?.eventVenue || '8th Block Seminar Hall & CSE Tech Arena',
+              eventDate: settings?.eventDate || '08:30 AM, 3rd October 2026'
+            }}
+            showActions={true}
+          />
 
           <div className="text-center">
             <button
