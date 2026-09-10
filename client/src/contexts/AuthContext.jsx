@@ -30,7 +30,7 @@ axios.interceptors.request.use((config) => {
 });
 
 import { auth } from '../firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(initialUser);
@@ -43,6 +43,56 @@ export const AuthProvider = ({ children }) => {
       delete axios.defaults.headers.common['Authorization'];
     }
   }, [user]);
+
+  // Handle Google Redirect Result on page mount / return
+  useEffect(() => {
+    let isMounted = true;
+    const processRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (!isMounted || !result?.user?.email) return;
+
+        const email = result.user.email.trim().toLowerCase();
+        const name = result.user.displayName || 'ALPHA Student';
+
+        if (!email.endsWith('@klu.ac.in')) {
+          console.warn('Google sign-in email must be @klu.ac.in:', email);
+          return;
+        }
+
+        setLoading(true);
+        let res;
+        try {
+          res = await axios.post('/api/auth/login', { email, password: 'password123', name });
+        } catch (firstErr) {
+          const isConnRefused = firstErr.code === 'ERR_NETWORK' || !firstErr.response;
+          const isUsingLocalhost = axios.defaults.baseURL && axios.defaults.baseURL.includes('localhost:5000');
+          if (isConnRefused && isUsingLocalhost) {
+            axios.defaults.baseURL = 'https://alpha-backend-zvhx.onrender.com';
+            res = await axios.post('/api/auth/login', { email, password: 'password123', name });
+          } else {
+            await new Promise((r) => setTimeout(r, 2000));
+            res = await axios.post('/api/auth/login', { email, password: 'password123', name });
+          }
+        }
+
+        if (res?.data && isMounted) {
+          sessionStorage.removeItem('alpha_cached_team_dashboard');
+          setUser(res.data);
+          localStorage.setItem('alpha_user', JSON.stringify(res.data));
+        }
+      } catch (err) {
+        console.warn('Google redirect result error:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    processRedirectResult();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const login = async (email, password) => {
     setLoading(true);
@@ -60,29 +110,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (preferRedirect = false) => {
     setLoading(true);
     try {
       let email = '';
       let name = 'ALPHA Student';
       let firebaseErrorMsg = '';
 
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+
+      if (preferRedirect) {
+        await signInWithRedirect(auth, provider);
+        return { success: true, redirecting: true };
+      }
+
       try {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
         const result = await signInWithPopup(auth, provider);
         if (result?.user?.email) {
           email = result.user.email.trim().toLowerCase();
           name = result.user.displayName || name;
         }
       } catch (fbErr) {
-        console.error('Firebase popup error:', fbErr);
+        console.warn('Firebase popup attempt note:', fbErr?.code || fbErr?.message);
         if (fbErr.code === 'auth/unauthorized-domain') {
           firebaseErrorMsg = 'This deployment domain is not authorized in Firebase Console. Add this domain to Firebase Console > Authentication > Settings > Authorized domains.';
+        } else if (fbErr.code === 'auth/popup-blocked' || fbErr.code === 'auth/cancelled-popup-request') {
+          console.info('Popup blocked by browser, switching to redirect sign-in...');
+          await signInWithRedirect(auth, provider);
+          return { success: true, redirecting: true };
         } else if (fbErr.code === 'auth/popup-closed-by-user') {
           firebaseErrorMsg = 'Google Sign-In popup was closed before completing. Please try again.';
-        } else if (fbErr.code === 'auth/popup-blocked') {
-          firebaseErrorMsg = 'Google Sign-In popup was blocked by your browser. Please allow popups for this site.';
         } else if (fbErr.code === 'auth/network-request-failed') {
           firebaseErrorMsg = 'Network error during Google authentication. Check your internet connection or Firebase Authorized Domains.';
         } else {

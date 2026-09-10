@@ -17,11 +17,15 @@ export const LoginPage = () => {
     }
   }, [user, navigate]);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (preferRedirect = false) => {
     setError('');
     setLoading(true);
     try {
-      const result = await loginWithGoogle();
+      const result = await loginWithGoogle(preferRedirect);
+      if (result?.redirecting) {
+        // Browser will navigate to Google Sign-In
+        return;
+      }
       setLoading(false);
       if (result.success) {
         navigate(result.user?.teamId ? '/dashboard' : '/register');
@@ -76,7 +80,7 @@ export const LoginPage = () => {
           {/* Single Sign In With Google Button */}
           <button
             type="button"
-            onClick={handleGoogleSignIn}
+            onClick={() => handleGoogleSignIn(false)}
             disabled={loading}
             className="w-full py-4 px-4 text-xs font-extrabold tracking-wider text-white bg-slate-900/90 hover:bg-slate-800 border border-sky-500/40 rounded-2xl shadow-[0_0_25px_rgba(0,240,255,0.3)] hover:shadow-[0_0_35px_rgba(0,240,255,0.6)] transition-all flex items-center justify-center gap-3 group cursor-pointer relative z-30 pointer-events-auto"
           >
@@ -101,7 +105,19 @@ export const LoginPage = () => {
             <span>{loading ? 'SIGNING IN...' : 'SIGN IN WITH GOOGLE'}</span>
           </button>
 
-          <div className="mt-8 pt-4 border-t border-slate-800/80 text-center">
+          {/* Fallback for strict browsers or blocked popups */}
+          <div className="mt-3 text-center">
+            <button
+              type="button"
+              onClick={() => handleGoogleSignIn(true)}
+              disabled={loading}
+              className="text-[11px] text-sky-400/80 hover:text-sky-300 underline underline-offset-4 transition-colors"
+            >
+              Popups blocked? Click here to sign in via full redirect
+            </button>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-slate-800/80 text-center">
             <p className="text-[11px] text-slate-400">
               Sign in with Google above to proceed with team registration & access your dashboard.
             </p>
