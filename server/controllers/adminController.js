@@ -7,6 +7,8 @@ import AttendanceRecord from '../models/AttendanceRecord.js';
 import AttendanceSession from '../models/AttendanceSession.js';
 import AuditLog from '../models/AuditLog.js';
 import User from '../models/User.js';
+import Attendance from '../models/Attendance.js';
+import HelpRequest from '../models/HelpRequest.js';
 
 export const getAdminStats = async (req, res) => {
   try {
@@ -435,7 +437,14 @@ export const deleteSingleRegistration = async (req, res) => {
       { $unset: { teamId: 1 } }
     );
 
-    // 5. Delete the Team document
+    // 5. Delete any attendance records & help requests associated with this team
+    if (team.teamId) {
+      await AttendanceRecord.deleteMany({ teamId: team.teamId });
+      await Attendance.deleteMany({ teamId: team.teamId });
+      await HelpRequest.deleteMany({ teamId: team.teamId });
+    }
+
+    // 6. Delete the Team document
     await Team.findByIdAndDelete(id);
 
     res.json({ success: true, message: `Registration record ${team.teamId} and all associated member profiles deleted successfully.` });

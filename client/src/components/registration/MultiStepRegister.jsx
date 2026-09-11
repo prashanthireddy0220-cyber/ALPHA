@@ -183,9 +183,11 @@ export const MultiStepRegister = () => {
         }
       })
       .catch((err) => {
-        // If 404 / team deleted, ensure clean state so user can register fresh from scratch
+        // If 404 / team deleted by admin, ensure clean state so user can register fresh from scratch
         if (isMounted) {
           setExistingUserTeam(null);
+          clearSessionData();
+          localStorage.removeItem(draftKey);
           if (user?.email) {
             sessionStorage.removeItem(`alpha_cached_team_dashboard_${user.email.toLowerCase()}`);
           }
