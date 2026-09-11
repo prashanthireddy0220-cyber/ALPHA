@@ -33,6 +33,18 @@ axios.interceptors.request.use((config) => {
 import { auth } from '../firebase';
 import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
 
+const clearAllUserSessionCaches = () => {
+  try {
+    sessionStorage.clear();
+    localStorage.removeItem('alpha_user');
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('alpha_')) {
+        localStorage.removeItem(k);
+      }
+    });
+  } catch (e) {}
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(initialUser);
   const [loading, setLoading] = useState(false);
@@ -78,7 +90,10 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (res?.data && isMounted) {
-          sessionStorage.removeItem('alpha_cached_team_dashboard');
+          clearAllUserSessionCaches();
+          if (res.data.token) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+          }
           setUser(res.data);
           sessionStorage.setItem('alpha_user', JSON.stringify(res.data));
         }
@@ -100,7 +115,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       const data = res.data;
-      sessionStorage.removeItem('alpha_cached_team_dashboard');
+      clearAllUserSessionCaches();
+      if (data.token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+      }
       setUser(data);
       sessionStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
@@ -198,7 +216,10 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = res.data;
-      sessionStorage.removeItem('alpha_cached_team_dashboard');
+      clearAllUserSessionCaches();
+      if (data.token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+      }
       setUser(data);
       sessionStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
@@ -218,7 +239,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/register', { name, email, password });
       const data = res.data;
-      sessionStorage.removeItem('alpha_cached_team_dashboard');
+      clearAllUserSessionCaches();
+      if (data.token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+      }
       setUser(data);
       sessionStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
@@ -233,19 +257,9 @@ export const AuthProvider = ({ children }) => {
     try {
       await signOut(auth);
     } catch (e) {}
-    setUser(null);
-    sessionStorage.removeItem('alpha_user');
-    localStorage.removeItem('alpha_user');
-    sessionStorage.removeItem('alpha_cached_team_dashboard');
-    sessionStorage.clear();
-    try {
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('alpha_reg_draft_') || k === 'alpha_reservation_id') {
-          localStorage.removeItem(k);
-        }
-      });
-    } catch (e) {}
+    clearAllUserSessionCaches();
     delete axios.defaults.headers.common['Authorization'];
+    setUser(null);
   };
 
   return (

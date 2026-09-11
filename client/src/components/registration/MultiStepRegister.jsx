@@ -176,7 +176,7 @@ export const MultiStepRegister = () => {
         if (isMounted) setCheckingExistingTeam(false);
       });
     return () => { isMounted = false; };
-  }, []);
+  }, [user?.email]);
 
   // 2. Restore reservation timer or saved form draft on mount
   useEffect(() => {

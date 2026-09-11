@@ -21,26 +21,30 @@ export const TeamDashboard = () => {
   const [helpSuccess, setHelpSuccess] = useState('');
 
   const fetchTeamData = async () => {
-    // Instant 0ms cached load from sessionStorage for high-speed dashboard opening
-    const cacheKey = 'alpha_cached_team_dashboard';
-    const cached = sessionStorage.getItem(cacheKey);
+    // Instant 0ms cached load from sessionStorage per authenticated user
+    const cacheKey = user?.email ? `alpha_cached_team_dashboard_${user.email.toLowerCase()}` : null;
     let hasCache = false;
 
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.team) {
-          setData(parsed);
-          setLoading(false);
-          hasCache = true;
-        }
-      } catch (e) {}
+    if (cacheKey) {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.team) {
+            setData(parsed);
+            setLoading(false);
+            hasCache = true;
+          }
+        } catch (e) {}
+      }
     }
 
     try {
       const res = await axios.get('/api/registration/my-team');
       setData(res.data);
-      sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+      if (cacheKey) {
+        sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+      }
 
       if (res.data.team?.teamId && user && (!user.teamId || user.teamId !== res.data.team.teamId)) {
         const updatedUser = { ...user, teamId: res.data.team.teamId };
@@ -49,7 +53,9 @@ export const TeamDashboard = () => {
       }
     } catch (err) {
       setData(null);
-      sessionStorage.removeItem(cacheKey);
+      if (cacheKey) {
+        sessionStorage.removeItem(cacheKey);
+      }
       if (user?.teamId) {
         const updatedUser = { ...user };
         delete updatedUser.teamId;
@@ -63,8 +69,11 @@ export const TeamDashboard = () => {
   };
 
   useEffect(() => {
-    fetchTeamData();
-  }, []);
+    setData(null);
+    if (user?.email) {
+      fetchTeamData();
+    }
+  }, [user?.email]);
 
   const handleHelpSubmit = async (e) => {
     e.preventDefault();
