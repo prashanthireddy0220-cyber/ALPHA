@@ -617,41 +617,82 @@ export const MultiStepRegister = () => {
     }
   };
 
+  // Canvas-based client-side image compression helper (resizes heavy photos to max 1000px, ~150KB JPEG)
+  const compressScreenshotImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX = 1000;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX) {
+              height *= MAX / width;
+              width = MAX;
+            }
+          } else {
+            if (height > MAX) {
+              width *= MAX / height;
+              height = MAX;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Upload screenshot
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setScreenshotFile(file);
     setUploadProgress(0);
+    setErrorMessage('');
 
-    // 1. Convert to Base64 Data URL for instant local preview and guaranteed permanent storage
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64Data = event.target.result;
+    // Compress heavy mobile camera screenshots to prevent 413 Payload Too Large errors
+    const base64Data = await compressScreenshotImage(file);
+    if (base64Data) {
       setPreviewUrl(base64Data);
       setScreenshotUrl(base64Data);
+    }
 
-      // 2. Also send to server
+    // Also attempt server upload
+    try {
       const formData = new FormData();
       formData.append('screenshot', file);
-      formData.append('base64', base64Data);
+      if (base64Data) {
+        formData.append('base64', base64Data);
+      }
 
-      try {
-        const res = await axios.post('/api/registration/upload-screenshot', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (progressEvent) => {
+      const res = await axios.post('/api/registration/upload-screenshot', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
             const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             setUploadProgress(percent);
           }
-        });
-        if (res.data?.url) {
-          setScreenshotUrl(res.data.url);
         }
-      } catch (err) {
-        console.warn('Server upload fallback to direct base64 data:', err);
+      });
+      if (res.data?.url) {
+        setScreenshotUrl(res.data.url);
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('Server upload fallback to compressed base64 data:', err?.message || err);
+    }
   };
 
 
@@ -686,7 +727,8 @@ export const MultiStepRegister = () => {
       setRegistrationResult(res.data);
       setStep(8); // Success step
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'This registration could not be completed.');
+      const msg = err.response?.data?.message || err.message || 'This registration could not be completed. Please check your inputs and try again.';
+      setErrorMessage(msg);
     } finally {
       setLoading(false);
     }
