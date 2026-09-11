@@ -219,6 +219,18 @@ export const MultiStepRegister = () => {
       axios.get(`/api/registration/reservation-status/${savedResId}`)
         .then(res => {
           if (res.data.valid && !res.data.expired && res.data.remainingSeconds > 0) {
+            const userEmailClean = (user?.email || '').trim().toLowerCase();
+            const isUserReservation = userEmailClean && (
+              (res.data.leadEmail || '').trim().toLowerCase() === userEmailClean ||
+              (Array.isArray(res.data.membersData) && res.data.membersData.some(m => (m.email || '').trim().toLowerCase() === userEmailClean))
+            );
+
+            if (!isUserReservation) {
+              clearSessionData();
+              setStep(1);
+              return;
+            }
+
             setReservation(res.data);
             setTimerSeconds(res.data.remainingSeconds);
             if (res.data.teamName) setTeamName(res.data.teamName);

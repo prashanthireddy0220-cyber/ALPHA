@@ -760,7 +760,7 @@ export const getMyTeam = async (req, res) => {
           { teamId: req.user.teamId },
           { teamId: req.user.teamId.toUpperCase() }
         ]
-      }).populate('members').lean();
+      }).populate('members').sort({ createdAt: -1 }).lean();
 
       if (candidateTeam) {
         const isLead = candidateTeam.leadEmail && candidateTeam.leadEmail.trim().toLowerCase() === userEmail;
@@ -790,7 +790,7 @@ export const getMyTeam = async (req, res) => {
           { user: req.user._id },
           ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
         ]
-      }).populate('members').lean();
+      }).populate('members').sort({ createdAt: -1 }).lean();
     }
 
     if (!team) {

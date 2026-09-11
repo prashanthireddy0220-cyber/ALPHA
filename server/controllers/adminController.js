@@ -368,6 +368,9 @@ export const deleteAllRegistrations = async (req, res) => {
     await Student.deleteMany({});
     await Team.deleteMany({});
     await RegistrationReservation.deleteMany({});
+    await AttendanceRecord.deleteMany({});
+    await Attendance.deleteMany({});
+    await HelpRequest.deleteMany({});
     await User.updateMany({}, { $unset: { teamId: 1 } });
 
     res.json({ success: true, message: 'All student registration records, teams, and reservations deleted successfully.' });
@@ -389,6 +392,7 @@ export const deleteSingleRegistration = async (req, res) => {
     const leadEmail = (team.leadEmail || '').trim().toLowerCase();
     const leadRegNo = (team.leadRegNo || '').trim().toUpperCase();
     const teamName = (team.teamName || '').trim().toUpperCase();
+    const rawTeamId = (team.teamId || '').trim();
 
     // 1. Find all student documents associated with this team
     const memberStudents = await Student.find({
@@ -403,14 +407,15 @@ export const deleteSingleRegistration = async (req, res) => {
     const allStudentIds = memberStudents.map(s => s._id);
     const allRegNos = memberStudents.map(s => (s.regNo || '').trim().toUpperCase()).filter(Boolean);
     const allEmails = memberStudents.map(s => (s.email || '').trim().toLowerCase()).filter(Boolean);
+    if (leadEmail && !allEmails.includes(leadEmail)) allEmails.push(leadEmail);
 
     // 2. Delete all these Student documents completely
     await Student.deleteMany({
       $or: [
         { _id: { $in: allStudentIds } },
         { teamId: team._id },
-        ...(allRegNos.length > 0 ? [{ regNo: { $in: allRegNos } }] : []),
-        ...(allEmails.length > 0 ? [{ email: { $in: allEmails } }] : [])
+        ...(allRegNos.length > 0 ? [{ regNo: { $in: allRegNos.map(r => new RegExp(`^${r.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i')) } }] : []),
+        ...(allEmails.length > 0 ? [{ email: { $in: allEmails.map(e => new RegExp(`^${e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i')) } }] : [])
       ]
     });
 
@@ -421,28 +426,38 @@ export const deleteSingleRegistration = async (req, res) => {
         ...(teamName ? [{ teamName: new RegExp(`^${teamName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
         ...(leadEmail ? [{ leadEmail: new RegExp(`^${leadEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
         ...(leadRegNo ? [{ leadRegNo: new RegExp(`^${leadRegNo.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
-        ...(allEmails.length > 0 ? [{ leadEmail: { $in: allEmails } }] : []),
-        ...(allRegNos.length > 0 ? [{ leadRegNo: { $in: allRegNos } }] : [])
+        ...(allEmails.length > 0 ? [{ leadEmail: { $in: allEmails.map(e => new RegExp(`^${e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i')) } }] : []),
+        ...(allRegNos.length > 0 ? [{ leadRegNo: { $in: allRegNos.map(r => new RegExp(`^${r.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i')) } }] : [])
       ]
     });
 
     // 4. Unset teamId reference on all affected User accounts (lead and all teammates)
+    const emailRegexList = allEmails.map(e => new RegExp(`^${e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i'));
+    const teamIdVariations = [
+      rawTeamId,
+      rawTeamId.replace(/-/g, ' '),
+      rawTeamId.replace(/\s+/g, '-'),
+      rawTeamId.replace(/^ALPHA/i, 'ALPHAA'),
+      rawTeamId.replace(/^ALPHAA/i, 'ALPHA')
+    ].filter(Boolean);
+
     await User.updateMany(
       {
         $or: [
-          { teamId: team.teamId },
+          { teamId: { $in: teamIdVariations } },
           { teamId: team._id },
-          ...(allEmails.length > 0 ? [{ email: { $in: allEmails } }] : [])
+          ...(team.user ? [{ _id: team.user }] : []),
+          ...(emailRegexList.length > 0 ? [{ email: { $in: emailRegexList } }] : [])
         ]
       },
       { $unset: { teamId: 1 } }
     );
 
     // 5. Delete any attendance records & help requests associated with this team
-    if (team.teamId) {
-      await AttendanceRecord.deleteMany({ teamId: team.teamId });
-      await Attendance.deleteMany({ teamId: team.teamId });
-      await HelpRequest.deleteMany({ teamId: team.teamId });
+    if (rawTeamId) {
+      await AttendanceRecord.deleteMany({ teamId: { $in: teamIdVariations } });
+      await Attendance.deleteMany({ teamId: { $in: teamIdVariations } });
+      await HelpRequest.deleteMany({ teamId: { $in: teamIdVariations } });
     }
 
     // 6. Delete the Team document

@@ -229,19 +229,15 @@ export const loginUser = async (req, res) => {
 
     // Auto-link registered team strictly by email if User doc doesn't exist yet
     if (!user && targetEmail) {
-      const studentDoc = await Student.findOne({ email: targetEmail });
-      let team = null;
+      const studentDocs = await Student.find({ email: targetEmail }).select('_id');
+      const studentIds = studentDocs.map(s => s._id);
 
-      if (studentDoc) {
-        team = await Team.findOne({
-          $or: [
-            { members: studentDoc._id },
-            { leadEmail: targetEmail }
-          ]
-        });
-      } else {
-        team = await Team.findOne({ leadEmail: targetEmail });
-      }
+      const team = await Team.findOne({
+        $or: [
+          { leadEmail: targetEmail },
+          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
+        ]
+      }).sort({ createdAt: -1 });
 
       const displayName = req.body.name?.trim() || targetEmail.split('@')[0].toUpperCase();
       user = await User.create({
@@ -259,13 +255,16 @@ export const loginUser = async (req, res) => {
         user.name = req.body.name.trim();
       }
 
-      const studentDoc = await Student.findOne({ email: targetEmail });
+      const studentDocs = await Student.find({ email: targetEmail }).select('_id');
+      const studentIds = studentDocs.map(s => s._id);
+
       const team = await Team.findOne({
         $or: [
-          ...(studentDoc ? [{ members: studentDoc._id }] : []),
-          { leadEmail: targetEmail }
+          { leadEmail: targetEmail },
+          { user: user._id },
+          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
         ]
-      });
+      }).sort({ createdAt: -1 });
 
       if (team) {
         user.teamId = team.teamId;
