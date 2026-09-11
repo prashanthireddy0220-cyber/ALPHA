@@ -113,8 +113,8 @@ export const AdminDashboard = () => {
         setLoading(true);
       }
       const [analyticsRes, teamsRes] = await Promise.all([
-        axios.get('/api/admin/analytics'),
-        axios.get('/api/admin/teams')
+        axios.get(`/api/admin/analytics?_t=${Date.now()}`),
+        axios.get(`/api/admin/teams?_t=${Date.now()}`)
       ]);
 
       setAnalytics(analyticsRes.data);
@@ -718,7 +718,7 @@ export const AdminDashboard = () => {
     document.body.removeChild(link);
   };
 
-  // Direct Create & Download Styled PDF Report (No print dialog required)
+  // Direct Create & Download Styled PDF Report (Light Clean Theme with Merged 4-Row Team Columns)
   const downloadDirectPDF = () => {
     if (filteredTeams.length === 0) {
       alert('No teams to export');
@@ -731,32 +731,34 @@ export const AdminDashboard = () => {
       format: 'a3'
     });
 
-    // Top Header Banner
-    doc.setFillColor(3, 7, 18);
-    doc.rect(0, 0, doc.internal.pageSize.width, 70, 'F');
+    // Top Header Banner (Executive Royal Navy)
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, doc.internal.pageSize.width, 68, 'F');
 
     // Title
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 240, 255);
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
-    doc.text('ALPHA 2026 - OFFICIAL TEAMS & PARTICIPANTS MASTER REPORT', 40, 32);
+    doc.text('ALPHA 2026 - OFFICIAL TEAMS & PARTICIPANTS MASTER REPORT', 40, 30);
 
     // Subtitle
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(148, 163, 184);
+    doc.setTextColor(186, 230, 253);
     doc.setFontSize(10);
-    doc.text('KARE IEEE EDUCATION SOCIETY STUDENT CHAPTER', 40, 50);
+    doc.text('KARE IEEE EDUCATION SOCIETY STUDENT CHAPTER | 36-HOUR NATIONAL LEVEL HACKATHON', 40, 47);
 
     const totalParticipants = filteredTeams.reduce((acc, t) => acc + (t.members?.length || 4), 0);
     const dateStr = new Date().toLocaleString();
-    doc.text(`Generated: ${dateStr}   |   Total Teams: ${filteredTeams.length}   |   Total Participants: ${totalParticipants}`, 40, 62);
+    doc.setTextColor(226, 232, 240);
+    doc.setFontSize(9);
+    doc.text(`Generated: ${dateStr}   |   Total Teams: ${filteredTeams.length}   |   Total Participants: ${totalParticipants}`, 40, 60);
 
     // Table Headers
     const tableHeaders = [
-      ['Team ID', 'Team Name', 'Track', 'Status', 'UTR No', 'Fee (Rs)', 'Member #', 'Role', 'Full Name', 'Reg No', 'Student Email', 'Dept', 'Yr', 'Sec', 'Mobile', 'Gender', 'Stay', 'Hostel & Room']
+      ['Team ID', 'Team Name', 'Track / Domain', 'Payment Status', 'UTR / TXN ID', 'Fee (₹)', 'Member #', 'Role', 'Full Name', 'Reg No', 'Student Email', 'Dept', 'Yr', 'Sec', 'Mobile', 'Gender', 'Stay', 'Hostel & Room']
     ];
 
-    // Table Rows
+    // Table Rows with Merged Team Columns (rowSpan: 4)
     const tableRows = [];
     filteredTeams.forEach((t) => {
       const membersList = (t.members && t.members.length > 0) ? t.members : [];
@@ -766,22 +768,23 @@ export const AdminDashboard = () => {
 
       for (let i = 0; i < totalSlots; i++) {
         const m = membersList[i] || {};
-        const isLead = i === 0 || (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail);
-        const role = isLead ? 'TEAM LEAD' : `MEMBER ${i + 1}`;
+        const isLead = (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail) || i === 0;
+        const role = isLead ? '★ TEAM LEAD' : `MEMBER ${i + 1}`;
         const stay = m.accommodation || 'Day Scholar';
         const hostelInfo = stay === 'Hosteller' ? `${m.hostel || 'Hostel'} - Rm ${m.roomNumber || '-'}` : 'Day Scholar';
 
-        tableRows.push([
-          t.teamId || '',
-          t.teamName || '',
-          t.track || 'DRAGON INTELLIGENCE (AI & ML)',
-          t.payment?.status || 'PENDING',
-          t.payment?.utr || 'N/A',
-          `${t.payment?.amount || 0}`,
+        const memberCells = [
           `Member ${i + 1}`,
-          role,
-          m.name || '-',
-          m.regNo || '-',
+          {
+            content: role,
+            styles: {
+              fontStyle: isLead ? 'bold' : 'normal',
+              textColor: isLead ? [180, 83, 9] : [71, 85, 105],
+              fillColor: isLead ? [254, 243, 199] : (i % 2 === 0 ? [255, 255, 255] : [248, 250, 252])
+            }
+          },
+          { content: m.name || '-', styles: { fontStyle: 'bold', textColor: [15, 23, 42] } },
+          { content: m.regNo || '-', styles: { fontStyle: 'bold', textColor: [2, 132, 199] } },
           m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : '-'),
           m.department || '-',
           m.year || '-',
@@ -790,37 +793,75 @@ export const AdminDashboard = () => {
           m.gender || '-',
           stay,
           hostelInfo
-        ]);
+        ];
+
+        if (i === 0) {
+          // First row of team: include merged team columns with rowSpan
+          const statusBg = t.payment?.status === 'VERIFIED' ? [236, 253, 245] : t.payment?.status === 'REJECTED' ? [254, 242, 242] : [254, 243, 199];
+          const statusText = t.payment?.status === 'VERIFIED' ? [5, 150, 105] : t.payment?.status === 'REJECTED' ? [220, 38, 38] : [180, 83, 9];
+
+          tableRows.push([
+            {
+              content: t.teamId || '',
+              rowSpan: totalSlots,
+              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249], textColor: [2, 132, 199], fontSize: 9 }
+            },
+            {
+              content: t.teamName || '',
+              rowSpan: totalSlots,
+              styles: { valign: 'middle', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [15, 23, 42], fontSize: 9 }
+            },
+            {
+              content: t.track || 'DRAGON INTELLIGENCE (AI & ML)',
+              rowSpan: totalSlots,
+              styles: { valign: 'middle', fillColor: [248, 250, 252], textColor: [71, 85, 105], fontSize: 7.5 }
+            },
+            {
+              content: t.payment?.status || 'PENDING',
+              rowSpan: totalSlots,
+              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: statusBg, textColor: statusText }
+            },
+            {
+              content: t.payment?.utr || 'N/A',
+              rowSpan: totalSlots,
+              styles: { valign: 'middle', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 41, 59] }
+            },
+            {
+              content: `₹${t.payment?.amount || 0}`,
+              rowSpan: totalSlots,
+              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [15, 23, 42] }
+            },
+            ...memberCells
+          ]);
+        } else {
+          // Subsequent rows of team: only member cells
+          tableRows.push(memberCells);
+        }
       }
     });
 
     autoTable(doc, {
       head: tableHeaders,
       body: tableRows,
-      startY: 85,
+      startY: 78,
       theme: 'grid',
       styles: {
         fontSize: 8,
         cellPadding: 4,
-        textColor: [248, 250, 252],
-        fillColor: [9, 14, 26],
-        lineColor: [30, 41, 59],
+        textColor: [30, 41, 59],
+        fillColor: [255, 255, 255],
+        lineColor: [203, 213, 225],
         lineWidth: 0.5,
         font: 'helvetica'
       },
       headStyles: {
-        fillColor: [3, 7, 18],
-        textColor: [0, 240, 255],
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
         fontSize: 8.5
       },
       alternateRowStyles: {
-        fillColor: [15, 23, 42]
-      },
-      columnStyles: {
-        0: { fontStyle: 'bold', textColor: [56, 189, 248] },
-        1: { fontStyle: 'bold', textColor: [255, 255, 255] },
-        7: { fontStyle: 'bold' }
+        fillColor: [250, 250, 250]
       },
       didDrawPage: (data) => {
         const pageCount = doc.internal.getNumberOfPages();
@@ -829,7 +870,7 @@ export const AdminDashboard = () => {
         doc.text(
           `Page ${data.pageNumber} of ${pageCount} - ALPHA 2026 IEEE Official Master Report`,
           doc.internal.pageSize.width / 2,
-          doc.internal.pageSize.height - 15,
+          doc.internal.pageSize.height - 12,
           { align: 'center' }
         );
       }
