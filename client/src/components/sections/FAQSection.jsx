@@ -20,7 +20,7 @@ export const FAQSection = () => {
     },
     {
       q: 'What is the registration fee and how do I pay?',
-      a: 'The registration fee is ₹350 per member (₹1,400 for a team of 4). Payment is made via the provided UPI QR code or UPI ID, after which you upload the 12-digit UTR and payment screenshot.'
+      a: 'The registration fee is ₹350 per member (₹1,400 for a team of 4). Payment is made via direct bank transfer to UNION BANK OF INDIA (Account: IEEE STUDENT BRANCH), after which you enter the 12-digit UTR number and upload your payment screenshot.'
     },
     {
       q: 'When and how will payment verification be confirmed?',

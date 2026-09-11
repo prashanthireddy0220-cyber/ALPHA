@@ -1426,7 +1426,7 @@ export const MultiStepRegister = () => {
             <span>STEP 7: BANK ACCOUNT TRANSFER & PAYMENT VERIFICATION</span>
           </h2>
           <p className="text-xs text-slate-400 mb-6">
-            Please transfer the total fee of <span className="text-cyan-300 font-bold text-sm">₹{totalFee}</span> ({members.length} members × ₹{settings.participantFee || 350}) to the official IEEE Student Branch Bank Account specified below before your slot expires.
+            Please transfer the total fee of <span className="text-cyan-300 font-bold text-sm">₹{totalFee}</span> ({members.length} members × ₹{settings.participantFee || 350}) to the official IEEE Student Branch Bank Account at <strong className="text-cyan-300 font-bold">UNION BANK OF INDIA</strong> specified below before your slot expires.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -1439,10 +1439,16 @@ export const MultiStepRegister = () => {
                 <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-[10px] text-cyan-300 font-bold border border-cyan-500/30">DIRECT BANK TRANSFER</span>
               </div>
 
-              {/* Account Name */}
-              <div className="text-xs">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Account Name</span>
-                <span className="font-bold text-white text-sm">IEEE STUDENT BRANCH</span>
+              {/* Bank Name & Account Name in Prominent Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-sky-500/30">
+                  <span className="text-cyan-400 block text-[10px] uppercase font-black tracking-wider">BANK NAME</span>
+                  <span className="font-black text-white text-sm tracking-wide">{settings.bankName || 'UNION BANK OF INDIA'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-sky-500/30">
+                  <span className="text-cyan-400 block text-[10px] uppercase font-black tracking-wider">ACCOUNT NAME</span>
+                  <span className="font-black text-white text-sm tracking-wide">{settings.bankAccountName || 'IEEE STUDENT BRANCH'}</span>
+                </div>
               </div>
 
               {/* HIGHLIGHTED Account Number */}
@@ -1461,16 +1467,10 @@ export const MultiStepRegister = () => {
                 </button>
               </div>
 
-              {/* Bank Name & Branch Name */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Bank Name</span>
-                  <span className="font-bold text-slate-200">{settings.bankName || 'UNION BANK OF INDIA'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Branch Name</span>
-                  <span className="font-bold text-slate-200">{settings.bankBranch || 'KRISHNANKOIL, WATRAP'}</span>
-                </div>
+              {/* Branch Name */}
+              <div className="text-xs px-1">
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Branch Name</span>
+                <span className="font-bold text-slate-200">{settings.bankBranch || 'KRISHNANKOIL, WATRAP'}</span>
               </div>
 
               {/* HIGHLIGHTED IFSC Code */}
