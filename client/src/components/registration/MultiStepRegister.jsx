@@ -146,9 +146,32 @@ export const MultiStepRegister = () => {
     setTeamNameStatus({ checking: false, available: null, message: '' });
   };
 
-  // 1. Check if the current user already registered a team
+  // 1. Check if the current user already registered a team & reset form state on account switch
   useEffect(() => {
     let isMounted = true;
+    if (!user?.email) return;
+
+    setCheckingExistingTeam(true);
+    setExistingUserTeam(null);
+    setRegistrationResult(null);
+
+    // Reset registration form state whenever active user changes
+    setStep(1);
+    setTeamName('');
+    setErrorMessage('');
+    setReservation(null);
+    setDraftRestoredNotice(false);
+
+    const leadInit = {
+      ...defaultMember,
+      name: user?.name && user.name !== 'ALPHA Student' ? user.name : '',
+      regNo: user?.email ? user.email.split('@')[0].toUpperCase() : '',
+      email: user?.email || ''
+    };
+    setMembers(Array.from({ length: settings.teamSize || 4 }, (_, idx) =>
+      idx === 0 ? leadInit : { ...defaultMember }
+    ));
+
     axios.get('/api/registration/my-team')
       .then(res => {
         if (isMounted) {
@@ -163,7 +186,9 @@ export const MultiStepRegister = () => {
         // If 404 / team deleted, ensure clean state so user can register fresh from scratch
         if (isMounted) {
           setExistingUserTeam(null);
-          sessionStorage.removeItem('alpha_cached_team_dashboard');
+          if (user?.email) {
+            sessionStorage.removeItem(`alpha_cached_team_dashboard_${user.email.toLowerCase()}`);
+          }
           if (user?.teamId) {
             const cleanUser = { ...user };
             delete cleanUser.teamId;
