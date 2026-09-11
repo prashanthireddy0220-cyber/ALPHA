@@ -201,6 +201,20 @@ export const loginUser = async (req, res) => {
           await student.save();
         }
       }
+
+      // Strictly verify if student belongs to an active team
+      const studentDocs = await Student.find({ email: 'student@klu.ac.in' }).select('_id');
+      const studentIds = studentDocs.map(s => s._id);
+      const activeTeam = await Team.findOne({
+        $or: [
+          { leadEmail: 'student@klu.ac.in' },
+          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
+        ]
+      }).sort({ createdAt: -1 });
+
+      student.teamId = activeTeam ? activeTeam.teamId : undefined;
+      await student.save();
+
       return res.json({
         _id: student._id,
         name: student.name,
@@ -219,6 +233,7 @@ export const loginUser = async (req, res) => {
       targetEmail = `${targetEmail}@klu.ac.in`;
     }
     targetEmail = targetEmail.trim().toLowerCase();
+    const userReg = targetEmail ? targetEmail.split('@')[0].toUpperCase() : '';
 
     let user = await User.findOne({
       $or: [
@@ -227,49 +242,44 @@ export const loginUser = async (req, res) => {
       ]
     });
 
-    // Auto-link registered team strictly by email if User doc doesn't exist yet
+    // Find student documents matching user's email or regNo
+    const studentDocs = targetEmail ? await Student.find({
+      $or: [
+        { email: targetEmail },
+        ...(userReg ? [{ regNo: userReg }] : [])
+      ]
+    }).select('_id') : [];
+    const studentIds = studentDocs.map(s => s._id);
+
+    // Strictly find team where this user is actual lead or actual member
+    const activeTeam = targetEmail ? await Team.findOne({
+      $or: [
+        { leadEmail: targetEmail },
+        ...(userReg ? [{ leadRegNo: userReg }] : []),
+        ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
+      ]
+    }).sort({ createdAt: -1 }) : null;
+
     if (!user && targetEmail) {
-      const studentDocs = await Student.find({ email: targetEmail }).select('_id');
-      const studentIds = studentDocs.map(s => s._id);
-
-      const team = await Team.findOne({
-        $or: [
-          { leadEmail: targetEmail },
-          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
-        ]
-      }).sort({ createdAt: -1 });
-
       const displayName = req.body.name?.trim() || targetEmail.split('@')[0].toUpperCase();
       user = await User.create({
         name: displayName,
         email: targetEmail,
         password: cleanInput || 'password123',
         role: 'user',
-        teamId: team ? team.teamId : undefined
+        teamId: activeTeam ? activeTeam.teamId : undefined
       });
     }
 
-    // If user exists, sync displayName if provided and re-verify team ownership strictly by email
     if (user && targetEmail) {
       if (req.body.name && req.body.name.trim() && user.name === 'ALPHA Student') {
         user.name = req.body.name.trim();
       }
 
-      const studentDocs = await Student.find({ email: targetEmail }).select('_id');
-      const studentIds = studentDocs.map(s => s._id);
-
-      const team = await Team.findOne({
-        $or: [
-          { leadEmail: targetEmail },
-          { user: user._id },
-          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
-        ]
-      }).sort({ createdAt: -1 });
-
-      if (team) {
-        user.teamId = team.teamId;
+      if (activeTeam) {
+        user.teamId = activeTeam.teamId;
       } else {
-        // Team was deleted by admin or does not exist: purge stale teamId completely
+        // Team was deleted or user has no registered team: clear teamId completely
         user.teamId = undefined;
       }
       await user.save();

@@ -8,7 +8,8 @@ import {
   deleteAllRegistrations,
   deleteSingleRegistration,
   directRegistration,
-  updateTeamDetails
+  updateTeamDetails,
+  cleanOrphanData
 } from '../controllers/adminController.js';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 
@@ -25,5 +26,6 @@ router.delete('/teams/:id', deleteSingleRegistration);
 router.post('/teams/direct-registration', directRegistration);
 router.put('/teams/:id/payment', updatePaymentStatus);
 router.put('/teams/:id/edit', updateTeamDetails);
+router.post('/clean-orphans', cleanOrphanData);
 
 export default router;

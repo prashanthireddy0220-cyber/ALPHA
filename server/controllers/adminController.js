@@ -620,3 +620,18 @@ export const updateTeamDetails = async (req, res) => {
   }
 };
 
+// Prune all orphaned/stale deleted records and sync user teamIds without touching present registrations
+export const cleanOrphanData = async (req, res) => {
+  try {
+    const { cleanOrphanedDeletedData } = await import('../utils/dataCleanup.js');
+    const result = await cleanOrphanedDeletedData();
+    res.json({
+      success: true,
+      message: 'Orphaned data scan & cleanup completed successfully. Present registrations preserved.',
+      result
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

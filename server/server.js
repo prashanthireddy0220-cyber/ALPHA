@@ -178,13 +178,16 @@ const seedInitialData = async () => {
   }
 };
 
+import { cleanOrphanedDeletedData } from './utils/dataCleanup.js';
+
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(async () => {
   try {
     await seedInitialData();
+    await cleanOrphanedDeletedData();
   } catch (err) {
-    console.error('[Seed Error]', err);
+    console.error('[Seed & Cleanup Error]', err);
   }
   app.listen(PORT, () => {
     console.log(`[ALPHA Server] Running on port ${PORT}`);
