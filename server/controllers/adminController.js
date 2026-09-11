@@ -9,6 +9,7 @@ import AuditLog from '../models/AuditLog.js';
 import User from '../models/User.js';
 import Attendance from '../models/Attendance.js';
 import HelpRequest from '../models/HelpRequest.js';
+import { generateNextTeamId } from '../utils/teamIdGenerator.js';
 
 export const getAdminStats = async (req, res) => {
   try {
@@ -502,8 +503,7 @@ export const directRegistration = async (req, res) => {
       return res.status(400).json({ message: 'At least one member with Name and Reg No is required' });
     }
 
-    const count = await Team.countDocuments();
-    const teamId = `ALPHA-${1000 + count + 1}`;
+    const teamId = await generateNextTeamId();
     const finalTeamName = (teamName && teamName.trim()) 
       ? teamName.trim().toUpperCase() 
       : `${(memberList[0].name || 'ALPHA').trim().toUpperCase()}'S TEAM`;
