@@ -13,6 +13,7 @@ import { generateNextTeamId } from '../utils/teamIdGenerator.js';
 
 export const getAdminStats = async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const [
       settings,
       totalTeams,
@@ -234,6 +235,7 @@ export const getAdminAnalytics = async (req, res) => {
 
 export const getAdminTeams = async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const { search, status, department, year, accommodation } = req.query;
 
     let query = {};
@@ -682,15 +684,15 @@ export const updateTeamDetails = async (req, res) => {
       }
 
       if (updatedStudentIds.length > 0) {
+        // Keep members in their fixed slot order (Member 1, Member 2, Member 3, Member 4)
+        team.members = updatedStudentIds;
+
         // Change Team Lead if specified
         const leadIdx = (typeof leadMemberIndex === 'number' && leadMemberIndex >= 0 && leadMemberIndex < updatedStudentIds.length)
           ? leadMemberIndex
           : 0;
 
         const leadStudentId = updatedStudentIds[leadIdx] || updatedStudentIds[0];
-        const otherStudentIds = updatedStudentIds.filter(sid => sid.toString() !== leadStudentId.toString());
-        team.members = [leadStudentId, ...otherStudentIds];
-
         const leadStudent = await Student.findById(leadStudentId);
         if (leadStudent) {
           team.leadRegNo = leadStudent.regNo;
