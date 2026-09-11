@@ -62,7 +62,7 @@ export const getAdminAnalytics = async (req, res) => {
       auditLogs
     ] = await Promise.all([
       EventSettings.findOne().lean(),
-      Team.find().populate('members').lean().exec(),
+      Team.find().populate('members').collation({ locale: 'en', numericOrdering: true }).sort({ teamId: 1 }).lean().exec(),
       Student.find().lean().exec(),
       AttendanceSession.find().lean().exec(),
       AttendanceRecord.find().lean().exec(),
@@ -244,7 +244,8 @@ export const getAdminTeams = async (req, res) => {
 
     let teams = await Team.find(query)
       .populate('members')
-      .sort({ createdAt: -1 })
+      .collation({ locale: 'en', numericOrdering: true })
+      .sort({ teamId: 1 })
       .exec();
 
     if (search) {
@@ -590,30 +591,124 @@ export const directRegistration = async (req, res) => {
 export const updateTeamDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const { teamName, leadEmail, leadRegNo, utr, amount, status } = req.body;
+    const { teamName, track, amount, status, members, leadMemberIndex } = req.body;
 
-    const team = await Team.findById(id);
+    const team = await Team.findById(id).populate('members');
     if (!team) {
       return res.status(404).json({ message: 'Team not found' });
     }
 
-    if (teamName) team.teamName = teamName.trim().toUpperCase();
-    if (leadEmail) team.leadEmail = leadEmail.trim().toLowerCase();
-    if (leadRegNo) team.leadRegNo = leadRegNo.trim().toUpperCase();
-    if (utr) team.payment.utr = utr.trim();
-    if (amount !== undefined) team.payment.amount = Number(amount);
-    if (req.body.screenshotUrl) team.payment.screenshotUrl = req.body.screenshotUrl;
-    if (status) {
+    if (teamName && teamName.trim()) team.teamName = teamName.trim().toUpperCase();
+    if (track && track.trim()) team.track = track.trim();
+    if (amount !== undefined && !isNaN(amount)) team.payment.amount = Number(amount);
+    if (status && ['PENDING', 'VERIFIED', 'REJECTED'].includes(status)) {
       team.payment.status = status;
-      if (status === 'VERIFIED') team.payment.verifiedAt = new Date();
+      if (status === 'VERIFIED' && !team.payment.verifiedAt) {
+        team.payment.verifiedAt = new Date();
+      }
+    }
+
+    // Process and update member rosters if provided
+    let updatedStudentIds = [];
+    if (members && Array.isArray(members) && members.length > 0) {
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i];
+        if (!m || (!m.name?.trim() && !m.regNo?.trim())) continue;
+
+        const mName = (m.name || `Member ${i + 1}`).trim().toUpperCase();
+        const mReg = (m.regNo || '').trim().toUpperCase();
+        const mEmail = (m.email || (mReg ? `${mReg.toLowerCase()}@klu.ac.in` : '')).trim().toLowerCase();
+        const mDept = m.department || 'CSE';
+        const mYear = m.year || 'III';
+        const mSection = (m.section || 'A').trim().toUpperCase();
+        const mMobile = (m.mobile || '').trim();
+        const mGender = m.gender || 'Male';
+        const mAccom = m.accommodation || 'Day Scholar';
+        const mHostel = mAccom === 'Hosteller' ? (m.hostel || 'N/A') : 'N/A';
+        const mRoom = mAccom === 'Hosteller' ? (m.roomNumber || 'N/A') : 'N/A';
+
+        let studentDoc = null;
+        if (m._id) {
+          studentDoc = await Student.findById(m._id);
+        }
+
+        if (studentDoc) {
+          studentDoc.name = mName;
+          studentDoc.regNo = mReg || studentDoc.regNo;
+          studentDoc.email = mEmail;
+          studentDoc.department = mDept;
+          studentDoc.year = mYear;
+          studentDoc.section = mSection;
+          studentDoc.mobile = mMobile;
+          studentDoc.gender = mGender;
+          studentDoc.accommodation = mAccom;
+          studentDoc.hostel = mHostel;
+          studentDoc.roomNumber = mRoom;
+          await studentDoc.save();
+          updatedStudentIds.push(studentDoc._id);
+        } else if (mReg) {
+          // Check if exists by regNo
+          let existingStudent = await Student.findOne({ regNo: mReg });
+          if (existingStudent) {
+            existingStudent.name = mName;
+            existingStudent.email = mEmail;
+            existingStudent.department = mDept;
+            existingStudent.year = mYear;
+            existingStudent.section = mSection;
+            existingStudent.mobile = mMobile;
+            existingStudent.gender = mGender;
+            existingStudent.accommodation = mAccom;
+            existingStudent.hostel = mHostel;
+            existingStudent.roomNumber = mRoom;
+            await existingStudent.save();
+            updatedStudentIds.push(existingStudent._id);
+          } else {
+            const newStudent = await Student.create({
+              name: mName,
+              regNo: mReg,
+              email: mEmail,
+              department: mDept,
+              year: mYear,
+              section: mSection,
+              mobile: mMobile || '9999999999',
+              gender: mGender,
+              accommodation: mAccom,
+              hostel: mHostel,
+              roomNumber: mRoom
+            });
+            updatedStudentIds.push(newStudent._id);
+          }
+        }
+      }
+
+      if (updatedStudentIds.length > 0) {
+        // Change Team Lead if specified
+        const leadIdx = (typeof leadMemberIndex === 'number' && leadMemberIndex >= 0 && leadMemberIndex < updatedStudentIds.length)
+          ? leadMemberIndex
+          : 0;
+
+        const leadStudentId = updatedStudentIds[leadIdx] || updatedStudentIds[0];
+        const otherStudentIds = updatedStudentIds.filter(sid => sid.toString() !== leadStudentId.toString());
+        team.members = [leadStudentId, ...otherStudentIds];
+
+        const leadStudent = await Student.findById(leadStudentId);
+        if (leadStudent) {
+          team.leadRegNo = leadStudent.regNo;
+          team.leadEmail = leadStudent.email;
+
+          // Sync Team ID with User profile for this new lead if registered
+          await User.updateOne({ email: leadStudent.email }, { $set: { teamId: team.teamId } });
+        }
+      }
     }
 
     await team.save();
+    const updatedTeam = await Team.findById(id).populate('members');
 
     res.json({
       success: true,
-      message: `Team ${team.teamId} updated successfully!`,
-      team
+      message: `Team ${team.teamId} details updated successfully!`,
+      team: updatedTeam
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
