@@ -596,14 +596,21 @@ export const updateTeamDetails = async (req, res) => {
     const { id } = req.params;
     const { teamName, track, amount, status, members, leadMemberIndex } = req.body;
 
-    const team = await Team.findById(id).populate('members');
+    // Fetch raw team without populate to avoid Mongoose populated doc conflicts during save
+    const team = await Team.findById(id);
     if (!team) {
       return res.status(404).json({ message: 'Team not found' });
     }
 
-    if (teamName && teamName.trim()) team.teamName = teamName.trim().toUpperCase();
-    if (track && track.trim()) team.track = track.trim();
-    if (amount !== undefined && !isNaN(amount)) team.payment.amount = Number(amount);
+    if (teamName && teamName.trim()) {
+      team.teamName = teamName.trim().toUpperCase();
+    }
+    if (track && track.trim()) {
+      team.track = track.trim();
+    }
+    if (amount !== undefined && !isNaN(amount)) {
+      team.payment.amount = Number(amount);
+    }
     if (status && ['PENDING', 'VERIFIED', 'REJECTED'].includes(status)) {
       team.payment.status = status;
       if (status === 'VERIFIED' && !team.payment.verifiedAt) {
@@ -621,12 +628,12 @@ export const updateTeamDetails = async (req, res) => {
         const mName = (m.name || `Member ${i + 1}`).trim().toUpperCase();
         const mReg = (m.regNo || '').trim().toUpperCase();
         const mEmail = (m.email || (mReg ? `${mReg.toLowerCase()}@klu.ac.in` : '')).trim().toLowerCase();
-        const mDept = m.department || 'CSE';
-        const mYear = m.year || 'III';
+        const mDept = (m.department || 'CSE').trim();
+        const mYear = (m.year || 'III').trim();
         const mSection = (m.section || 'A').trim().toUpperCase();
-        const mMobile = (m.mobile || '').trim();
-        const mGender = m.gender || 'Male';
-        const mAccom = m.accommodation || 'Day Scholar';
+        const mMobile = (m.mobile || '9999999999').trim();
+        const mGender = (m.gender || 'Male').trim();
+        const mAccom = (m.accommodation || 'Day Scholar').trim();
         const mHostel = mAccom === 'Hosteller' ? (m.hostel || 'N/A') : 'N/A';
         const mRoom = mAccom === 'Hosteller' ? (m.roomNumber || 'N/A') : 'N/A';
 
@@ -644,7 +651,9 @@ export const updateTeamDetails = async (req, res) => {
           roomNumber: mRoom
         };
 
-        const targetId = m._id || (team.members[i] ? (team.members[i]._id || team.members[i]) : null);
+        const existingSlotId = team.members && team.members[i] ? team.members[i].toString() : null;
+        const targetId = m._id || existingSlotId;
+
         let studentDoc = null;
 
         if (targetId) {
@@ -673,12 +682,14 @@ export const updateTeamDetails = async (req, res) => {
       }
 
       if (updatedStudentIds.length > 0) {
-        // Keep members in their fixed slot order (Member 1, Member 2, Member 3, Member 4)
+        // Keep members in their slot order
         team.members = updatedStudentIds;
+        team.markModified('members');
 
-        // Change Team Lead if specified
-        const leadIdx = (typeof leadMemberIndex === 'number' && leadMemberIndex >= 0 && leadMemberIndex < updatedStudentIds.length)
-          ? leadMemberIndex
+        // Resolve Team Lead
+        const parsedLeadIdx = parseInt(leadMemberIndex, 10);
+        const leadIdx = (!isNaN(parsedLeadIdx) && parsedLeadIdx >= 0 && parsedLeadIdx < updatedStudentIds.length)
+          ? parsedLeadIdx
           : 0;
 
         const leadStudentId = updatedStudentIds[leadIdx] || updatedStudentIds[0];
@@ -686,15 +697,24 @@ export const updateTeamDetails = async (req, res) => {
         if (leadStudent) {
           team.leadRegNo = leadStudent.regNo;
           team.leadEmail = leadStudent.email;
+          team.markModified('leadRegNo');
+          team.markModified('leadEmail');
 
           // Sync Team ID with User profile for this new lead if registered
-          await User.updateOne({ email: leadStudent.email }, { $set: { teamId: team.teamId } });
+          if (leadStudent.email) {
+            await User.updateOne(
+              { email: new RegExp(`^${leadStudent.email.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
+              { $set: { teamId: team.teamId } }
+            );
+          }
         }
       }
     }
 
+    team.markModified('payment');
     await team.save();
-    const updatedTeam = await Team.findById(id).populate('members');
+
+    const updatedTeam = await Team.findById(id).populate('members').lean().exec();
 
     res.json({
       success: true,

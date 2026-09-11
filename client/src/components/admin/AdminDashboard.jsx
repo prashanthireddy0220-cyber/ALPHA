@@ -608,7 +608,7 @@ export const AdminDashboard = () => {
 
       for (let i = 0; i < totalSlots; i++) {
         const m = membersList[i] || {};
-        const isLead = i === 0 || (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail);
+        const isLead = (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail) || (i === 0 && !leadReg && !leadEmail);
         const role = isLead ? 'TEAM LEAD' : `MEMBER ${i + 1}`;
 
         rows.push([
@@ -681,7 +681,7 @@ export const AdminDashboard = () => {
 
             return Array.from({ length: totalSlots }, (_, i) => {
               const m = membersList[i] || {};
-              const isLead = i === 0 || (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail);
+              const isLead = (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail) || (i === 0 && !leadReg && !leadEmail);
               return `
                 <tr ${isLead ? 'style="background-color: #f8fafc;"' : ''}>
                   <td>${t.teamId || ''}</td>
@@ -748,15 +748,9 @@ export const AdminDashboard = () => {
 
     // Subtitle
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(186, 230, 253);
+    doc.setTextColor(148, 163, 184);
     doc.setFontSize(10);
-    doc.text('KARE IEEE EDUCATION SOCIETY STUDENT CHAPTER | 36-HOUR NATIONAL LEVEL HACKATHON', 40, 47);
-
-    const totalParticipants = filteredTeams.reduce((acc, t) => acc + (t.members?.length || 4), 0);
-    const dateStr = new Date().toLocaleString();
-    doc.setTextColor(226, 232, 240);
-    doc.setFontSize(9);
-    doc.text(`Generated: ${dateStr}   |   Total Teams: ${filteredTeams.length}   |   Total Participants: ${totalParticipants}`, 40, 60);
+    doc.text(`KARE IEEE Education Society Student Chapter | Total Teams: ${filteredTeams.length} | Generated: ${new Date().toLocaleString()}`, 40, 50);
 
     // Table Headers
     const tableHeaders = [
@@ -773,7 +767,7 @@ export const AdminDashboard = () => {
 
       for (let i = 0; i < totalSlots; i++) {
         const m = membersList[i] || {};
-        const isLead = (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail) || i === 0;
+        const isLead = (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail) || (i === 0 && !leadReg && !leadEmail);
         const role = isLead ? '★ TEAM LEAD' : `MEMBER ${i + 1}`;
         const stay = m.accommodation || 'Day Scholar';
         const hostelInfo = stay === 'Hosteller' ? `${m.hostel || 'Hostel'} - Rm ${m.roomNumber || '-'}` : 'Day Scholar';
@@ -829,17 +823,17 @@ export const AdminDashboard = () => {
             {
               content: t.payment?.utr || 'N/A',
               rowSpan: totalSlots,
-              styles: { valign: 'middle', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 41, 59] }
+              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [15, 23, 42] }
             },
             {
-              content: `₹${t.payment?.amount || 0}`,
+              content: `₹${t.payment?.amount !== undefined ? t.payment.amount : 1400}`,
               rowSpan: totalSlots,
-              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [15, 23, 42] }
+              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [5, 150, 105] }
             },
             ...memberCells
           ]);
         } else {
-          // Subsequent rows of team: only member cells
+          // Subsequent teammate rows in the same team
           tableRows.push(memberCells);
         }
       }
@@ -1682,14 +1676,23 @@ export const AdminDashboard = () => {
                   {inspectTeam.teamName}
                 </h2>
                 
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
-                    <span>★ TEAM LEAD: {inspectTeam.members?.[0]?.name || 'TEAM LEAD'} ({inspectTeam.leadRegNo || inspectTeam.members?.[0]?.regNo || 'N/A'})</span>
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono">
-                    • {inspectTeam.leadEmail}
-                  </span>
-                </div>
+                {(() => {
+                  const inspectLeadMember = inspectTeam.members?.find(
+                    (m) =>
+                      (m.regNo && m.regNo.toUpperCase() === (inspectTeam.leadRegNo || '').toUpperCase()) ||
+                      (m.email && m.email.toLowerCase() === (inspectTeam.leadEmail || '').toLowerCase())
+                  ) || inspectTeam.members?.[0];
+                  return (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                        <span>★ TEAM LEAD: {inspectLeadMember?.name || 'TEAM LEAD'} ({inspectTeam.leadRegNo || inspectLeadMember?.regNo || 'N/A'})</span>
+                      </span>
+                      <span className="text-xs text-slate-400 font-mono">
+                        • {inspectTeam.leadEmail || inspectLeadMember?.email}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -1838,7 +1841,7 @@ export const AdminDashboard = () => {
                     const isLead =
                       (m.regNo && m.regNo.toUpperCase() === (inspectTeam.leadRegNo || '').toUpperCase()) ||
                       (m.email && m.email.toLowerCase() === (inspectTeam.leadEmail || '').toLowerCase()) ||
-                      idx === 0;
+                      (idx === 0 && !inspectTeam.leadRegNo && !inspectTeam.leadEmail);
                     return (
                       <div
                         key={m._id || idx}
