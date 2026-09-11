@@ -340,7 +340,11 @@ export const AdminStudentRegistrations = () => {
                 </tr>
               ) : (
                 teams.map((t) => {
-                  const lead = t.members && t.members[0] ? t.members[0] : {};
+                  const lead = t.members?.find(
+                    (m) =>
+                      (m.regNo && m.regNo.toUpperCase() === (t.leadRegNo || '').toUpperCase()) ||
+                      (m.email && m.email.toLowerCase() === (t.leadEmail || '').toLowerCase())
+                  ) || t.members?.[0] || {};
                   const status = t.payment?.status || 'PENDING';
 
                   return (

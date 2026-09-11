@@ -305,6 +305,7 @@ export const updatePaymentStatus = async (req, res) => {
     }
 
     await team.save();
+    const populatedTeam = await Team.findById(id).populate('members');
 
     // Create Audit Trail Record
     await PaymentAudit.create({
@@ -319,7 +320,7 @@ export const updatePaymentStatus = async (req, res) => {
     res.json({
       success: true,
       message: `Payment status updated to ${status}`,
-      team
+      team: populatedTeam
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -629,57 +630,45 @@ export const updateTeamDetails = async (req, res) => {
         const mHostel = mAccom === 'Hosteller' ? (m.hostel || 'N/A') : 'N/A';
         const mRoom = mAccom === 'Hosteller' ? (m.roomNumber || 'N/A') : 'N/A';
 
+        const studentPayload = {
+          name: mName,
+          regNo: mReg,
+          email: mEmail,
+          department: mDept,
+          year: mYear,
+          section: mSection,
+          mobile: mMobile,
+          gender: mGender,
+          accommodation: mAccom,
+          hostel: mHostel,
+          roomNumber: mRoom
+        };
+
+        const targetId = m._id || (team.members[i] ? (team.members[i]._id || team.members[i]) : null);
         let studentDoc = null;
-        if (m._id) {
-          studentDoc = await Student.findById(m._id);
+
+        if (targetId) {
+          studentDoc = await Student.findByIdAndUpdate(
+            targetId,
+            { $set: studentPayload },
+            { new: true, runValidators: false }
+          );
         }
 
-        if (studentDoc) {
-          studentDoc.name = mName;
-          studentDoc.regNo = mReg || studentDoc.regNo;
-          studentDoc.email = mEmail;
-          studentDoc.department = mDept;
-          studentDoc.year = mYear;
-          studentDoc.section = mSection;
-          studentDoc.mobile = mMobile;
-          studentDoc.gender = mGender;
-          studentDoc.accommodation = mAccom;
-          studentDoc.hostel = mHostel;
-          studentDoc.roomNumber = mRoom;
-          await studentDoc.save();
+        if (!studentDoc && mReg) {
+          studentDoc = await Student.findOneAndUpdate(
+            { regNo: mReg },
+            { $set: studentPayload },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+          );
+        }
+
+        if (!studentDoc) {
+          studentDoc = await Student.create(studentPayload);
+        }
+
+        if (studentDoc && studentDoc._id) {
           updatedStudentIds.push(studentDoc._id);
-        } else if (mReg) {
-          // Check if exists by regNo
-          let existingStudent = await Student.findOne({ regNo: mReg });
-          if (existingStudent) {
-            existingStudent.name = mName;
-            existingStudent.email = mEmail;
-            existingStudent.department = mDept;
-            existingStudent.year = mYear;
-            existingStudent.section = mSection;
-            existingStudent.mobile = mMobile;
-            existingStudent.gender = mGender;
-            existingStudent.accommodation = mAccom;
-            existingStudent.hostel = mHostel;
-            existingStudent.roomNumber = mRoom;
-            await existingStudent.save();
-            updatedStudentIds.push(existingStudent._id);
-          } else {
-            const newStudent = await Student.create({
-              name: mName,
-              regNo: mReg,
-              email: mEmail,
-              department: mDept,
-              year: mYear,
-              section: mSection,
-              mobile: mMobile || '9999999999',
-              gender: mGender,
-              accommodation: mAccom,
-              hostel: mHostel,
-              roomNumber: mRoom
-            });
-            updatedStudentIds.push(newStudent._id);
-          }
         }
       }
 

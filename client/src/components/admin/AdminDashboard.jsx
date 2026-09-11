@@ -397,21 +397,26 @@ export const AdminDashboard = () => {
 
   // Open Edit Team Modal
   const handleOpenEdit = (team) => {
+    if (!team) return;
     setEditTeam(team);
-    const existingMembers = (team.members || []).map((m) => ({
-      _id: m._id || null,
-      name: m.name || '',
-      regNo: m.regNo || '',
-      department: m.department || 'CSE',
-      year: m.year || 'III',
-      section: m.section || 'A',
-      mobile: m.mobile || '',
-      email: m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : ''),
-      gender: m.gender || 'Male',
-      accommodation: m.accommodation || 'Day Scholar',
-      hostel: m.hostel || 'N/A',
-      roomNumber: m.roomNumber || 'N/A'
-    }));
+    const rawMembers = Array.isArray(team.members) ? team.members : [];
+    const existingMembers = rawMembers.map((m) => {
+      const isObj = typeof m === 'object' && m !== null;
+      return {
+        _id: isObj ? (m._id || null) : (typeof m === 'string' ? m : null),
+        name: isObj ? (m.name || '') : '',
+        regNo: isObj ? (m.regNo || '') : '',
+        department: isObj ? (m.department || 'CSE') : 'CSE',
+        year: isObj ? (m.year || 'III') : 'III',
+        section: isObj ? (m.section || 'A') : 'A',
+        mobile: isObj ? (m.mobile || '') : '',
+        email: isObj ? (m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : '')) : '',
+        gender: isObj ? (m.gender || 'Male') : 'Male',
+        accommodation: isObj ? (m.accommodation || 'Day Scholar') : 'Day Scholar',
+        hostel: isObj ? (m.hostel || 'N/A') : 'N/A',
+        roomNumber: isObj ? (m.roomNumber || 'N/A') : 'N/A'
+      };
+    });
 
     while (existingMembers.length < 4) {
       existingMembers.push({
