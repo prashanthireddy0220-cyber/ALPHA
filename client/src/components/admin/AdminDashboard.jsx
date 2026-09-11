@@ -8,6 +8,8 @@ import {
   PieChart, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles,
   Printer, ArrowUpRight, ZoomIn, Crown, User
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../contexts/SettingsContext';
 import { getScreenshotUrl } from '../../utils/imageUrl';
 import { OfficialEventPass } from '../common/OfficialEventPass';
@@ -39,7 +41,6 @@ export const AdminDashboard = () => {
   const [editTeam, setEditTeam] = useState(null);
   const [passTeam, setPassTeam] = useState(null);
   const [showAllPassesModal, setShowAllPassesModal] = useState(false);
-  const [showPdfReportModal, setShowPdfReportModal] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
 
   // Settings form state
@@ -559,8 +560,8 @@ export const AdminDashboard = () => {
     reader.readAsDataURL(file);
   };
 
-  // Export CSV - 4 Rows per Team (1 Row per Member with All Details)
-  const exportCSV4Rows = () => {
+  // Export CSV - Complete All Team & Teammate Details
+  const exportCSV = () => {
     if (filteredTeams.length === 0) {
       alert('No teams to export');
       return;
@@ -630,186 +631,206 @@ export const AdminDashboard = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `ALPHA_Teams_4RowsPerTeam_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `ALPHA_Teams_Complete_Export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Export CSV - 1 Row per Team (Master Flattened Sheet)
-  const exportCSV1Row = () => {
-    if (filteredTeams.length === 0) {
-      alert('No teams to export');
-      return;
-    }
-    const headers = [
-      'Team ID',
-      'Team Name',
-      'Track',
-      'Lead Name',
-      'Lead Reg No',
-      'Lead Email',
-      'Payment Status',
-      'UTR Number',
-      'Amount (INR)',
-      'Members Count',
-      'Registration Date',
-      'M1 Name', 'M1 RegNo', 'M1 Email', 'M1 Dept', 'M1 Year', 'M1 Sec', 'M1 Mobile', 'M1 Gender', 'M1 Accom', 'M1 Hostel', 'M1 Room',
-      'M2 Name', 'M2 RegNo', 'M2 Email', 'M2 Dept', 'M2 Year', 'M2 Sec', 'M2 Mobile', 'M2 Gender', 'M2 Accom', 'M2 Hostel', 'M2 Room',
-      'M3 Name', 'M3 RegNo', 'M3 Email', 'M3 Dept', 'M3 Year', 'M3 Sec', 'M3 Mobile', 'M3 Gender', 'M3 Accom', 'M3 Hostel', 'M3 Room',
-      'M4 Name', 'M4 RegNo', 'M4 Email', 'M4 Dept', 'M4 Year', 'M4 Sec', 'M4 Mobile', 'M4 Gender', 'M4 Accom', 'M4 Hostel', 'M4 Room'
-    ];
-
-    const rows = filteredTeams.map((t) => {
-      const membersList = (t.members && t.members.length > 0) ? t.members : [];
-      const m1 = membersList[0] || {};
-      const m2 = membersList[1] || {};
-      const m3 = membersList[2] || {};
-      const m4 = membersList[3] || {};
-
-      return [
-        t.teamId || '',
-        `"${(t.teamName || '').replace(/"/g, '""')}"`,
-        `"${(t.track || 'DRAGON INTELLIGENCE (AI & ML)').replace(/"/g, '""')}"`,
-        `"${(m1.name || t.leadName || '').replace(/"/g, '""')}"`,
-        t.leadRegNo || m1.regNo || '',
-        t.leadEmail || m1.email || '',
-        t.payment?.status || 'PENDING',
-        t.payment?.utr || '',
-        t.payment?.amount || 0,
-        membersList.length,
-        t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '',
-        // M1
-        `"${(m1.name || '').replace(/"/g, '""')}"`, m1.regNo || '', m1.email || '', m1.department || '', m1.year || '', `"${(m1.section || '').replace(/"/g, '""')}"`, m1.mobile || '', m1.gender || '', m1.accommodation || '', m1.hostel || '', m1.roomNumber || '',
-        // M2
-        `"${(m2.name || '').replace(/"/g, '""')}"`, m2.regNo || '', m2.email || '', m2.department || '', m2.year || '', `"${(m2.section || '').replace(/"/g, '""')}"`, m2.mobile || '', m2.gender || '', m2.accommodation || '', m2.hostel || '', m2.roomNumber || '',
-        // M3
-        `"${(m3.name || '').replace(/"/g, '""')}"`, m3.regNo || '', m3.email || '', m3.department || '', m3.year || '', `"${(m3.section || '').replace(/"/g, '""')}"`, m3.mobile || '', m3.gender || '', m3.accommodation || '', m3.hostel || '', m3.roomNumber || '',
-        // M4
-        `"${(m4.name || '').replace(/"/g, '""')}"`, m4.regNo || '', m4.email || '', m4.department || '', m4.year || '', `"${(m4.section || '').replace(/"/g, '""')}"`, m4.mobile || '', m4.gender || '', m4.accommodation || '', m4.hostel || '', m4.roomNumber || ''
-      ];
-    });
-
-    const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `ALPHA_Teams_1RowPerTeam_Master_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Export Excel (.xls HTML table formatted for MS Excel)
-  const exportExcel = (mode = '4_rows') => {
+  // Export Excel (.xls formatted HTML table with all team & teammate details)
+  const exportExcel = () => {
     if (filteredTeams.length === 0) {
       alert('No teams to export');
       return;
     }
 
-    let tableHtml = '';
-    if (mode === '4_rows') {
-      tableHtml = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset="utf-8"/><title>ALPHA 2026 Teams Report</title></head>
-        <body>
-          <table border="1">
-            <tr style="background-color: #030712; color: #00f0ff; font-weight: bold;">
-              <th>Team ID</th><th>Team Name</th><th>Track</th><th>Status</th><th>UTR Number</th><th>Amount (INR)</th><th>Reg Date</th>
-              <th>Member #</th><th>Role</th><th>Member Name</th><th>Reg No</th><th>Email</th><th>Department</th><th>Year</th><th>Section</th><th>Mobile</th><th>Gender</th><th>Accommodation</th><th>Hostel</th><th>Room Number</th>
-            </tr>
-            ${filteredTeams.map(t => {
-              const membersList = (t.members && t.members.length > 0) ? t.members : [];
-              const totalSlots = Math.max(4, membersList.length);
-              const leadReg = (t.leadRegNo || '').toUpperCase();
-              const leadEmail = (t.leadEmail || '').toLowerCase();
+    const tableHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="utf-8"/>
+        <title>ALPHA 2026 Teams Report</title>
+        <style>
+          th { background-color: #030712; color: #00f0ff; font-weight: bold; border: 1px solid #1e293b; padding: 6px; }
+          td { border: 1px solid #cbd5e1; padding: 5px; font-family: Arial, sans-serif; font-size: 11px; }
+          .lead-row { background-color: #f0fdf4; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <h2>ALPHA 2026 - COMPLETE TEAMS & PARTICIPANTS EXCEL SHEET</h2>
+        <p>KARE IEEE Education Society Student Chapter | Total Teams: ${filteredTeams.length}</p>
+        <table border="1">
+          <tr style="background-color: #030712; color: #00f0ff; font-weight: bold;">
+            <th>Team ID</th><th>Team Name</th><th>Track</th><th>Status</th><th>UTR Number</th><th>Amount (INR)</th><th>Reg Date</th>
+            <th>Member #</th><th>Role</th><th>Member Name</th><th>Reg No</th><th>Email</th><th>Department</th><th>Year</th><th>Section</th><th>Mobile</th><th>Gender</th><th>Accommodation</th><th>Hostel</th><th>Room Number</th>
+          </tr>
+          ${filteredTeams.map(t => {
+            const membersList = (t.members && t.members.length > 0) ? t.members : [];
+            const totalSlots = Math.max(4, membersList.length);
+            const leadReg = (t.leadRegNo || '').toUpperCase();
+            const leadEmail = (t.leadEmail || '').toLowerCase();
 
-              return Array.from({ length: totalSlots }, (_, i) => {
-                const m = membersList[i] || {};
-                const isLead = i === 0 || (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail);
-                return `
-                  <tr>
-                    <td>${t.teamId || ''}</td>
-                    <td>${t.teamName || ''}</td>
-                    <td>${t.track || 'DRAGON INTELLIGENCE (AI & ML)'}</td>
-                    <td>${t.payment?.status || 'PENDING'}</td>
-                    <td>${t.payment?.utr || ''}</td>
-                    <td>${t.payment?.amount || 0}</td>
-                    <td>${t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}</td>
-                    <td>Member ${i + 1}</td>
-                    <td>${isLead ? 'TEAM LEAD' : 'MEMBER'}</td>
-                    <td>${m.name || ''}</td>
-                    <td>${m.regNo || ''}</td>
-                    <td>${m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : '')}</td>
-                    <td>${m.department || ''}</td>
-                    <td>${m.year || ''}</td>
-                    <td>${m.section || ''}</td>
-                    <td>${m.mobile || ''}</td>
-                    <td>${m.gender || ''}</td>
-                    <td>${m.accommodation || ''}</td>
-                    <td>${m.accommodation === 'Hosteller' ? (m.hostel || 'N/A') : 'N/A'}</td>
-                    <td>${m.accommodation === 'Hosteller' ? (m.roomNumber || 'N/A') : 'N/A'}</td>
-                  </tr>
-                `;
-              }).join('');
-            }).join('')}
-          </table>
-        </body>
-        </html>
-      `;
-    } else {
-      tableHtml = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset="utf-8"/><title>ALPHA 2026 Master Report</title></head>
-        <body>
-          <table border="1">
-            <tr style="background-color: #030712; color: #00f0ff; font-weight: bold;">
-              <th>Team ID</th><th>Team Name</th><th>Track</th><th>Lead Name</th><th>Lead Reg No</th><th>Lead Email</th><th>Status</th><th>UTR</th><th>Amount</th><th>Members Count</th><th>Date</th>
-              <th>M1 Name</th><th>M1 RegNo</th><th>M1 Email</th><th>M1 Dept</th><th>M1 Year</th><th>M1 Sec</th><th>M1 Mobile</th><th>M1 Gender</th><th>M1 Accom</th><th>M1 Hostel</th><th>M1 Room</th>
-              <th>M2 Name</th><th>M2 RegNo</th><th>M2 Email</th><th>M2 Dept</th><th>M2 Year</th><th>M2 Sec</th><th>M2 Mobile</th><th>M2 Gender</th><th>M2 Accom</th><th>M2 Hostel</th><th>M2 Room</th>
-              <th>M3 Name</th><th>M3 RegNo</th><th>M3 Email</th><th>M3 Dept</th><th>M3 Year</th><th>M3 Sec</th><th>M3 Mobile</th><th>M3 Gender</th><th>M3 Accom</th><th>M3 Hostel</th><th>M3 Room</th>
-              <th>M4 Name</th><th>M4 RegNo</th><th>M4 Email</th><th>M4 Dept</th><th>M4 Year</th><th>M4 Sec</th><th>M4 Mobile</th><th>M4 Gender</th><th>M4 Accom</th><th>M4 Hostel</th><th>M4 Room</th>
-            </tr>
-            ${filteredTeams.map(t => {
-              const m1 = t.members?.[0] || {};
-              const m2 = t.members?.[1] || {};
-              const m3 = t.members?.[2] || {};
-              const m4 = t.members?.[3] || {};
+            return Array.from({ length: totalSlots }, (_, i) => {
+              const m = membersList[i] || {};
+              const isLead = i === 0 || (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail);
               return `
-                <tr>
+                <tr ${isLead ? 'style="background-color: #f8fafc;"' : ''}>
                   <td>${t.teamId || ''}</td>
                   <td>${t.teamName || ''}</td>
                   <td>${t.track || 'DRAGON INTELLIGENCE (AI & ML)'}</td>
-                  <td>${m1.name || t.leadName || ''}</td>
-                  <td>${t.leadRegNo || m1.regNo || ''}</td>
-                  <td>${t.leadEmail || m1.email || ''}</td>
                   <td>${t.payment?.status || 'PENDING'}</td>
                   <td>${t.payment?.utr || ''}</td>
                   <td>${t.payment?.amount || 0}</td>
-                  <td>${t.members?.length || 0}</td>
                   <td>${t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}</td>
-                  <td>${m1.name || ''}</td><td>${m1.regNo || ''}</td><td>${m1.email || ''}</td><td>${m1.department || ''}</td><td>${m1.year || ''}</td><td>${m1.section || ''}</td><td>${m1.mobile || ''}</td><td>${m1.gender || ''}</td><td>${m1.accommodation || ''}</td><td>${m1.hostel || ''}</td><td>${m1.roomNumber || ''}</td>
-                  <td>${m2.name || ''}</td><td>${m2.regNo || ''}</td><td>${m2.email || ''}</td><td>${m2.department || ''}</td><td>${m2.year || ''}</td><td>${m2.section || ''}</td><td>${m2.mobile || ''}</td><td>${m2.gender || ''}</td><td>${m2.accommodation || ''}</td><td>${m2.hostel || ''}</td><td>${m2.roomNumber || ''}</td>
-                  <td>${m3.name || ''}</td><td>${m3.regNo || ''}</td><td>${m3.email || ''}</td><td>${m3.department || ''}</td><td>${m3.year || ''}</td><td>${m3.section || ''}</td><td>${m3.mobile || ''}</td><td>${m3.gender || ''}</td><td>${m3.accommodation || ''}</td><td>${m3.hostel || ''}</td><td>${m3.roomNumber || ''}</td>
-                  <td>${m4.name || ''}</td><td>${m4.regNo || ''}</td><td>${m4.email || ''}</td><td>${m4.department || ''}</td><td>${m4.year || ''}</td><td>${m4.section || ''}</td><td>${m4.mobile || ''}</td><td>${m4.gender || ''}</td><td>${m4.accommodation || ''}</td><td>${m4.hostel || ''}</td><td>${m4.roomNumber || ''}</td>
+                  <td>Member ${i + 1}</td>
+                  <td style="${isLead ? 'color: #b45309; font-weight: bold;' : ''}">${isLead ? 'TEAM LEAD' : 'MEMBER'}</td>
+                  <td>${m.name || ''}</td>
+                  <td>${m.regNo || ''}</td>
+                  <td>${m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : '')}</td>
+                  <td>${m.department || ''}</td>
+                  <td>${m.year || ''}</td>
+                  <td>${m.section || ''}</td>
+                  <td>${m.mobile || ''}</td>
+                  <td>${m.gender || ''}</td>
+                  <td>${m.accommodation || ''}</td>
+                  <td>${m.accommodation === 'Hosteller' ? (m.hostel || 'N/A') : 'N/A'}</td>
+                  <td>${m.accommodation === 'Hosteller' ? (m.roomNumber || 'N/A') : 'N/A'}</td>
                 </tr>
               `;
-            }).join('')}
-          </table>
-        </body>
-        </html>
-      `;
-    }
+            }).join('');
+          }).join('')}
+        </table>
+      </body>
+      </html>
+    `;
 
     const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `ALPHA_Teams_Excel_${mode}_${new Date().toISOString().split('T')[0]}.xls`);
+    link.setAttribute('download', `ALPHA_Teams_Complete_Excel_${new Date().toISOString().split('T')[0]}.xls`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Direct Create & Download Styled PDF Report (No print dialog required)
+  const downloadDirectPDF = () => {
+    if (filteredTeams.length === 0) {
+      alert('No teams to export');
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a3'
+    });
+
+    // Top Header Banner
+    doc.setFillColor(3, 7, 18);
+    doc.rect(0, 0, doc.internal.pageSize.width, 70, 'F');
+
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 240, 255);
+    doc.setFontSize(18);
+    doc.text('ALPHA 2026 - OFFICIAL TEAMS & PARTICIPANTS MASTER REPORT', 40, 32);
+
+    // Subtitle
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(10);
+    doc.text('KARE IEEE EDUCATION SOCIETY STUDENT CHAPTER', 40, 50);
+
+    const totalParticipants = filteredTeams.reduce((acc, t) => acc + (t.members?.length || 4), 0);
+    const dateStr = new Date().toLocaleString();
+    doc.text(`Generated: ${dateStr}   |   Total Teams: ${filteredTeams.length}   |   Total Participants: ${totalParticipants}`, 40, 62);
+
+    // Table Headers
+    const tableHeaders = [
+      ['Team ID', 'Team Name', 'Track', 'Status', 'UTR No', 'Fee (Rs)', 'Member #', 'Role', 'Full Name', 'Reg No', 'Student Email', 'Dept', 'Yr', 'Sec', 'Mobile', 'Gender', 'Stay', 'Hostel & Room']
+    ];
+
+    // Table Rows
+    const tableRows = [];
+    filteredTeams.forEach((t) => {
+      const membersList = (t.members && t.members.length > 0) ? t.members : [];
+      const totalSlots = Math.max(4, membersList.length);
+      const leadReg = (t.leadRegNo || '').toUpperCase();
+      const leadEmail = (t.leadEmail || '').toLowerCase();
+
+      for (let i = 0; i < totalSlots; i++) {
+        const m = membersList[i] || {};
+        const isLead = i === 0 || (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail);
+        const role = isLead ? 'TEAM LEAD' : `MEMBER ${i + 1}`;
+        const stay = m.accommodation || 'Day Scholar';
+        const hostelInfo = stay === 'Hosteller' ? `${m.hostel || 'Hostel'} - Rm ${m.roomNumber || '-'}` : 'Day Scholar';
+
+        tableRows.push([
+          t.teamId || '',
+          t.teamName || '',
+          t.track || 'DRAGON INTELLIGENCE (AI & ML)',
+          t.payment?.status || 'PENDING',
+          t.payment?.utr || 'N/A',
+          `${t.payment?.amount || 0}`,
+          `Member ${i + 1}`,
+          role,
+          m.name || '-',
+          m.regNo || '-',
+          m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : '-'),
+          m.department || '-',
+          m.year || '-',
+          m.section || '-',
+          m.mobile || '-',
+          m.gender || '-',
+          stay,
+          hostelInfo
+        ]);
+      }
+    });
+
+    autoTable(doc, {
+      head: tableHeaders,
+      body: tableRows,
+      startY: 85,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        cellPadding: 4,
+        textColor: [248, 250, 252],
+        fillColor: [9, 14, 26],
+        lineColor: [30, 41, 59],
+        lineWidth: 0.5,
+        font: 'helvetica'
+      },
+      headStyles: {
+        fillColor: [3, 7, 18],
+        textColor: [0, 240, 255],
+        fontStyle: 'bold',
+        fontSize: 8.5
+      },
+      alternateRowStyles: {
+        fillColor: [15, 23, 42]
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', textColor: [56, 189, 248] },
+        1: { fontStyle: 'bold', textColor: [255, 255, 255] },
+        7: { fontStyle: 'bold' }
+      },
+      didDrawPage: (data) => {
+        const pageCount = doc.internal.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(
+          `Page ${data.pageNumber} of ${pageCount} - ALPHA 2026 IEEE Official Master Report`,
+          doc.internal.pageSize.width / 2,
+          doc.internal.pageSize.height - 15,
+          { align: 'center' }
+        );
+      }
+    });
+
+    doc.save(`ALPHA_2026_Teams_Master_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   if (loading && !analytics) {
@@ -1445,47 +1466,30 @@ export const AdminDashboard = () => {
             {/* Action Buttons Row */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
-                onClick={() => exportExcel('4_rows')}
-                className="px-3.5 py-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-                title="Export Excel with 4 rows per team (all member details)"
+                onClick={exportExcel}
+                className="px-4 py-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                title="Export Excel with all team and teammate details (4 rows per team)"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-                <span>EXCEL (4 ROWS/TEAM)</span>
+                <span>EXCEL (ALL DETAILS)</span>
               </button>
 
               <button
-                onClick={() => exportExcel('1_row')}
-                className="px-3.5 py-1.5 rounded-full border border-emerald-500/40 bg-slate-900 text-emerald-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
-                title="Export Excel with 1 master row per team (flattened columns)"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-                <span>EXCEL (1 ROW/TEAM)</span>
-              </button>
-
-              <button
-                onClick={exportCSV4Rows}
-                className="px-3.5 py-1.5 rounded-full border border-sky-500/40 bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-                title="Export CSV with 4 rows per team (all member details)"
+                onClick={exportCSV}
+                className="px-4 py-1.5 rounded-full border border-sky-500/40 bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                title="Export CSV with all team and teammate details (4 rows per team)"
               >
                 <FileText className="w-3.5 h-3.5 text-sky-400" />
-                <span>CSV (4 ROWS/TEAM)</span>
+                <span>CSV (ALL DETAILS)</span>
               </button>
 
               <button
-                onClick={exportCSV1Row}
-                className="px-3.5 py-1.5 rounded-full border border-sky-500/40 bg-slate-900 text-sky-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
-                title="Export CSV with 1 row per team (master columns)"
-              >
-                <FileText className="w-3.5 h-3.5 text-sky-400" />
-                <span>CSV (1 ROW/TEAM)</span>
-              </button>
-
-              <button
-                onClick={() => setShowPdfReportModal(true)}
-                className="px-4 py-1.5 rounded-full bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                onClick={downloadDirectPDF}
+                className="px-4 py-1.5 rounded-full bg-slate-900 border border-amber-500/40 hover:bg-amber-950/30 text-amber-300 hover:text-amber-200 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                title="Directly create and download official Master PDF Report"
               >
                 <Download className="w-3.5 h-3.5 text-amber-400" />
-                <span>EXPORT PDF REPORT</span>
+                <span>DOWNLOAD PDF (ALL DETAILS)</span>
               </button>
 
               <button
@@ -2865,158 +2869,7 @@ export const AdminDashboard = () => {
         </div>
       )}
 
-      {/* ============================================================== */}
-      {/* 11B. EXPORT PDF MASTER REPORT MODAL */}
-      {/* ============================================================== */}
-      {showPdfReportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-6xl w-full p-6 md:p-8 rounded-3xl bg-[#090e1a] border border-amber-500/40 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto animate-in fade-in duration-200">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 sticky top-0 bg-[#090e1a] z-20 no-print">
-              <div>
-                <h2 className="text-lg font-black text-white uppercase tracking-wider">
-                  OFFICIAL TEAMS & MEMBERS MASTER REPORT ({filteredTeams.length} TEAMS)
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Print-ready master document with complete team details and 4 member rows per team.
-                </p>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => window.print()}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs flex items-center gap-2 cursor-pointer shadow-lg uppercase"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>PRINT / SAVE AS PDF</span>
-                </button>
-                <button
-                  onClick={() => setShowPdfReportModal(false)}
-                  className="p-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Printable Report Content */}
-            <div className="printable-report space-y-6 text-slate-100">
-              {/* Header */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
-                <div>
-                  <h1 className="text-xl font-black text-white tracking-wide">
-                    ALPHA 2026 - PARTICIPANTS & TEAMS MASTER REPORT
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    KARE IEEE Education Society Student Chapter | Generated: {new Date().toLocaleString()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-amber-400 block font-mono">
-                    TOTAL TEAMS: {filteredTeams.length}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    TOTAL MEMBERS: {filteredTeams.reduce((acc, t) => acc + (t.members?.length || 4), 0)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Master Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border border-slate-800">
-                  <thead className="bg-slate-950 text-cyan-300 font-bold uppercase text-[10px] tracking-wider border-b border-slate-800">
-                    <tr>
-                      <th className="p-2.5 border border-slate-800">Team ID</th>
-                      <th className="p-2.5 border border-slate-800">Team Name</th>
-                      <th className="p-2.5 border border-slate-800">Track</th>
-                      <th className="p-2.5 border border-slate-800">Status</th>
-                      <th className="p-2.5 border border-slate-800">UTR / TXN ID</th>
-                      <th className="p-2.5 border border-slate-800">Fee (₹)</th>
-                      <th className="p-2.5 border border-slate-800">Member #</th>
-                      <th className="p-2.5 border border-slate-800">Role</th>
-                      <th className="p-2.5 border border-slate-800">Member Name</th>
-                      <th className="p-2.5 border border-slate-800">Reg No</th>
-                      <th className="p-2.5 border border-slate-800">Email</th>
-                      <th className="p-2.5 border border-slate-800">Dept</th>
-                      <th className="p-2.5 border border-slate-800">Yr</th>
-                      <th className="p-2.5 border border-slate-800">Sec</th>
-                      <th className="p-2.5 border border-slate-800">Mobile</th>
-                      <th className="p-2.5 border border-slate-800">Gender</th>
-                      <th className="p-2.5 border border-slate-800">Stay</th>
-                      <th className="p-2.5 border border-slate-800">Hostel & Room</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800 text-[11px]">
-                    {filteredTeams.map((t) => {
-                      const membersList = (t.members && t.members.length > 0) ? t.members : [];
-                      const totalSlots = Math.max(4, membersList.length);
-                      const leadReg = (t.leadRegNo || '').toUpperCase();
-                      const leadEmail = (t.leadEmail || '').toLowerCase();
-
-                      return Array.from({ length: totalSlots }, (_, i) => {
-                        const m = membersList[i] || {};
-                        const isLead = i === 0 || (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail);
-
-                        return (
-                          <tr key={`${t._id}-${i}`} className={i === 0 ? 'bg-slate-900/60 font-semibold' : 'bg-slate-950/40'}>
-                            {i === 0 ? (
-                              <>
-                                <td rowSpan={totalSlots} className="p-2.5 font-mono font-bold text-cyan-300 border border-slate-800 align-top">
-                                  {t.teamId}
-                                </td>
-                                <td rowSpan={totalSlots} className="p-2.5 font-bold text-white uppercase border border-slate-800 align-top">
-                                  {t.teamName}
-                                </td>
-                                <td rowSpan={totalSlots} className="p-2.5 text-slate-300 border border-slate-800 align-top text-[10px]">
-                                  {t.track}
-                                </td>
-                                <td rowSpan={totalSlots} className="p-2.5 border border-slate-800 align-top">
-                                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                                    t.payment?.status === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-300' :
-                                    t.payment?.status === 'REJECTED' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'
-                                  }`}>
-                                    {t.payment?.status || 'PENDING'}
-                                  </span>
-                                </td>
-                                <td rowSpan={totalSlots} className="p-2.5 font-mono text-slate-300 border border-slate-800 align-top text-[10px]">
-                                  {t.payment?.utr || 'N/A'}
-                                </td>
-                                <td rowSpan={totalSlots} className="p-2.5 font-bold text-cyan-300 border border-slate-800 align-top">
-                                  ₹{t.payment?.amount || 0}
-                                </td>
-                              </>
-                            ) : null}
-
-                            <td className="p-2 border border-slate-800 text-slate-400">Member {i + 1}</td>
-                            <td className="p-2 border border-slate-800">
-                              {isLead ? (
-                                <span className="text-amber-400 font-black">⭐ LEAD</span>
-                              ) : (
-                                <span className="text-slate-400">MEMBER</span>
-                              )}
-                            </td>
-                            <td className="p-2 border border-slate-800 font-bold text-white uppercase">{m.name || '-'}</td>
-                            <td className="p-2 border border-slate-800 font-mono text-cyan-300">{m.regNo || '-'}</td>
-                            <td className="p-2 border border-slate-800 text-slate-400 text-[10px] truncate max-w-[120px]">{m.email || '-'}</td>
-                            <td className="p-2 border border-slate-800">{m.department || '-'}</td>
-                            <td className="p-2 border border-slate-800">{m.year || '-'}</td>
-                            <td className="p-2 border border-slate-800">{m.section || '-'}</td>
-                            <td className="p-2 border border-slate-800 font-mono">{m.mobile || '-'}</td>
-                            <td className="p-2 border border-slate-800">{m.gender || '-'}</td>
-                            <td className="p-2 border border-slate-800">{m.accommodation || '-'}</td>
-                            <td className="p-2 border border-slate-800 text-[10px]">
-                              {m.accommodation === 'Hosteller' ? `${m.hostel || 'Hostel'} - Rm ${m.roomNumber || '-'}` : 'Day Scholar'}
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ============================================================== */}
       {/* 12. FULLSCREEN SCREENSHOT LIGHTBOX MODAL */}
