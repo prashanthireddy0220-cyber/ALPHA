@@ -28,7 +28,7 @@ const eventSettingsSchema = new mongoose.Schema({
   prize1st: { type: String, default: '₹7,000' },
   prize2nd: { type: String, default: '₹5,000' },
   prize3rd: { type: String, default: '₹3,000' },
-  communityLink: { type: String, default: 'https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo' },
+  communityLink: { type: String, default: 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyl' },
   instagramLink: { type: String, default: 'https://www.instagram.com/kare_ieee_eds_official/' },
   linkedinLink: { type: String, default: 'https://www.linkedin.com/in/ieee-education-society-kare-97b490381/' }
 }, { timestamps: true });
