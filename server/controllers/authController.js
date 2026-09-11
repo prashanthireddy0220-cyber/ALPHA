@@ -310,6 +310,41 @@ export const loginUser = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const userEmail = (user.email || '').trim().toLowerCase();
+    const userReg = userEmail ? userEmail.split('@')[0].toUpperCase() : '';
+
+    const studentDocs = await Student.find({
+      $or: [
+        { email: userEmail },
+        ...(userReg ? [{ regNo: userReg }] : [])
+      ]
+    }).select('_id');
+    const studentIds = studentDocs.map(s => s._id);
+
+    const activeTeam = await Team.findOne({
+      $or: [
+        { leadEmail: userEmail },
+        ...(userReg ? [{ leadRegNo: userReg }] : []),
+        ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
+      ]
+    }).sort({ createdAt: -1 });
+
+    if (activeTeam) {
+      if (user.teamId !== activeTeam.teamId) {
+        user.teamId = activeTeam.teamId;
+        await user.save();
+      }
+    } else {
+      if (user.teamId) {
+        user.teamId = undefined;
+        await user.save();
+      }
+    }
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });
