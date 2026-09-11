@@ -140,7 +140,7 @@ const seedInitialData = async () => {
         prize1st: '₹60,000',
         prize2nd: '₹50,000',
         prize3rd: '₹40,000',
-        communityLink: 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyl',
+        communityLink: 'https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo',
         instagramLink: 'https://www.instagram.com/kare_ieee_eds_official/',
         linkedinLink: 'https://www.linkedin.com/in/ieee-education-society-kare-97b490381/'
       });
@@ -155,7 +155,7 @@ const seedInitialData = async () => {
       settings.bankBranch = 'KRISHNANKOIL, WATRAP';
       settings.bankIfsc = 'UBIN0562734';
       settings.bankMicr = '626026503';
-      settings.communityLink = 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyl';
+      settings.communityLink = 'https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo';
       settings.instagramLink = 'https://www.instagram.com/kare_ieee_eds_official/';
       settings.linkedinLink = 'https://www.linkedin.com/in/ieee-education-society-kare-97b490381/';
       await settings.save();

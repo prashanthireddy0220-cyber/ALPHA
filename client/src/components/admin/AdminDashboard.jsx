@@ -47,7 +47,7 @@ export const AdminDashboard = () => {
     registrationOpen: true,
     participantFee: 350,
     officialUpiId: '69097701@ubin',
-    officialWhatsappGroup: 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyl',
+    officialWhatsappGroup: 'https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo',
     qrScannerImageUrl: '/assets/payment_qr.png'
   });
   const [savingSettings, setSavingSettings] = useState(false);
@@ -122,7 +122,7 @@ export const AdminDashboard = () => {
           registrationOpen: analyticsRes.data.settings.registrationOpen !== false,
           participantFee: analyticsRes.data.settings.participantFee || 350,
           officialUpiId: analyticsRes.data.settings.officialUpiId || '69097701@ubin',
-          officialWhatsappGroup: analyticsRes.data.settings.officialWhatsappGroup || 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyl',
+          officialWhatsappGroup: analyticsRes.data.settings.officialWhatsappGroup || 'https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo',
           qrScannerImageUrl: analyticsRes.data.settings.qrScannerImageUrl || '/assets/payment_qr.png'
         });
       }
@@ -155,7 +155,7 @@ export const AdminDashboard = () => {
               registrationOpen: parsed.analytics.settings.registrationOpen !== false,
               participantFee: parsed.analytics.settings.participantFee || 350,
               officialUpiId: parsed.analytics.settings.officialUpiId || '69097701@ubin',
-              officialWhatsappGroup: parsed.analytics.settings.officialWhatsappGroup || 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyl',
+              officialWhatsappGroup: parsed.analytics.settings.officialWhatsappGroup || 'https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo',
               qrScannerImageUrl: parsed.analytics.settings.qrScannerImageUrl || '/assets/payment_qr.png'
             });
           }

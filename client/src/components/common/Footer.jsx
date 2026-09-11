@@ -30,7 +30,7 @@ export const Footer = () => {
           <div className="flex items-center gap-4">
             {/* WhatsApp Logo Button */}
             <a
-              href={settings?.communityLink || settings?.officialWhatsappGroup || "https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyl"}
+              href="https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo"
               target="_blank"
               rel="noreferrer"
               title="Official WhatsApp Group"

@@ -215,7 +215,7 @@ export const TeamDashboard = () => {
           </div>
         </div>
         <a
-          href={eventSettings?.communityLink || 'https://chat.whatsapp.com/KQgGm91cXyS1WiZC8nVyl'}
+          href={eventSettings?.communityLink || 'https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo'}
           target="_blank"
           rel="noreferrer"
           className="w-full md:w-auto px-7 py-4 text-xs font-black text-black bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 rounded-2xl shadow-[0_0_25px_rgba(16,185,129,0.5)] text-center flex items-center justify-center gap-2 shrink-0 transition-all uppercase cursor-pointer"

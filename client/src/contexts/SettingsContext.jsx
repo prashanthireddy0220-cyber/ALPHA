@@ -22,7 +22,7 @@ export const SettingsProvider = ({ children }) => {
     venue: 'KS AUDITORIUM',
     duration: '24 HOURS',
     prizePool: '₹1,50,000',
-    communityLink: 'https://chat.whatsapp.com/alpha-hackathon-2026'
+    communityLink: 'https://chat.whatsapp.com/BST4xC9Kdkc3ccZ30BLWYo'
   });
   const [loading, setLoading] = useState(true);
 
