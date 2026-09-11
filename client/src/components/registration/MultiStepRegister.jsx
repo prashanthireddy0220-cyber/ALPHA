@@ -168,7 +168,7 @@ export const MultiStepRegister = () => {
             const cleanUser = { ...user };
             delete cleanUser.teamId;
             setUser(cleanUser);
-            localStorage.setItem('alpha_user', JSON.stringify(cleanUser));
+            sessionStorage.setItem('alpha_user', JSON.stringify(cleanUser));
           }
         }
       })

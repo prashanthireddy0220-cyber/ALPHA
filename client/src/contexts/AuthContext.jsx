@@ -3,10 +3,11 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
-// Synchronously set initial token if present in localStorage
+// Synchronously set initial token if present in sessionStorage
 const initialUser = (() => {
   try {
-    const saved = localStorage.getItem('alpha_user');
+    localStorage.removeItem('alpha_user');
+    const saved = sessionStorage.getItem('alpha_user');
     const parsed = saved ? JSON.parse(saved) : null;
     if (parsed?.token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${parsed.token}`;
@@ -20,7 +21,7 @@ const initialUser = (() => {
 // Axios Request Interceptor to ensure token is always attached
 axios.interceptors.request.use((config) => {
   try {
-    const saved = localStorage.getItem('alpha_user');
+    const saved = sessionStorage.getItem('alpha_user');
     const parsed = saved ? JSON.parse(saved) : null;
     if (parsed?.token && !config.headers['Authorization']) {
       config.headers['Authorization'] = `Bearer ${parsed.token}`;
@@ -79,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         if (res?.data && isMounted) {
           sessionStorage.removeItem('alpha_cached_team_dashboard');
           setUser(res.data);
-          localStorage.setItem('alpha_user', JSON.stringify(res.data));
+          sessionStorage.setItem('alpha_user', JSON.stringify(res.data));
         }
       } catch (err) {
         console.warn('Google redirect result error:', err);
@@ -101,7 +102,7 @@ export const AuthProvider = ({ children }) => {
       const data = res.data;
       sessionStorage.removeItem('alpha_cached_team_dashboard');
       setUser(data);
-      localStorage.setItem('alpha_user', JSON.stringify(data));
+      sessionStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
       return { success: true, user: data };
     } catch (err) {
@@ -199,7 +200,7 @@ export const AuthProvider = ({ children }) => {
       const data = res.data;
       sessionStorage.removeItem('alpha_cached_team_dashboard');
       setUser(data);
-      localStorage.setItem('alpha_user', JSON.stringify(data));
+      sessionStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
       return { success: true, user: data };
     } catch (err) {
@@ -219,7 +220,7 @@ export const AuthProvider = ({ children }) => {
       const data = res.data;
       sessionStorage.removeItem('alpha_cached_team_dashboard');
       setUser(data);
-      localStorage.setItem('alpha_user', JSON.stringify(data));
+      sessionStorage.setItem('alpha_user', JSON.stringify(data));
       setLoading(false);
       return { success: true, user: data };
     } catch (err) {
@@ -233,6 +234,7 @@ export const AuthProvider = ({ children }) => {
       await signOut(auth);
     } catch (e) {}
     setUser(null);
+    sessionStorage.removeItem('alpha_user');
     localStorage.removeItem('alpha_user');
     sessionStorage.removeItem('alpha_cached_team_dashboard');
     sessionStorage.clear();

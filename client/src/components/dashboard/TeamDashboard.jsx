@@ -45,7 +45,7 @@ export const TeamDashboard = () => {
       if (res.data.team?.teamId && user && (!user.teamId || user.teamId !== res.data.team.teamId)) {
         const updatedUser = { ...user, teamId: res.data.team.teamId };
         setUser(updatedUser);
-        localStorage.setItem('alpha_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('alpha_user', JSON.stringify(updatedUser));
       }
     } catch (err) {
       setData(null);
@@ -54,7 +54,7 @@ export const TeamDashboard = () => {
         const updatedUser = { ...user };
         delete updatedUser.teamId;
         setUser(updatedUser);
-        localStorage.setItem('alpha_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('alpha_user', JSON.stringify(updatedUser));
       }
       setError(err.response?.data?.message || 'No registered team found for your account. Please register your team.');
     } finally {
@@ -110,19 +110,13 @@ export const TeamDashboard = () => {
             Logged in as <strong className="text-cyan-300 font-mono">{user?.email || user?.name || 'Participant'}</strong>. Register your team to claim your spot and generate your official ALPHA Event Pass.
           </p>
 
-          <div className="w-full space-y-3">
+          <div className="w-full">
             <Link
               to="/register"
               className="w-full py-3.5 px-6 text-xs font-black tracking-widest text-black bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-cyan-400 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.5)] transition-all uppercase inline-block text-center"
             >
               REGISTER YOUR TEAM NOW
             </Link>
-            <button
-              onClick={() => fetchTeamData()}
-              className="w-full py-3 px-6 text-xs font-bold tracking-wider text-sky-300 glass-button rounded-2xl transition-all"
-            >
-              RE-CHECK FOR REGISTERED PASS
-            </button>
           </div>
         </TiltCard>
       </div>
