@@ -484,10 +484,15 @@ export const AdminDashboard = () => {
         members: editForm.members
       };
       const res = await axios.put(`/api/admin/teams/${editTeam._id}/edit`, payload);
-      setEditTeam(null);
-      if (inspectTeam && inspectTeam._id === editTeam._id) {
-        setInspectTeam(res.data?.team || null);
+      const updated = res.data?.team;
+      if (updated) {
+        setTeams(prev => prev.map(t => (t._id === updated._id ? updated : t)));
+        if (inspectTeam && inspectTeam._id === updated._id) {
+          setInspectTeam(updated);
+        }
       }
+      setEditTeam(null);
+      sessionStorage.removeItem('alpha_admin_cache');
       await loadDashboardData(true);
       alert('Team and member roster updated successfully!');
     } catch (err) {
@@ -1518,7 +1523,11 @@ export const AdminDashboard = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 font-medium">
                   {filteredTeams.map((t) => {
-                    const leadMember = t.members?.[0];
+                    const leadMember = t.members?.find(
+                      (m) =>
+                        (m.regNo && m.regNo.toUpperCase() === (t.leadRegNo || '').toUpperCase()) ||
+                        (m.email && m.email.toLowerCase() === (t.leadEmail || '').toLowerCase())
+                    ) || t.members?.[0];
                     return (
                       <tr key={t._id} className="hover:bg-slate-900/60 transition-colors">
                         <td className="p-4 font-mono font-black text-red-400 tracking-wider">
@@ -1530,11 +1539,12 @@ export const AdminDashboard = () => {
                         </td>
 
                         <td className="p-4">
-                          <div className="font-bold text-slate-200">
-                            {leadMember?.name || t.leadEmail?.split('@')[0]}
+                          <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                            <span>{leadMember?.name || t.leadEmail?.split('@')[0]}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-amber-400 text-black text-[9px] font-black">LEAD</span>
                           </div>
                           <div className="text-[10px] text-slate-500 font-mono">
-                            {t.leadEmail}
+                            {t.leadEmail} {t.leadRegNo ? `• ${t.leadRegNo}` : ''}
                           </div>
                         </td>
 
@@ -1779,7 +1789,10 @@ export const AdminDashboard = () => {
 
                 <div className="space-y-2.5">
                   {inspectTeam.members?.map((m, idx) => {
-                    const isLead = idx === 0;
+                    const isLead =
+                      (m.regNo && m.regNo.toUpperCase() === (inspectTeam.leadRegNo || '').toUpperCase()) ||
+                      (m.email && m.email.toLowerCase() === (inspectTeam.leadEmail || '').toLowerCase()) ||
+                      idx === 0;
                     return (
                       <div
                         key={m._id || idx}
