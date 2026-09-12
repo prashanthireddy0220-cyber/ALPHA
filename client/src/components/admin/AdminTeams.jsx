@@ -280,22 +280,31 @@ export const AdminTeams = () => {
               </div>
 
               <div>
-                <h3 className="text-xs font-bold text-sky-400 uppercase mb-2">Payment Screenshot</h3>
+                <h3 className="text-xs font-bold text-sky-400 uppercase mb-2">Payment Screenshot Proof</h3>
                 {selectedTeam.payment?.screenshotUrl ? (
                   <div className="space-y-2">
                     <img
                       src={getScreenshotUrl(selectedTeam.payment.screenshotUrl)}
                       alt="Payment Screenshot"
                       className="w-full max-h-48 object-contain rounded-xl border border-slate-800 bg-black"
+                      onError={(e) => {
+                        const currentSrc = e.currentTarget.src || '';
+                        if (currentSrc.includes('localhost:') || currentSrc.includes('127.0.0.1:')) {
+                          const filename = currentSrc.split('/').pop();
+                          e.currentTarget.src = `https://alpha-backend-zvhx.onrender.com/uploads/${filename}`;
+                        }
+                      }}
                     />
-                    <a
-                      href={getScreenshotUrl(selectedTeam.payment.screenshotUrl)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[11px] font-bold text-cyan-400 hover:underline flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Open Full Image
-                    </a>
+                    <div className="flex items-center gap-3">
+                      <a
+                        href={getScreenshotUrl(selectedTeam.payment.screenshotUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-bold text-cyan-400 hover:underline flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Open Full Image
+                      </a>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-xs text-slate-500">No screenshot file attached</p>

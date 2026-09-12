@@ -594,7 +594,7 @@ export const directRegistration = async (req, res) => {
 export const updateTeamDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const { teamName, track, amount, status, members, leadMemberIndex } = req.body;
+    const { teamName, track, amount, status, members, leadMemberIndex, screenshotUrl, utr } = req.body;
 
     // Fetch raw team without populate to avoid Mongoose populated doc conflicts during save
     const team = await Team.findById(id);
@@ -616,6 +616,12 @@ export const updateTeamDetails = async (req, res) => {
       if (status === 'VERIFIED' && !team.payment.verifiedAt) {
         team.payment.verifiedAt = new Date();
       }
+    }
+    if (screenshotUrl && typeof screenshotUrl === 'string') {
+      team.payment.screenshotUrl = screenshotUrl;
+    }
+    if (utr && typeof utr === 'string' && utr.trim()) {
+      team.payment.utr = utr.trim();
     }
 
     // Process and update member rosters if provided

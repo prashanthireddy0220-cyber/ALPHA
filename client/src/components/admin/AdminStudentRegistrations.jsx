@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Search, Filter, CheckCircle, XCircle, Trash2, Plus, FileSpreadsheet,
-  AlertTriangle, Eye, RefreshCw, UserPlus, Check, X, ShieldCheck
+  AlertTriangle, Eye, RefreshCw, UserPlus, Check, X, ShieldCheck, ExternalLink, Download
 } from 'lucide-react';
 import { TiltCard } from '../common/TiltCard';
 import { getScreenshotUrl } from '../../utils/imageUrl';
@@ -643,10 +643,12 @@ export const AdminStudentRegistrations = () => {
 
       {/* PAYMENT PROOF VIEWER MODAL */}
       {selectedProofUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-200">
           <div className="max-w-2xl w-full p-6 rounded-3xl glass-card border border-sky-500/40 bg-slate-950/95 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase">PAYMENT SCREENSHOT PROOF</h3>
+              <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+                <span>PAYMENT SCREENSHOT PROOF</span>
+              </h3>
               <button
                 onClick={() => setSelectedProofUrl(null)}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-white"
@@ -659,7 +661,35 @@ export const AdminStudentRegistrations = () => {
                 src={getScreenshotUrl(selectedProofUrl)}
                 alt="Payment Proof"
                 className="max-w-full h-auto max-h-[60vh] object-contain rounded-xl"
+                onError={(e) => {
+                  const currentSrc = e.currentTarget.src || '';
+                  if (currentSrc.includes('localhost:') || currentSrc.includes('127.0.0.1:')) {
+                    const filename = currentSrc.split('/').pop();
+                    e.currentTarget.src = `https://alpha-backend-zvhx.onrender.com/uploads/${filename}`;
+                  }
+                }}
               />
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <a
+                href={getScreenshotUrl(selectedProofUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open in Tab</span>
+              </a>
+              <a
+                href={getScreenshotUrl(selectedProofUrl)}
+                download="payment-proof.png"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-md"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download</span>
+              </a>
             </div>
           </div>
         </div>

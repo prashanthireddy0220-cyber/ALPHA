@@ -486,7 +486,9 @@ export const AdminDashboard = () => {
         amount: editForm.amount,
         status: editForm.status,
         leadMemberIndex: editForm.leadMemberIndex,
-        members: editForm.members
+        members: editForm.members,
+        screenshotUrl: editForm.screenshotUrl,
+        utr: editForm.utr
       };
       const res = await axios.put(`/api/admin/teams/${editTeam._id}/edit`, payload);
       const updated = res.data?.team;
@@ -561,8 +563,13 @@ export const AdminDashboard = () => {
             screenshotUrl: base64Data
           }
         }));
+        setTeams(prev => prev.map(t => t._id === inspectTeam._id ? {
+          ...t,
+          payment: { ...t.payment, screenshotUrl: base64Data }
+        } : t));
+        sessionStorage.removeItem('alpha_admin_cache');
         await loadDashboardData(true);
-        alert('Screenshot updated successfully!');
+        alert('Payment screenshot updated successfully!');
       } catch (err) {
         alert('Failed to update screenshot: ' + (err.response?.data?.message || err.message));
       }
@@ -1588,8 +1595,23 @@ export const AdminDashboard = () => {
                           </div>
                         </td>
 
-                        <td className="p-4 font-mono text-slate-300">
-                          {t.payment?.utr || 'N/A'}
+                        <td className="p-4">
+                          <div className="font-mono font-bold text-slate-200">
+                            {t.payment?.utr || 'N/A'}
+                          </div>
+                          {(t.payment?.screenshotUrl || t.screenshotUrl) ? (
+                            <button
+                              type="button"
+                              onClick={() => setFullscreenImage(getScreenshotUrl(t.payment?.screenshotUrl || t.screenshotUrl))}
+                              className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-950/40 border border-cyan-500/40 hover:bg-cyan-900/60 text-[10px] text-cyan-300 font-extrabold cursor-pointer transition-all shadow-sm"
+                              title="Click to view payment proof screenshot"
+                            >
+                              <ImageIcon className="w-2.5 h-2.5" />
+                              <span>View Proof</span>
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-500 italic block mt-0.5">No Proof</span>
+                          )}
                         </td>
 
                         <td className="p-4">
@@ -1733,11 +1755,12 @@ export const AdminDashboard = () => {
                 {/* Screenshot Proof */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                      CLOUDINARY SCREENSHOT PROOF:
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                      PAYMENT SCREENSHOT PROOF:
                     </span>
                     <div className="flex items-center gap-2">
-                      <label className="text-[10px] font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer">
+                      <label className="text-[10px] font-bold text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors">
                         <ImageIcon className="w-3 h-3" />
                         <span>Replace Proof</span>
                         <input
@@ -1751,7 +1774,7 @@ export const AdminDashboard = () => {
                         <button
                           type="button"
                           onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
-                          className="text-[10px] font-bold text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
                         >
                           <ZoomIn className="w-3 h-3" />
                           <span>Zoom</span>
@@ -1760,23 +1783,36 @@ export const AdminDashboard = () => {
                     </div>
                   </div>
 
-                  <div className="p-2 rounded-2xl bg-black/60 border border-slate-800 flex items-center justify-center min-h-64 relative overflow-hidden group">
+                  <div className="p-2.5 rounded-2xl bg-[#050914] border border-slate-800/80 flex items-center justify-center min-h-64 relative overflow-hidden group shadow-inner">
                     {(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl) ? (
                       <div className="w-full text-center space-y-2">
-                        <img
-                          src={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
-                          alt="Payment Screenshot Proof"
-                          onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
-                          className="w-full max-h-72 object-contain rounded-xl mx-auto shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const fallback = e.currentTarget.parentElement?.querySelector('.img-fallback-box');
-                            if (fallback) fallback.classList.remove('hidden');
-                          }}
-                        />
-                        <div className="img-fallback-box hidden p-6 text-center space-y-3">
-                          <p className="text-xs font-bold text-amber-400">Preview image could not be loaded from previous server session.</p>
-                          <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 text-white text-xs font-bold shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
+                        <div className="relative inline-block w-full">
+                          <img
+                            src={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
+                            alt="Payment Screenshot Proof"
+                            onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
+                            className="w-full max-h-72 object-contain rounded-xl mx-auto shadow-md cursor-pointer hover:opacity-95 transition-all"
+                            onError={(e) => {
+                              const currentSrc = e.currentTarget.src || '';
+                              // Try live backend if localhost failed or vice versa before falling back
+                              if (currentSrc.includes('localhost:') || currentSrc.includes('127.0.0.1:')) {
+                                const filename = currentSrc.split('/').pop();
+                                e.currentTarget.src = `https://alpha-backend-zvhx.onrender.com/uploads/${filename}`;
+                              } else {
+                                e.currentTarget.style.display = 'none';
+                                const fallback = e.currentTarget.closest('.space-y-2')?.querySelector('.img-fallback-box');
+                                if (fallback) fallback.classList.remove('hidden');
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="img-fallback-box hidden p-5 text-center space-y-3 bg-red-950/30 border border-red-500/40 rounded-2xl">
+                          <div className="flex flex-col items-center justify-center gap-1.5">
+                            <AlertTriangle className="w-6 h-6 text-amber-400 animate-pulse" />
+                            <p className="text-xs font-bold text-amber-300">Payment Screenshot could not be loaded from previous server session.</p>
+                            <p className="text-[10px] text-slate-400 max-w-sm">The previous server session file was not stored permanently. Upload and attach a verified screenshot image now to save it permanently in MongoDB.</p>
+                          </div>
+                          <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 text-white text-xs font-extrabold shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
                             <ImageIcon className="w-3.5 h-3.5" />
                             <span>Upload / Attach Proof Image</span>
                             <input
@@ -1787,11 +1823,35 @@ export const AdminDashboard = () => {
                             />
                           </label>
                         </div>
+                        <div className="flex items-center justify-center gap-3 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
+                            className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                          >
+                            <ZoomIn className="w-3.5 h-3.5" /> Fullscreen Zoom
+                          </button>
+                          <span className="text-slate-600">•</span>
+                          <a
+                            href={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] font-bold text-slate-300 hover:text-white flex items-center gap-1"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> Open In Tab
+                          </a>
+                        </div>
                       </div>
                     ) : (
-                      <div className="text-center p-8 space-y-2">
-                        <p className="text-slate-500 text-xs font-bold">No Screenshot Attached</p>
-                        <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold cursor-pointer transition-all">
+                      <div className="text-center p-8 space-y-3">
+                        <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
+                          <ImageIcon className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-slate-300 text-xs font-bold">No Screenshot Attached</p>
+                          <p className="text-slate-500 text-[10px]">Attach payment receipt screenshot for verification</p>
+                        </div>
+                        <label className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md">
                           <ImageIcon className="w-3.5 h-3.5" />
                           <span>Upload Screenshot</span>
                           <input
@@ -2847,24 +2907,132 @@ export const AdminDashboard = () => {
                   )}
                 </button>
               </div>
+
+              {/* Payment Info Section */}
+              <div className="space-y-3 pt-4 border-t border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                    PAYMENT & UTR DETAILS
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-semibold">
+                    Admin can edit UTR number or attach/replace payment screenshot
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">12-DIGIT UTR / TXN NUMBER</span>
+                    <input
+                      type="text"
+                      maxLength={12}
+                      value={editForm.utr}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, utr: e.target.value.replace(/\D/g, '') }))}
+                      placeholder="12 digit UTR"
+                      className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-sm font-bold focus:border-red-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {editForm.screenshotUrl ? (
+                        <img
+                          src={getScreenshotUrl(editForm.screenshotUrl)}
+                          alt="Payment Proof"
+                          className="w-12 h-12 object-cover rounded-lg border border-slate-700 bg-black cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setFullscreenImage(getScreenshotUrl(editForm.screenshotUrl))}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] text-slate-500">
+                          No Img
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">PAYMENT SCREENSHOT</span>
+                        {editForm.screenshotUrl ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setFullscreenImage(getScreenshotUrl(editForm.screenshotUrl))}
+                              className="text-[11px] font-bold text-cyan-400 hover:underline flex items-center gap-1"
+                            >
+                              <ZoomIn className="w-3 h-3" /> Zoom
+                            </button>
+                            <a
+                              href={getScreenshotUrl(editForm.screenshotUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] font-bold text-slate-300 hover:underline flex items-center gap-1"
+                            >
+                              <ExternalLink className="w-3 h-3" /> Full
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 text-xs">No screenshot uploaded</span>
+                        )}
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-amber-300 font-bold cursor-pointer transition-all border border-slate-700">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>{editForm.screenshotUrl ? 'Change' : 'Upload'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              setEditForm(prev => ({ ...prev, screenshotUrl: ev.target.result }));
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditTeam(null)}
+                  className="w-1/3 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase cursor-pointer"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  disabled={editingReg}
+                  className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg disabled:opacity-50"
+                >
+                  {editingReg ? 'SAVING CHANGES...' : 'SAVE TEAM & MEMBER UPDATES'}
+                </button>
+              </div>
+
             </form>
           </div>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* 10. SINGLE PASS PREVIEW MODAL */}
+      {/* 10. SINGLE OFFICIAL PASS MODAL */}
       {/* ============================================================== */}
       {passTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-4xl w-full p-4 md:p-6 rounded-3xl bg-[#090e1a] border border-cyan-500/40 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 no-print">
-              <span className="text-xs font-black text-cyan-400 uppercase tracking-wider">
-                OFFICIAL ADMISSION PASS PREVIEW ({passTeam.teamId})
-              </span>
+          <div className="max-w-4xl w-full p-6 rounded-3xl border border-sky-500/40 bg-[#090e1a] shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                  OFFICIAL EVENT PASS - {passTeam.teamId}
+                </h3>
+              </div>
               <button
                 onClick={() => setPassTeam(null)}
-                className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2882,41 +3050,29 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 11. ALL PASSES PRINT MODAL */}
+      {/* 11. BATCH DOWNLOAD ALL PASSES MODAL */}
       {/* ============================================================== */}
       {showAllPassesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-5xl w-full p-6 rounded-3xl bg-[#090e1a] border border-red-500/40 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 sticky top-0 bg-[#090e1a] z-20 no-print">
-              <div>
-                <h2 className="text-lg font-black text-white uppercase tracking-wider">
-                  ALL PASSES PRINT / EXPORT ({filteredTeams.length} TEAMS)
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Ready to print all passes in high resolution. Each pass automatically formats to a single page.
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
+          <div className="max-w-5xl w-full p-6 rounded-3xl border border-cyan-500/40 bg-[#090e1a] shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                  ALL TEAMS EVENT PASSES ({filteredTeams.length} TEAMS)
+                </h3>
               </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => window.print()}
-                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center gap-2 cursor-pointer shadow-lg"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>PRINT ALL PASSES</span>
-                </button>
-                <button
-                  onClick={() => setShowAllPassesModal(false)}
-                  className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+              <button
+                onClick={() => setShowAllPassesModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <div className="space-y-8">
-              {filteredTeams.map((t, idx) => (
-                <div key={t._id || idx} className="page-break-after">
+            <div className="space-y-6">
+              {filteredTeams.map((t) => (
+                <div key={t._id} className="border-b border-slate-800/80 pb-6">
                   <OfficialEventPass
                     team={t}
                     members={t.members || []}
@@ -2926,54 +3082,6 @@ export const AdminDashboard = () => {
                   />
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-
-
-      {/* ============================================================== */}
-      {/* 12. FULLSCREEN SCREENSHOT LIGHTBOX MODAL */}
-      {/* ============================================================== */}
-      {fullscreenImage && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in duration-200"
-          onClick={() => setFullscreenImage(null)}
-        >
-          <div 
-            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center p-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setFullscreenImage(null)}
-              className="absolute -top-12 right-0 p-2 rounded-full bg-slate-900/80 border border-slate-700 text-white hover:bg-red-600 transition-all cursor-pointer shadow-xl"
-              title="Close"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <img
-              src={fullscreenImage}
-              alt="Payment Screenshot Zoom"
-              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
-            />
-            <div className="mt-3 flex items-center gap-3">
-              <a
-                href={fullscreenImage}
-                download="payment-screenshot.png"
-                target="_blank"
-                rel="noreferrer"
-                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs uppercase flex items-center gap-1.5 transition-all shadow-lg cursor-pointer"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Proof</span>
-              </a>
-              <button
-                onClick={() => setFullscreenImage(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase transition-all cursor-pointer"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
