@@ -1,88 +1,67 @@
 export const LIVE_BACKEND_URL = 'https://alpha-backend-zvhx.onrender.com';
 
 /**
- * Robust URL resolver for payment screenshots and proof images.
- * Handles: Base64 Data URIs, Cloudinary CDN URLs, local uploads, Render URLs, and relative paths.
+ * Universal URL resolver for payment screenshots and proof images.
+ * Always resolves relative upload paths and localhost URLs to the live secure backend URL
+ * (or Cloudinary CDN / Base64 Data URI) so images open and load properly from anywhere.
  */
 export const getScreenshotUrl = (url) => {
-  if (!url) return '';
-  if (typeof url !== 'string') return '';
+  if (!url || typeof url !== 'string') return '';
   
-  // Normalize Windows backslashes and whitespace
+  // Normalize backslashes and trim whitespace
   let clean = url.trim().replace(/\\/g, '/');
   if (!clean) return '';
   
-  // 1. If it's a base64 Data URL, return as-is
+  // 1. Base64 Data URL -> Return as-is
   if (clean.startsWith('data:')) {
     return clean;
   }
 
-  // 2. If it's a frontend static asset (e.g. /assets/payment_qr.png)
+  // 2. Frontend static assets (e.g. /assets/payment_qr.png)
   if (clean.startsWith('/assets/') || clean.startsWith('assets/')) {
     return clean.startsWith('/') ? clean : `/${clean}`;
   }
   
-  // 3. If it's an external HTTPS URL (Cloudinary or others, NOT localhost)
+  // 3. External HTTPS CDNs (Cloudinary, Imgur, S3, etc. - NOT localhost)
   if (clean.startsWith('https://') && !clean.includes('localhost') && !clean.includes('127.0.0.1')) {
     return clean;
   }
   
-  // Detect Environment
-  const isLocalEnv = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
-  
-  // Determine preferred backend base
-  let preferredBackend = LIVE_BACKEND_URL;
-  if (isLocalEnv) {
-    if (configuredApiUrl && !configuredApiUrl.includes('onrender.com')) {
-      preferredBackend = configuredApiUrl;
-    } else {
-      // In local dev with Vite proxying /uploads, we can use window.location.origin
-      preferredBackend = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000';
-    }
-  } else if (configuredApiUrl) {
-    preferredBackend = configuredApiUrl;
-  }
-  
-  // 4. If it contains localhost:5000 or 127.0.0.1:5000
+  // 4. Any localhost / 127.0.0.1 URL -> Replace with LIVE_BACKEND_URL
   if (clean.includes('localhost:') || clean.includes('127.0.0.1:')) {
     const uploadIndex = clean.indexOf('/uploads/');
     if (uploadIndex !== -1) {
-      const subpath = clean.substring(uploadIndex);
-      return isLocalEnv ? subpath : `${LIVE_BACKEND_URL}${subpath}`;
+      return `${LIVE_BACKEND_URL}${clean.substring(uploadIndex)}`;
     }
     const filename = clean.split('/').pop();
-    return isLocalEnv ? `/uploads/${filename}` : `${LIVE_BACKEND_URL}/uploads/${filename}`;
+    return `${LIVE_BACKEND_URL}/uploads/${filename}`;
   }
   
-  // 5. If it starts with http:// on onrender.com, upgrade to https://
+  // 5. If it starts with http:// on onrender.com -> Upgrade to https://
   if (clean.startsWith('http://alpha-backend-zvhx.onrender.com')) {
-    clean = clean.replace('http://', 'https://');
+    return clean.replace('http://', 'https://');
   }
   if (clean.startsWith('https://alpha-backend-zvhx.onrender.com')) {
     return clean;
   }
   
-  // 6. If relative path like '/uploads/file.png' or 'uploads/file.png'
+  // 6. Relative upload path (/uploads/file.png or uploads/file.png)
   if (clean.startsWith('/uploads/')) {
-    return isLocalEnv ? clean : `${preferredBackend}${clean}`;
+    return `${LIVE_BACKEND_URL}${clean}`;
   }
   if (clean.startsWith('uploads/')) {
-    return isLocalEnv ? `/${clean}` : `${preferredBackend}/${clean}`;
+    return `${LIVE_BACKEND_URL}/${clean}`;
   }
   
-  // 7. If just a raw filename like 'utr_screenshot_123.png'
+  // 7. Raw filename (e.g. utr_screenshot_1789193275269.jpg or xxx.png)
   if (clean.startsWith('utr_') || clean.endsWith('.png') || clean.endsWith('.jpg') || clean.endsWith('.jpeg') || clean.endsWith('.webp')) {
     const filename = clean.replace(/^\//, '');
-    return isLocalEnv ? `/uploads/${filename}` : `${preferredBackend}/uploads/${filename}`;
+    return `${LIVE_BACKEND_URL}/uploads/${filename}`;
   }
   
-  // 8. General HTTP / HTTPS URLs
+  // 8. General HTTP URL -> Upgrade to HTTPS if on HTTPS or Render
   if (clean.startsWith('http://')) {
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-      return clean.replace('http://', 'https://');
-    }
-    return clean;
+    return clean.replace('http://', 'https://');
   }
   
   if (clean.startsWith('https://')) {
@@ -90,5 +69,5 @@ export const getScreenshotUrl = (url) => {
   }
   
   const path = clean.startsWith('/') ? clean : `/${clean}`;
-  return `${preferredBackend}${path}`;
+  return `${LIVE_BACKEND_URL}${path}`;
 };
