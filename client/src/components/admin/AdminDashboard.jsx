@@ -6,10 +6,8 @@ import {
   Search, Filter, Eye, ExternalLink, Download, FileText,
   Trash2, Edit3, X, Check, AlertTriangle, Layers, Ticket,
   PieChart, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles,
-  Printer, ArrowUpRight, ZoomIn, Crown, User
+  Printer, ArrowUpRight, ZoomIn
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../contexts/SettingsContext';
 import { getScreenshotUrl } from '../../utils/imageUrl';
 import { OfficialEventPass } from '../common/OfficialEventPass';
@@ -33,7 +31,7 @@ export const AdminDashboard = () => {
   const [genderFilter, setGenderFilter] = useState('ALL');
   const [deptFilter, setDeptFilter] = useState('ALL');
   const [accomFilter, setAccomFilter] = useState('ALL');
-  const [sortOrder, setSortOrder] = useState('ASC');
+  const [sortOrder, setSortOrder] = useState('DESC');
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -91,15 +89,12 @@ export const AdminDashboard = () => {
   // Edit Team form state
   const [editForm, setEditForm] = useState({
     teamName: '',
-    track: 'DRAGON INTELLIGENCE (AI & ML)',
-    leadMemberIndex: 0,
-    amount: 1400,
-    status: 'PENDING',
+    leadEmail: '',
+    leadRegNo: '',
     utr: '',
-    screenshotUrl: '',
-    members: []
+    amount: 350,
+    status: 'PENDING'
   });
-  const [activeEditMemberTab, setActiveEditMemberTab] = useState(0);
   const [editingReg, setEditingReg] = useState(false);
 
   // Rejection note
@@ -113,8 +108,8 @@ export const AdminDashboard = () => {
         setLoading(true);
       }
       const [analyticsRes, teamsRes] = await Promise.all([
-        axios.get(`/api/admin/analytics?_t=${Date.now()}`),
-        axios.get(`/api/admin/teams?_t=${Date.now()}`)
+        axios.get('/api/admin/analytics'),
+        axios.get('/api/admin/teams')
       ]);
 
       setAnalytics(analyticsRes.data);
@@ -397,80 +392,14 @@ export const AdminDashboard = () => {
 
   // Open Edit Team Modal
   const handleOpenEdit = (team) => {
-    if (!team) return;
     setEditTeam(team);
-    const rawMembers = Array.isArray(team.members) ? team.members : [];
-    const existingMembers = rawMembers.map((m) => {
-      const isObj = typeof m === 'object' && m !== null;
-      return {
-        _id: isObj ? (m._id || null) : (typeof m === 'string' ? m : null),
-        name: isObj ? (m.name || '') : '',
-        regNo: isObj ? (m.regNo || '') : '',
-        department: isObj ? (m.department || 'CSE') : 'CSE',
-        year: isObj ? (m.year || 'III') : 'III',
-        section: isObj ? (m.section || 'A') : 'A',
-        mobile: isObj ? (m.mobile || '') : '',
-        email: isObj ? (m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : '')) : '',
-        gender: isObj ? (m.gender || 'Male') : 'Male',
-        accommodation: isObj ? (m.accommodation || 'Day Scholar') : 'Day Scholar',
-        hostel: isObj ? (m.hostel || 'N/A') : 'N/A',
-        roomNumber: isObj ? (m.roomNumber || 'N/A') : 'N/A'
-      };
-    });
-
-    while (existingMembers.length < 4) {
-      existingMembers.push({
-        _id: null,
-        name: '',
-        regNo: '',
-        department: 'CSE',
-        year: 'III',
-        section: 'A',
-        mobile: '',
-        email: '',
-        gender: 'Male',
-        accommodation: 'Day Scholar',
-        hostel: 'N/A',
-        roomNumber: 'N/A'
-      });
-    }
-
-    let leadIdx = 0;
-    const foundLeadIdx = existingMembers.findIndex(m =>
-      (m.regNo && m.regNo.toUpperCase() === (team.leadRegNo || '').toUpperCase()) ||
-      (m.email && m.email.toLowerCase() === (team.leadEmail || '').toLowerCase())
-    );
-    if (foundLeadIdx >= 0) leadIdx = foundLeadIdx;
-
     setEditForm({
       teamName: team.teamName || '',
-      track: team.track || 'DRAGON INTELLIGENCE (AI & ML)',
-      leadMemberIndex: leadIdx,
-      amount: team.payment?.amount !== undefined ? team.payment.amount : 1400,
-      status: team.payment?.status || 'PENDING',
+      leadEmail: team.leadEmail || '',
+      leadRegNo: team.leadRegNo || '',
       utr: team.payment?.utr || '',
-      screenshotUrl: team.payment?.screenshotUrl || '',
-      members: existingMembers
-    });
-    setActiveEditMemberTab(0);
-  };
-
-  // Handle member field changes in Edit Team Modal
-  const handleEditMemberChange = (index, field, value) => {
-    setEditForm(prev => {
-      const updatedMembers = [...prev.members];
-      updatedMembers[index] = {
-        ...updatedMembers[index],
-        [field]: value
-      };
-      if (field === 'regNo') {
-        const cleanReg = value.trim().toUpperCase();
-        updatedMembers[index].regNo = cleanReg;
-        if (!updatedMembers[index].customEmail) {
-          updatedMembers[index].email = cleanReg ? `${cleanReg.toLowerCase()}@klu.ac.in` : '';
-        }
-      }
-      return { ...prev, members: updatedMembers };
+      amount: team.payment?.amount || 350,
+      status: team.payment?.status || 'PENDING'
     });
   };
 
@@ -480,28 +409,13 @@ export const AdminDashboard = () => {
     if (!editTeam) return;
     setEditingReg(true);
     try {
-      const payload = {
-        teamName: editForm.teamName,
-        track: editForm.track,
-        amount: editForm.amount,
-        status: editForm.status,
-        leadMemberIndex: editForm.leadMemberIndex,
-        members: editForm.members,
-        screenshotUrl: editForm.screenshotUrl,
-        utr: editForm.utr
-      };
-      const res = await axios.put(`/api/admin/teams/${editTeam._id}/edit`, payload);
-      const updated = res.data?.team;
-      if (updated) {
-        setTeams(prev => prev.map(t => (t._id === updated._id ? updated : t)));
-        if (inspectTeam && inspectTeam._id === updated._id) {
-          setInspectTeam(updated);
-        }
-      }
+      await axios.put(`/api/admin/teams/${editTeam._id}/edit`, editForm);
       setEditTeam(null);
-      sessionStorage.removeItem('alpha_admin_cache');
+      if (inspectTeam && inspectTeam._id === editTeam._id) {
+        setInspectTeam(null);
+      }
       await loadDashboardData(true);
-      alert('Team and member roster updated successfully!');
+      alert('Team updated successfully!');
     } catch (err) {
       alert('Failed to update team: ' + (err.response?.data?.message || err.message));
     } finally {
@@ -544,40 +458,49 @@ export const AdminDashboard = () => {
     }
   };
 
-  // Replace / Attach Screenshot directly in Inspect Modal
+  // Replace / Attach Screenshot directly in Inspect Modal (Permanent Cloudinary Upload)
   const handleReplaceInspectScreenshot = async (e) => {
     const file = e.target.files[0];
     if (!file || !inspectTeam) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64Data = event.target.result;
-      try {
-        await axios.put(`/api/admin/teams/${inspectTeam._id}/edit`, {
-          screenshotUrl: base64Data
-        });
-        setInspectTeam(prev => ({
-          ...prev,
-          payment: {
-            ...prev.payment,
-            screenshotUrl: base64Data
-          }
-        }));
-        setTeams(prev => prev.map(t => t._id === inspectTeam._id ? {
-          ...t,
-          payment: { ...t.payment, screenshotUrl: base64Data }
-        } : t));
-        sessionStorage.removeItem('alpha_admin_cache');
-        await loadDashboardData(true);
-        alert('Payment screenshot updated successfully!');
-      } catch (err) {
-        alert('Failed to update screenshot: ' + (err.response?.data?.message || err.message));
+    try {
+      const formData = new FormData();
+      formData.append('screenshot', file);
+
+      // Upload file directly to Cloudinary via server API
+      const uploadRes = await axios.post('/api/registration/upload-screenshot', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const cloudUrl = uploadRes.data?.url || uploadRes.data?.secure_url;
+      const cloudPublicId = uploadRes.data?.public_id || '';
+
+      if (!cloudUrl) {
+        throw new Error('No Cloudinary URL returned from server');
       }
-    };
-    reader.readAsDataURL(file);
+
+      await axios.put(`/api/admin/teams/${inspectTeam._id}/edit`, {
+        screenshotUrl: cloudUrl,
+        public_id: cloudPublicId
+      });
+
+      setInspectTeam(prev => ({
+        ...prev,
+        payment: {
+          ...prev.payment,
+          screenshotUrl: cloudUrl,
+          public_id: cloudPublicId
+        }
+      }));
+
+      await loadDashboardData(true);
+      alert('Screenshot updated successfully on Cloudinary!');
+    } catch (err) {
+      alert('Failed to update screenshot: ' + (err.response?.data?.message || err.message));
+    }
   };
 
-  // Export CSV - Complete All Team & Teammate Details
+  // Export CSV
   const exportCSV = () => {
     if (filteredTeams.length === 0) {
       alert('No teams to export');
@@ -586,303 +509,37 @@ export const AdminDashboard = () => {
     const headers = [
       'Team ID',
       'Team Name',
-      'Track',
-      'Payment Status',
+      'Lead Name',
+      'Lead Reg No',
+      'Lead Email',
+      'Members Count',
       'UTR Number',
       'Amount (INR)',
-      'Registration Date',
-      'Member #',
-      'Role',
-      'Member Name',
-      'Reg No',
-      'Student Email',
-      'Department',
-      'Year',
-      'Section',
-      'Mobile',
-      'Gender',
-      'Accommodation',
-      'Hostel',
-      'Room Number'
+      'Status',
+      'Registration Date'
     ];
-
-    const rows = [];
-    filteredTeams.forEach((t) => {
-      const membersList = (t.members && t.members.length > 0) ? t.members : [];
-      const totalSlots = Math.max(4, membersList.length);
-      const leadReg = (t.leadRegNo || '').toUpperCase();
-      const leadEmail = (t.leadEmail || '').toLowerCase();
-
-      for (let i = 0; i < totalSlots; i++) {
-        const m = membersList[i] || {};
-        const isLead = (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail) || (i === 0 && !leadReg && !leadEmail);
-        const role = isLead ? 'TEAM LEAD' : `MEMBER ${i + 1}`;
-
-        rows.push([
-          t.teamId || '',
-          `"${(t.teamName || '').replace(/"/g, '""')}"`,
-          `"${(t.track || 'DRAGON INTELLIGENCE (AI & ML)').replace(/"/g, '""')}"`,
-          t.payment?.status || 'PENDING',
-          t.payment?.utr || '',
-          t.payment?.amount || 0,
-          t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '',
-          `Member ${i + 1}`,
-          role,
-          `"${(m.name || '').replace(/"/g, '""')}"`,
-          m.regNo || '',
-          m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : ''),
-          m.department || '',
-          m.year || '',
-          `"${(m.section || '').replace(/"/g, '""')}"`,
-          m.mobile || '',
-          m.gender || '',
-          m.accommodation || '',
-          m.accommodation === 'Hosteller' ? (m.hostel || 'N/A') : 'N/A',
-          m.accommodation === 'Hosteller' ? (m.roomNumber || 'N/A') : 'N/A'
-        ]);
-      }
-    });
+    const rows = filteredTeams.map((t) => [
+      t.teamId || '',
+      `"${(t.teamName || '').replace(/"/g, '""')}"`,
+      `"${(t.members?.[0]?.name || '').replace(/"/g, '""')}"`,
+      t.leadRegNo || t.members?.[0]?.regNo || '',
+      t.leadEmail || '',
+      t.members?.length || 0,
+      t.payment?.utr || '',
+      t.payment?.amount || 0,
+      t.payment?.status || 'PENDING',
+      t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''
+    ]);
 
     const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `ALPHA_Teams_Complete_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `ALPHA_Teams_Export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  // Export Excel (.xls formatted HTML table with all team & teammate details)
-  const exportExcel = () => {
-    if (filteredTeams.length === 0) {
-      alert('No teams to export');
-      return;
-    }
-
-    const tableHtml = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8"/>
-        <title>ALPHA 2026 Teams Report</title>
-        <style>
-          th { background-color: #030712; color: #00f0ff; font-weight: bold; border: 1px solid #1e293b; padding: 6px; }
-          td { border: 1px solid #cbd5e1; padding: 5px; font-family: Arial, sans-serif; font-size: 11px; }
-          .lead-row { background-color: #f0fdf4; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <h2>ALPHA 2026 - COMPLETE TEAMS & PARTICIPANTS EXCEL SHEET</h2>
-        <p>KARE IEEE Education Society Student Chapter | Total Teams: ${filteredTeams.length}</p>
-        <table border="1">
-          <tr style="background-color: #030712; color: #00f0ff; font-weight: bold;">
-            <th>Team ID</th><th>Team Name</th><th>Track</th><th>Status</th><th>UTR Number</th><th>Amount (INR)</th><th>Reg Date</th>
-            <th>Member #</th><th>Role</th><th>Member Name</th><th>Reg No</th><th>Email</th><th>Department</th><th>Year</th><th>Section</th><th>Mobile</th><th>Gender</th><th>Accommodation</th><th>Hostel</th><th>Room Number</th>
-          </tr>
-          ${filteredTeams.map(t => {
-            const membersList = (t.members && t.members.length > 0) ? t.members : [];
-            const totalSlots = Math.max(4, membersList.length);
-            const leadReg = (t.leadRegNo || '').toUpperCase();
-            const leadEmail = (t.leadEmail || '').toLowerCase();
-
-            return Array.from({ length: totalSlots }, (_, i) => {
-              const m = membersList[i] || {};
-              const isLead = (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail) || (i === 0 && !leadReg && !leadEmail);
-              return `
-                <tr ${isLead ? 'style="background-color: #f8fafc;"' : ''}>
-                  <td>${t.teamId || ''}</td>
-                  <td>${t.teamName || ''}</td>
-                  <td>${t.track || 'DRAGON INTELLIGENCE (AI & ML)'}</td>
-                  <td>${t.payment?.status || 'PENDING'}</td>
-                  <td>${t.payment?.utr || ''}</td>
-                  <td>${t.payment?.amount || 0}</td>
-                  <td>${t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}</td>
-                  <td>Member ${i + 1}</td>
-                  <td style="${isLead ? 'color: #b45309; font-weight: bold;' : ''}">${isLead ? 'TEAM LEAD' : 'MEMBER'}</td>
-                  <td>${m.name || ''}</td>
-                  <td>${m.regNo || ''}</td>
-                  <td>${m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : '')}</td>
-                  <td>${m.department || ''}</td>
-                  <td>${m.year || ''}</td>
-                  <td>${m.section || ''}</td>
-                  <td>${m.mobile || ''}</td>
-                  <td>${m.gender || ''}</td>
-                  <td>${m.accommodation || ''}</td>
-                  <td>${m.accommodation === 'Hosteller' ? (m.hostel || 'N/A') : 'N/A'}</td>
-                  <td>${m.accommodation === 'Hosteller' ? (m.roomNumber || 'N/A') : 'N/A'}</td>
-                </tr>
-              `;
-            }).join('');
-          }).join('')}
-        </table>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `ALPHA_Teams_Complete_Excel_${new Date().toISOString().split('T')[0]}.xls`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Direct Create & Download Styled PDF Report (Light Clean Theme with Merged 4-Row Team Columns)
-  const downloadDirectPDF = () => {
-    if (filteredTeams.length === 0) {
-      alert('No teams to export');
-      return;
-    }
-
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'pt',
-      format: 'a3'
-    });
-
-    // Top Header Banner (Executive Royal Navy)
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, doc.internal.pageSize.width, 68, 'F');
-
-    // Title
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18);
-    doc.text('ALPHA 2026 - OFFICIAL TEAMS & PARTICIPANTS MASTER REPORT', 40, 30);
-
-    // Subtitle
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(148, 163, 184);
-    doc.setFontSize(10);
-    doc.text(`KARE IEEE Education Society Student Chapter | Total Teams: ${filteredTeams.length} | Generated: ${new Date().toLocaleString()}`, 40, 50);
-
-    // Table Headers
-    const tableHeaders = [
-      ['Team ID', 'Team Name', 'Track / Domain', 'Payment Status', 'UTR / TXN ID', 'Fee (₹)', 'Member #', 'Role', 'Full Name', 'Reg No', 'Student Email', 'Dept', 'Yr', 'Sec', 'Mobile', 'Gender', 'Stay', 'Hostel & Room']
-    ];
-
-    // Table Rows with Merged Team Columns (rowSpan: 4)
-    const tableRows = [];
-    filteredTeams.forEach((t) => {
-      const membersList = (t.members && t.members.length > 0) ? t.members : [];
-      const totalSlots = Math.max(4, membersList.length);
-      const leadReg = (t.leadRegNo || '').toUpperCase();
-      const leadEmail = (t.leadEmail || '').toLowerCase();
-
-      for (let i = 0; i < totalSlots; i++) {
-        const m = membersList[i] || {};
-        const isLead = (m.regNo && m.regNo.toUpperCase() === leadReg) || (m.email && m.email.toLowerCase() === leadEmail) || (i === 0 && !leadReg && !leadEmail);
-        const role = isLead ? '★ TEAM LEAD' : `MEMBER ${i + 1}`;
-        const stay = m.accommodation || 'Day Scholar';
-        const hostelInfo = stay === 'Hosteller' ? `${m.hostel || 'Hostel'} - Rm ${m.roomNumber || '-'}` : 'Day Scholar';
-
-        const memberCells = [
-          `Member ${i + 1}`,
-          {
-            content: role,
-            styles: {
-              fontStyle: isLead ? 'bold' : 'normal',
-              textColor: isLead ? [180, 83, 9] : [71, 85, 105],
-              fillColor: isLead ? [254, 243, 199] : (i % 2 === 0 ? [255, 255, 255] : [248, 250, 252])
-            }
-          },
-          { content: m.name || '-', styles: { fontStyle: 'bold', textColor: [15, 23, 42] } },
-          { content: m.regNo || '-', styles: { fontStyle: 'bold', textColor: [2, 132, 199] } },
-          m.email || (m.regNo ? `${m.regNo.toLowerCase()}@klu.ac.in` : '-'),
-          m.department || '-',
-          m.year || '-',
-          m.section || '-',
-          m.mobile || '-',
-          m.gender || '-',
-          stay,
-          hostelInfo
-        ];
-
-        if (i === 0) {
-          // First row of team: include merged team columns with rowSpan
-          const statusBg = t.payment?.status === 'VERIFIED' ? [236, 253, 245] : t.payment?.status === 'REJECTED' ? [254, 242, 242] : [254, 243, 199];
-          const statusText = t.payment?.status === 'VERIFIED' ? [5, 150, 105] : t.payment?.status === 'REJECTED' ? [220, 38, 38] : [180, 83, 9];
-
-          tableRows.push([
-            {
-              content: t.teamId || '',
-              rowSpan: totalSlots,
-              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249], textColor: [2, 132, 199], fontSize: 9 }
-            },
-            {
-              content: t.teamName || '',
-              rowSpan: totalSlots,
-              styles: { valign: 'middle', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [15, 23, 42], fontSize: 9 }
-            },
-            {
-              content: t.track || 'DRAGON INTELLIGENCE (AI & ML)',
-              rowSpan: totalSlots,
-              styles: { valign: 'middle', fillColor: [248, 250, 252], textColor: [71, 85, 105], fontSize: 7.5 }
-            },
-            {
-              content: t.payment?.status || 'PENDING',
-              rowSpan: totalSlots,
-              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: statusBg, textColor: statusText }
-            },
-            {
-              content: t.payment?.utr || 'N/A',
-              rowSpan: totalSlots,
-              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [15, 23, 42] }
-            },
-            {
-              content: `₹${t.payment?.amount !== undefined ? t.payment.amount : 1400}`,
-              rowSpan: totalSlots,
-              styles: { valign: 'middle', halign: 'center', fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [5, 150, 105] }
-            },
-            ...memberCells
-          ]);
-        } else {
-          // Subsequent teammate rows in the same team
-          tableRows.push(memberCells);
-        }
-      }
-    });
-
-    autoTable(doc, {
-      head: tableHeaders,
-      body: tableRows,
-      startY: 78,
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        cellPadding: 4,
-        textColor: [30, 41, 59],
-        fillColor: [255, 255, 255],
-        lineColor: [203, 213, 225],
-        lineWidth: 0.5,
-        font: 'helvetica'
-      },
-      headStyles: {
-        fillColor: [15, 23, 42],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 8.5
-      },
-      alternateRowStyles: {
-        fillColor: [250, 250, 250]
-      },
-      didDrawPage: (data) => {
-        const pageCount = doc.internal.getNumberOfPages();
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text(
-          `Page ${data.pageNumber} of ${pageCount} - ALPHA 2026 IEEE Official Master Report`,
-          doc.internal.pageSize.width / 2,
-          doc.internal.pageSize.height - 12,
-          { align: 'center' }
-        );
-      }
-    });
-
-    doc.save(`ALPHA_2026_Teams_Master_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   if (loading && !analytics) {
@@ -1515,41 +1172,46 @@ export const AdminDashboard = () => {
               </select>
             </div>
 
-            {/* Action Buttons Row */}
+            {/* Action Buttons Row (Exact match) */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
-                onClick={exportExcel}
-                className="px-4 py-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-                title="Export Excel with all team and teammate details (4 rows per team)"
+                onClick={exportCSV}
+                className="px-4 py-1.5 rounded-full border border-slate-700 bg-[#0a0f1d] text-slate-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-                <span>EXCEL (ALL DETAILS)</span>
+                <span>EXCEL</span>
               </button>
 
               <button
                 onClick={exportCSV}
-                className="px-4 py-1.5 rounded-full border border-sky-500/40 bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-                title="Export CSV with all team and teammate details (4 rows per team)"
+                className="px-4 py-1.5 rounded-full border border-slate-700 bg-[#0a0f1d] text-slate-300 hover:text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <FileText className="w-3.5 h-3.5 text-sky-400" />
-                <span>CSV (ALL DETAILS)</span>
+                <FileText className="w-3.5 h-3.5 text-blue-400" />
+                <span>CSV</span>
               </button>
 
               <button
-                onClick={downloadDirectPDF}
-                className="px-4 py-1.5 rounded-full bg-slate-900 border border-amber-500/40 hover:bg-amber-950/30 text-amber-300 hover:text-amber-200 text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-                title="Directly create and download official Master PDF Report"
+                onClick={() => window.print()}
+                className="px-4 py-1.5 rounded-full bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <Download className="w-3.5 h-3.5 text-amber-400" />
-                <span>DOWNLOAD PDF (ALL DETAILS)</span>
+                <Download className="w-3.5 h-3.5" />
+                <span>EXPORT PDF REPORT</span>
               </button>
 
               <button
                 onClick={() => setShowAllPassesModal(true)}
-                className="px-4 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_20px_rgba(220,38,38,0.5)]"
+                className="px-4 py-1.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_15px_rgba(220,38,38,0.4)]"
               >
                 <Ticket className="w-3.5 h-3.5" />
-                <span>ALL PASSES (PDF / PRINT)</span>
+                <span>DOWNLOAD PASSES (ZIP)</span>
+              </button>
+
+              <button
+                onClick={() => setShowAllPassesModal(true)}
+                className="px-4 py-1.5 rounded-full bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white text-xs font-extrabold tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                <span>ALL PASSES (PDF)</span>
               </button>
             </div>
           </div>
@@ -1570,11 +1232,7 @@ export const AdminDashboard = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 font-medium">
                   {filteredTeams.map((t) => {
-                    const leadMember = t.members?.find(
-                      (m) =>
-                        (m.regNo && m.regNo.toUpperCase() === (t.leadRegNo || '').toUpperCase()) ||
-                        (m.email && m.email.toLowerCase() === (t.leadEmail || '').toLowerCase())
-                    ) || t.members?.[0];
+                    const leadMember = t.members?.[0];
                     return (
                       <tr key={t._id} className="hover:bg-slate-900/60 transition-colors">
                         <td className="p-4 font-mono font-black text-red-400 tracking-wider">
@@ -1586,32 +1244,16 @@ export const AdminDashboard = () => {
                         </td>
 
                         <td className="p-4">
-                          <div className="font-bold text-slate-200 flex items-center gap-1.5">
-                            <span>{leadMember?.name || t.leadEmail?.split('@')[0]}</span>
-                            <span className="px-1.5 py-0.5 rounded bg-amber-400 text-black text-[9px] font-black">LEAD</span>
+                          <div className="font-bold text-slate-200">
+                            {leadMember?.name || t.leadEmail?.split('@')[0]}
                           </div>
                           <div className="text-[10px] text-slate-500 font-mono">
-                            {t.leadEmail} {t.leadRegNo ? `• ${t.leadRegNo}` : ''}
+                            {t.leadEmail}
                           </div>
                         </td>
 
-                        <td className="p-4">
-                          <div className="font-mono font-bold text-slate-200">
-                            {t.payment?.utr || 'N/A'}
-                          </div>
-                          {(t.payment?.screenshotUrl || t.screenshotUrl) ? (
-                            <button
-                              type="button"
-                              onClick={() => setFullscreenImage(getScreenshotUrl(t.payment?.screenshotUrl || t.screenshotUrl))}
-                              className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-950/40 border border-cyan-500/40 hover:bg-cyan-900/60 text-[10px] text-cyan-300 font-extrabold cursor-pointer transition-all shadow-sm"
-                              title="Click to view payment proof screenshot"
-                            >
-                              <ImageIcon className="w-2.5 h-2.5" />
-                              <span>View Proof</span>
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-slate-500 italic block mt-0.5">No Proof</span>
-                          )}
+                        <td className="p-4 font-mono text-slate-300">
+                          {t.payment?.utr || 'N/A'}
                         </td>
 
                         <td className="p-4">
@@ -1698,23 +1340,14 @@ export const AdminDashboard = () => {
                   {inspectTeam.teamName}
                 </h2>
                 
-                {(() => {
-                  const inspectLeadMember = inspectTeam.members?.find(
-                    (m) =>
-                      (m.regNo && m.regNo.toUpperCase() === (inspectTeam.leadRegNo || '').toUpperCase()) ||
-                      (m.email && m.email.toLowerCase() === (inspectTeam.leadEmail || '').toLowerCase())
-                  ) || inspectTeam.members?.[0];
-                  return (
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
-                        <span>★ TEAM LEAD: {inspectLeadMember?.name || 'TEAM LEAD'} ({inspectTeam.leadRegNo || inspectLeadMember?.regNo || 'N/A'})</span>
-                      </span>
-                      <span className="text-xs text-slate-400 font-mono">
-                        • {inspectTeam.leadEmail || inspectLeadMember?.email}
-                      </span>
-                    </div>
-                  );
-                })()}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                    <span>★ TEAM LEAD: {inspectTeam.members?.[0]?.name || 'TEAM LEAD'} ({inspectTeam.leadRegNo || inspectTeam.members?.[0]?.regNo || 'N/A'})</span>
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    • {inspectTeam.leadEmail}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -1755,12 +1388,11 @@ export const AdminDashboard = () => {
                 {/* Screenshot Proof */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
-                      PAYMENT SCREENSHOT PROOF:
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                      CLOUDINARY SCREENSHOT PROOF:
                     </span>
                     <div className="flex items-center gap-2">
-                      <label className="text-[10px] font-bold text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors">
+                      <label className="text-[10px] font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer">
                         <ImageIcon className="w-3 h-3" />
                         <span>Replace Proof</span>
                         <input
@@ -1774,7 +1406,7 @@ export const AdminDashboard = () => {
                         <button
                           type="button"
                           onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
-                          className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                          className="text-[10px] font-bold text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <ZoomIn className="w-3 h-3" />
                           <span>Zoom</span>
@@ -1783,36 +1415,23 @@ export const AdminDashboard = () => {
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-2xl bg-[#050914] border border-slate-800/80 flex items-center justify-center min-h-64 relative overflow-hidden group shadow-inner">
+                  <div className="p-2 rounded-2xl bg-black/60 border border-slate-800 flex items-center justify-center min-h-64 relative overflow-hidden group">
                     {(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl) ? (
                       <div className="w-full text-center space-y-2">
-                        <div className="relative inline-block w-full">
-                          <img
-                            src={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
-                            alt="Payment Screenshot Proof"
-                            onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
-                            className="w-full max-h-72 object-contain rounded-xl mx-auto shadow-md cursor-pointer hover:opacity-95 transition-all"
-                            onError={(e) => {
-                              const currentSrc = e.currentTarget.src || '';
-                              // Try live backend if localhost failed or vice versa before falling back
-                              if (currentSrc.includes('localhost:') || currentSrc.includes('127.0.0.1:')) {
-                                const filename = currentSrc.split('/').pop();
-                                e.currentTarget.src = `https://alpha-backend-zvhx.onrender.com/uploads/${filename}`;
-                              } else {
-                                e.currentTarget.style.display = 'none';
-                                const fallback = e.currentTarget.closest('.space-y-2')?.querySelector('.img-fallback-box');
-                                if (fallback) fallback.classList.remove('hidden');
-                              }
-                            }}
-                          />
-                        </div>
-                        <div className="img-fallback-box hidden p-5 text-center space-y-3 bg-red-950/30 border border-red-500/40 rounded-2xl">
-                          <div className="flex flex-col items-center justify-center gap-1.5">
-                            <AlertTriangle className="w-6 h-6 text-amber-400 animate-pulse" />
-                            <p className="text-xs font-bold text-amber-300">Payment Screenshot could not be loaded from previous server session.</p>
-                            <p className="text-[10px] text-slate-400 max-w-sm">The previous server session file was not stored permanently. Upload and attach a verified screenshot image now to save it permanently in MongoDB.</p>
-                          </div>
-                          <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 text-white text-xs font-extrabold shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
+                        <img
+                          src={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
+                          alt="Payment Screenshot Proof"
+                          onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
+                          className="w-full max-h-72 object-contain rounded-xl mx-auto shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fallback = e.currentTarget.parentElement?.querySelector('.img-fallback-box');
+                            if (fallback) fallback.classList.remove('hidden');
+                          }}
+                        />
+                        <div className="img-fallback-box hidden p-6 text-center space-y-3">
+                          <p className="text-xs font-bold text-amber-400">Preview image could not be loaded from previous server session.</p>
+                          <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 text-white text-xs font-bold shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
                             <ImageIcon className="w-3.5 h-3.5" />
                             <span>Upload / Attach Proof Image</span>
                             <input
@@ -1823,35 +1442,11 @@ export const AdminDashboard = () => {
                             />
                           </label>
                         </div>
-                        <div className="flex items-center justify-center gap-3 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => setFullscreenImage(getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl))}
-                            className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-                          >
-                            <ZoomIn className="w-3.5 h-3.5" /> Fullscreen Zoom
-                          </button>
-                          <span className="text-slate-600">•</span>
-                          <a
-                            href={getScreenshotUrl(inspectTeam.payment?.screenshotUrl || inspectTeam.screenshotUrl)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[11px] font-bold text-slate-300 hover:text-white flex items-center gap-1"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> Open In Tab
-                          </a>
-                        </div>
                       </div>
                     ) : (
-                      <div className="text-center p-8 space-y-3">
-                        <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
-                          <ImageIcon className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="text-slate-300 text-xs font-bold">No Screenshot Attached</p>
-                          <p className="text-slate-500 text-[10px]">Attach payment receipt screenshot for verification</p>
-                        </div>
-                        <label className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md">
+                      <div className="text-center p-8 space-y-2">
+                        <p className="text-slate-500 text-xs font-bold">No Screenshot Attached</p>
+                        <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold cursor-pointer transition-all">
                           <ImageIcon className="w-3.5 h-3.5" />
                           <span>Upload Screenshot</span>
                           <input
@@ -1898,10 +1493,7 @@ export const AdminDashboard = () => {
 
                 <div className="space-y-2.5">
                   {inspectTeam.members?.map((m, idx) => {
-                    const isLead =
-                      (m.regNo && m.regNo.toUpperCase() === (inspectTeam.leadRegNo || '').toUpperCase()) ||
-                      (m.email && m.email.toLowerCase() === (inspectTeam.leadEmail || '').toLowerCase()) ||
-                      (idx === 0 && !inspectTeam.leadRegNo && !inspectTeam.leadEmail);
+                    const isLead = idx === 0;
                     return (
                       <div
                         key={m._id || idx}
@@ -2420,619 +2012,89 @@ export const AdminDashboard = () => {
       {/* 9. EDIT TEAM MODAL */}
       {/* ============================================================== */}
       {editTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-4xl w-full p-6 md:p-8 rounded-3xl border border-amber-500/50 bg-[#090e1a] shadow-[0_0_60px_rgba(245,158,11,0.2)] space-y-6 text-left animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
-                    {editTeam.teamId}
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    EDIT TEAM & ROSTER
-                  </span>
-                </div>
-                <h2 className="text-lg md:text-xl font-black text-white uppercase tracking-wider mt-1">
-                  EDIT TEAM DETAILS ({editTeam.teamId})
-                </h2>
-              </div>
-              <button 
-                onClick={() => setEditTeam(null)} 
-                className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer hover:border-slate-700 transition-all"
-              >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+          <div className="max-w-md w-full p-6 rounded-3xl border border-amber-500/40 bg-[#090e1a] shadow-2xl space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h2 className="text-base font-black text-white uppercase tracking-wider">
+                EDIT TEAM ({editTeam.teamId})
+              </h2>
+              <button onClick={() => setEditTeam(null)} className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-6 text-xs">
-              
-              {/* SECTION 1: Team & Registration Core Details */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                <span className="text-[11px] font-black text-amber-400 uppercase tracking-wider block">
-                  1. TEAM INFORMATION & REGISTRATION STATUS
-                </span>
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-300 uppercase mb-1">TEAM NAME</label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.teamName}
+                  onChange={(e) => setEditForm({ ...editForm, teamName: e.target.value.toUpperCase() })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-extrabold uppercase focus:outline-none"
+                />
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-300 uppercase mb-1">TEAM NAME *</label>
-                    <input
-                      type="text"
-                      required
-                      value={editForm.teamName}
-                      onChange={(e) => setEditForm({ ...editForm, teamName: e.target.value.toUpperCase() })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-extrabold uppercase focus:outline-none focus:border-amber-400 font-mono"
-                    />
-                  </div>
+              <div>
+                <label className="block font-bold text-slate-300 uppercase mb-1">LEAD EMAIL</label>
+                <input
+                  type="email"
+                  required
+                  value={editForm.leadEmail}
+                  onChange={(e) => setEditForm({ ...editForm, leadEmail: e.target.value.toLowerCase() })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
+                />
+              </div>
 
-                  <div>
-                    <label className="block font-bold text-slate-300 uppercase mb-1">TRACK / DOMAIN *</label>
-                    <select
-                      value={editForm.track}
-                      onChange={(e) => setEditForm({ ...editForm, track: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-semibold focus:outline-none focus:border-amber-400"
-                    >
-                      <option value="DRAGON INTELLIGENCE (AI & ML)">DRAGON INTELLIGENCE (AI & ML)</option>
-                      <option value="CYBER DEFENSE & FORENSICS">CYBER DEFENSE & FORENSICS</option>
-                      <option value="WEB3 & SMART CONTRACTS">WEB3 & SMART CONTRACTS</option>
-                      <option value="DEEP TECH & HIGH PERFORMANCE">DEEP TECH & HIGH PERFORMANCE</option>
-                      <option value="GENERAL INNOVATION & IOT">GENERAL INNOVATION & IOT</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-300 uppercase mb-1">PAYMENT STATUS</label>
-                    <select
-                      value={editForm.status}
-                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none focus:border-amber-400"
-                    >
-                      <option value="PENDING">PENDING</option>
-                      <option value="VERIFIED">VERIFIED</option>
-                      <option value="REJECTED">REJECTED</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-300 uppercase mb-1">TOTAL AMOUNT (₹)</label>
-                    <input
-                      type="number"
-                      value={editForm.amount}
-                      onChange={(e) => setEditForm({ ...editForm, amount: Number(e.target.value) })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono font-bold focus:outline-none focus:border-amber-400"
-                    />
-                  </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase mb-1">UTR NUMBER</label>
+                  <input
+                    type="text"
+                    value={editForm.utr}
+                    onChange={(e) => setEditForm({ ...editForm, utr: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase mb-1">STATUS</label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
+                  >
+                    <option value="PENDING">PENDING</option>
+                    <option value="VERIFIED">VERIFIED</option>
+                    <option value="REJECTED">REJECTED</option>
+                  </select>
                 </div>
               </div>
 
-              {/* SECTION 2: Read-Only Payment Proof (Admin CANNOT Edit UTR / Screenshot) */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-amber-400" />
-                    2. PAYMENT PROOF & UTR (LOCKED - READ ONLY)
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-semibold">
-                    🔒 Admin cannot edit UTR number or screenshot
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase block">12-DIGIT UTR NUMBER</span>
-                      <span className="font-mono text-white text-base font-black tracking-wider">
-                        {editForm.utr || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800/80 text-[10px] text-slate-400 font-bold">
-                      <Lock className="w-3 h-3 text-amber-400" /> LOCKED
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {editForm.screenshotUrl ? (
-                        <img
-                          src={getScreenshotUrl(editForm.screenshotUrl)}
-                          alt="Payment Proof"
-                          className="w-12 h-12 object-cover rounded-lg border border-slate-700 bg-black cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => setFullscreenImage(getScreenshotUrl(editForm.screenshotUrl))}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] text-slate-500">
-                          No Img
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">PAYMENT SCREENSHOT</span>
-                        {editForm.screenshotUrl ? (
-                          <a
-                            href={getScreenshotUrl(editForm.screenshotUrl)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[11px] font-bold text-cyan-400 hover:underline flex items-center gap-1"
-                          >
-                            <ExternalLink className="w-3 h-3" /> Open Full Image
-                          </a>
-                        ) : (
-                          <span className="text-slate-500">No screenshot uploaded</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800/80 text-[10px] text-slate-400 font-bold">
-                      <Lock className="w-3 h-3 text-amber-400" /> LOCKED
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 3: Change Team Lead Selector */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-950 to-slate-950 border border-amber-500/30 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Crown className="w-4 h-4 text-amber-400" />
-                    3. CHANGE TEAM LEAD (CHOOSE LEADER)
-                  </span>
-                  <span className="text-[10px] text-amber-400/80 font-bold">
-                    Click any member to assign as Team Lead
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {editForm.members.map((m, idx) => {
-                    const isLead = editForm.leadMemberIndex === idx;
-                    const mName = m.name?.trim() || `Member ${idx + 1}`;
-                    const mReg = m.regNo?.trim() || 'No RegNo';
-
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setEditForm(prev => ({ ...prev, leadMemberIndex: idx }))}
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                          isLead
-                            ? 'bg-amber-500/20 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)] text-white'
-                            : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold text-slate-400">
-                            MEMBER {idx + 1}
-                          </span>
-                          {isLead && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-400 text-black text-[9px] font-black flex items-center gap-0.5">
-                              <Crown className="w-2.5 h-2.5" /> LEAD
-                            </span>
-                          )}
-                        </div>
-                        <div className="font-bold text-xs truncate uppercase text-white">
-                          {mName}
-                        </div>
-                        <div className="text-[10px] font-mono text-cyan-300 truncate">
-                          {mReg}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* SECTION 4: Edit All Member Details (Tabs 1 to 4) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-cyan-400" />
-                    4. EDIT TEAM MEMBER DETAILS
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    Active Member: Member {activeEditMemberTab + 1}
-                  </span>
-                </div>
-
-                {/* Member Tabs */}
-                <div className="grid grid-cols-4 gap-2">
-                  {editForm.members.map((m, idx) => {
-                    const isLead = editForm.leadMemberIndex === idx;
-                    const isActive = activeEditMemberTab === idx;
-                    const label = m.name ? m.name.split(' ')[0] : `Member ${idx + 1}`;
-
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActiveEditMemberTab(idx)}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 truncate uppercase ${
-                          isActive
-                            ? 'bg-gradient-to-r from-cyan-400 to-sky-300 text-black shadow-lg font-black'
-                            : isLead
-                            ? 'bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
-                            : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
-                        }`}
-                      >
-                        {isLead && <Crown className="w-3.5 h-3.5 shrink-0 text-amber-400" />}
-                        <span className="truncate">{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Active Member Form Fields */}
-                {(() => {
-                  const currentMember = editForm.members[activeEditMemberTab] || {};
-                  const isLead = editForm.leadMemberIndex === activeEditMemberTab;
-
-                  return (
-                    <div className="p-5 rounded-2xl bg-slate-950 border border-sky-500/30 space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-black flex items-center justify-center border border-cyan-500/30">
-                            {activeEditMemberTab + 1}
-                          </span>
-                          <span className="font-black text-white uppercase text-sm">
-                            MEMBER {activeEditMemberTab + 1} DETAILS
-                          </span>
-                          {isLead && (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black flex items-center gap-1">
-                              <Crown className="w-3 h-3" /> OFFICIAL TEAM LEAD
-                            </span>
-                          )}
-                        </div>
-
-                        {!isLead && (
-                          <button
-                            type="button"
-                            onClick={() => setEditForm(prev => ({ ...prev, leadMemberIndex: activeEditMemberTab }))}
-                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
-                          >
-                            <Crown className="w-3 h-3" />
-                            <span>MAKE THIS MEMBER LEAD</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                        {/* Name */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            FULL NAME (AUTO-CAPITALIZED) *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={currentMember.name || ''}
-                            onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'name', e.target.value.toUpperCase())}
-                            placeholder="e.g. JOHN DOE"
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        {/* Reg No */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            REGISTRATION NUMBER *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={currentMember.regNo || ''}
-                            onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'regNo', e.target.value)}
-                            placeholder="e.g. 99240040799"
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono font-bold uppercase focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        {/* Email */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            STUDENT EMAIL *
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            value={currentMember.email || ''}
-                            onChange={(e) => {
-                              handleEditMemberChange(activeEditMemberTab, 'email', e.target.value.toLowerCase());
-                              handleEditMemberChange(activeEditMemberTab, 'customEmail', true);
-                            }}
-                            placeholder="e.g. 99240040799@klu.ac.in"
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        {/* Department */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            DEPARTMENT *
-                          </label>
-                          <select
-                            value={currentMember.department || 'CSE'}
-                            onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'department', e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-semibold focus:outline-none focus:border-cyan-400"
-                          >
-                            {['CSE', 'ECE', 'IT', 'AI&DS', 'EEE', 'MECH', 'CIVIL', 'BIO', 'OTHERS'].map(d => (
-                              <option key={d} value={d}>{d}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Year */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            YEAR *
-                          </label>
-                          <select
-                            value={currentMember.year || 'III'}
-                            onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'year', e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-semibold focus:outline-none focus:border-cyan-400"
-                          >
-                            <option value="I">I Year</option>
-                            <option value="II">II Year</option>
-                            <option value="III">III Year</option>
-                            <option value="IV">IV Year</option>
-                          </select>
-                        </div>
-
-                        {/* Section */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            SECTION *
-                          </label>
-                          <input
-                            type="text"
-                            value={currentMember.section || ''}
-                            onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'section', e.target.value.toUpperCase())}
-                            placeholder="e.g. 24S08"
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        {/* Mobile */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            MOBILE NUMBER *
-                          </label>
-                          <input
-                            type="tel"
-                            maxLength={10}
-                            value={currentMember.mobile || ''}
-                            onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'mobile', e.target.value)}
-                            placeholder="9876543210"
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        {/* Gender */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            GENDER *
-                          </label>
-                          <select
-                            value={currentMember.gender || 'Male'}
-                            onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'gender', e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-semibold focus:outline-none focus:border-cyan-400"
-                          >
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                          </select>
-                        </div>
-
-                        {/* Accommodation */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            ACCOMMODATION *
-                          </label>
-                          <select
-                            value={currentMember.accommodation || 'Day Scholar'}
-                            onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'accommodation', e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-semibold focus:outline-none focus:border-cyan-400"
-                          >
-                            <option value="Day Scholar">Day Scholar</option>
-                            <option value="Hosteller">Hosteller</option>
-                          </select>
-                        </div>
-
-                        {/* Hosteller Fields */}
-                        {currentMember.accommodation === 'Hosteller' && (
-                          <>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                HOSTEL NAME *
-                              </label>
-                              <select
-                                value={currentMember.hostel || ''}
-                                onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'hostel', e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-semibold focus:outline-none focus:border-cyan-400"
-                              >
-                                <option value="N/A">Select Hostel</option>
-                                <option value="LH-1">LH-1</option>
-                                <option value="LH-2">LH-2</option>
-                                <option value="LH-3">LH-3</option>
-                                <option value="LH-4">LH-4</option>
-                                <option value="MH-1">MH-1</option>
-                                <option value="MH-2">MH-2</option>
-                                <option value="MH-3">MH-3</option>
-                                <option value="MH-4">MH-4</option>
-                                <option value="MH-5">MH-5</option>
-                                <option value="MH-6">MH-6</option>
-                                <option value="MH-7">MH-7</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                ROOM NUMBER *
-                              </label>
-                              <input
-                                type="text"
-                                value={currentMember.roomNumber || ''}
-                                onChange={(e) => handleEditMemberChange(activeEditMemberTab, 'roomNumber', e.target.value)}
-                                placeholder="e.g. 302"
-                                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-semibold focus:outline-none focus:border-cyan-400"
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setEditTeam(null)}
-                  className="w-1/3 py-3.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white font-bold text-xs uppercase cursor-pointer"
-                >
-                  CANCEL
-                </button>
-                <button
-                  type="submit"
-                  disabled={editingReg}
-                  className="w-2/3 py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-amber-400 text-black font-black text-xs tracking-wider uppercase cursor-pointer shadow-[0_0_25px_rgba(245,158,11,0.4)] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {editingReg ? (
-                    <>
-                      <span className="w-3.5 h-3.5 rounded-full border-2 border-black border-t-transparent animate-spin" />
-                      <span>SAVING TEAM & ROSTER CHANGES...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      <span>SAVE ALL TEAM & MEMBER CHANGES</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Payment Info Section */}
-              <div className="space-y-3 pt-4 border-t border-slate-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                    PAYMENT & UTR DETAILS
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-semibold">
-                    Admin can edit UTR number or attach/replace payment screenshot
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">12-DIGIT UTR / TXN NUMBER</span>
-                    <input
-                      type="text"
-                      maxLength={12}
-                      value={editForm.utr}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, utr: e.target.value.replace(/\D/g, '') }))}
-                      placeholder="12 digit UTR"
-                      className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-sm font-bold focus:border-red-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {editForm.screenshotUrl ? (
-                        <img
-                          src={getScreenshotUrl(editForm.screenshotUrl)}
-                          alt="Payment Proof"
-                          className="w-12 h-12 object-cover rounded-lg border border-slate-700 bg-black cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => setFullscreenImage(getScreenshotUrl(editForm.screenshotUrl))}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] text-slate-500">
-                          No Img
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">PAYMENT SCREENSHOT</span>
-                        {editForm.screenshotUrl ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setFullscreenImage(getScreenshotUrl(editForm.screenshotUrl))}
-                              className="text-[11px] font-bold text-cyan-400 hover:underline flex items-center gap-1"
-                            >
-                              <ZoomIn className="w-3 h-3" /> Zoom
-                            </button>
-                            <a
-                              href={getScreenshotUrl(editForm.screenshotUrl)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[11px] font-bold text-slate-300 hover:underline flex items-center gap-1"
-                            >
-                              <ExternalLink className="w-3 h-3" /> Full
-                            </a>
-                          </div>
-                        ) : (
-                          <span className="text-slate-500 text-xs">No screenshot uploaded</span>
-                        )}
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-amber-300 font-bold cursor-pointer transition-all border border-slate-700">
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      <span>{editForm.screenshotUrl ? 'Change' : 'Upload'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                              setEditForm(prev => ({ ...prev, screenshotUrl: ev.target.result }));
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Buttons */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditTeam(null)}
-                  className="w-1/3 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase cursor-pointer"
-                >
-                  CANCEL
-                </button>
-                <button
-                  type="submit"
-                  disabled={editingReg}
-                  className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg disabled:opacity-50"
-                >
-                  {editingReg ? 'SAVING CHANGES...' : 'SAVE TEAM & MEMBER UPDATES'}
-                </button>
-              </div>
-
+              <button
+                type="submit"
+                disabled={editingReg}
+                className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg"
+              >
+                {editingReg ? 'SAVING CHANGES...' : 'SAVE TEAM CHANGES'}
+              </button>
             </form>
           </div>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* 10. SINGLE OFFICIAL PASS MODAL */}
+      {/* 10. SINGLE PASS PREVIEW MODAL */}
       {/* ============================================================== */}
       {passTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-4xl w-full p-6 rounded-3xl border border-sky-500/40 bg-[#090e1a] shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Ticket className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                  OFFICIAL EVENT PASS - {passTeam.teamId}
-                </h3>
-              </div>
+          <div className="max-w-4xl w-full p-4 md:p-6 rounded-3xl bg-[#090e1a] border border-cyan-500/40 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 no-print">
+              <span className="text-xs font-black text-cyan-400 uppercase tracking-wider">
+                OFFICIAL ADMISSION PASS PREVIEW ({passTeam.teamId})
+              </span>
               <button
                 onClick={() => setPassTeam(null)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3050,29 +2112,41 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 11. BATCH DOWNLOAD ALL PASSES MODAL */}
+      {/* 11. ALL PASSES PRINT MODAL */}
       {/* ============================================================== */}
       {showAllPassesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-5xl w-full p-6 rounded-3xl border border-cyan-500/40 bg-[#090e1a] shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                  ALL TEAMS EVENT PASSES ({filteredTeams.length} TEAMS)
-                </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md overflow-y-auto">
+          <div className="max-w-5xl w-full p-6 rounded-3xl bg-[#090e1a] border border-red-500/40 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800 sticky top-0 bg-[#090e1a] z-20 no-print">
+              <div>
+                <h2 className="text-lg font-black text-white uppercase tracking-wider">
+                  ALL PASSES PRINT / EXPORT ({filteredTeams.length} TEAMS)
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Ready to print all passes in high resolution.
+                </p>
               </div>
-              <button
-                onClick={() => setShowAllPassesModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => window.print()}
+                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center gap-2 cursor-pointer shadow-lg"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>PRINT ALL PASSES</span>
+                </button>
+                <button
+                  onClick={() => setShowAllPassesModal(false)}
+                  className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-6">
-              {filteredTeams.map((t) => (
-                <div key={t._id} className="border-b border-slate-800/80 pb-6">
+            <div className="space-y-8">
+              {filteredTeams.map((t, idx) => (
+                <div key={t._id || idx} className="page-break-after">
                   <OfficialEventPass
                     team={t}
                     members={t.members || []}
@@ -3082,6 +2156,52 @@ export const AdminDashboard = () => {
                   />
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 12. FULLSCREEN SCREENSHOT LIGHTBOX MODAL */}
+      {/* ============================================================== */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setFullscreenImage(null)}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-slate-900/80 border border-slate-700 text-white hover:bg-red-600 transition-all cursor-pointer shadow-xl"
+              title="Close"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={fullscreenImage}
+              alt="Payment Screenshot Zoom"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
+            />
+            <div className="mt-3 flex items-center gap-3">
+              <a
+                href={fullscreenImage}
+                download="payment-screenshot.png"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs uppercase flex items-center gap-1.5 transition-all shadow-lg cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Proof</span>
+              </a>
+              <button
+                onClick={() => setFullscreenImage(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase transition-all cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

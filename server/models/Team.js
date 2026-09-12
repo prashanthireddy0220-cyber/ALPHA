@@ -9,6 +9,8 @@ const teamSchema = new mongoose.Schema({
   payment: {
     utr: { type: String, required: true, unique: true, length: 12 },
     screenshotUrl: { type: String, required: true },
+    public_id: { type: String, default: '' },
+    asset_id: { type: String, default: '' },
     amount: { type: Number, required: true },
     status: { type: String, enum: ['PENDING', 'VERIFIED', 'REJECTED'], default: 'PENDING' },
     rejectionReason: { type: String, default: '' },

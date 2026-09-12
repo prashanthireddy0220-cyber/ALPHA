@@ -16,6 +16,7 @@ import helpRoutes from './routes/helpRoutes.js';
 import User from './models/User.js';
 import EventSettings from './models/EventSettings.js';
 import Announcement from './models/Announcement.js';
+import { migrateImagesToCloudinary } from './utils/cloudinaryMigrate.js';
 
 dotenv.config();
 
@@ -44,33 +45,8 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 import attendanceSessionRoutes from './routes/attendanceSessionRoutes.js';
 import volunteerRoutes from './routes/volunteerRoutes.js';
 
-// Serve static uploads with graceful SVG placeholder fallback for ephemeral restarts
+// Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.get('/uploads/:filename', (req, res) => {
-  const filename = req.params.filename || '';
-  const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#090d16" />
-      <stop offset="100%" stop-color="#0f172a" />
-    </linearGradient>
-  </defs>
-  <rect width="600" height="380" fill="url(#bg)" rx="16"/>
-  <rect x="15" y="15" width="570" height="350" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6 6" rx="12"/>
-  <circle cx="300" cy="120" r="40" fill="#1e293b" stroke="#f59e0b" stroke-width="2.5"/>
-  <path d="M300 100v25M300 137h.02" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
-  <text x="300" y="200" fill="#ffffff" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle" letter-spacing="1">PREVIEW IMAGE NOT FOUND ON SERVER</text>
-  <text x="300" y="228" fill="#94a3b8" font-size="12" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">File: ${filename.slice(0, 45)}</text>
-  <text x="300" y="252" fill="#cbd5e1" font-size="11.5" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">This screenshot was stored during a previous ephemeral server session.</text>
-  <text x="300" y="282" fill="#38bdf8" font-size="12" font-family="system-ui, -apple-system, sans-serif" font-weight="700" text-anchor="middle">👉 Please attach / replace proof in the Admin Portal to store permanently.</text>
-  <text x="300" y="330" fill="#64748b" font-size="10.5" font-family="monospace" text-anchor="middle">ALPHA 2026 • KARE IEEE Education Society</text>
-</svg>`.trim();
-
-  res.setHeader('Content-Type', 'image/svg+xml');
-  res.setHeader('Cache-Control', 'public, max-age=60');
-  res.status(200).send(svg);
-});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -203,16 +179,14 @@ const seedInitialData = async () => {
   }
 };
 
-import { cleanOrphanedDeletedData } from './utils/dataCleanup.js';
-
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(async () => {
   try {
     await seedInitialData();
-    await cleanOrphanedDeletedData();
+    await migrateImagesToCloudinary();
   } catch (err) {
-    console.error('[Seed & Cleanup Error]', err);
+    console.error('[Seed Error]', err);
   }
   app.listen(PORT, () => {
     console.log(`[ALPHA Server] Running on port ${PORT}`);

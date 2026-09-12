@@ -96,21 +96,12 @@ export const validateDetails = async (req, res) => {
     // 3. One team per registering account check & verify at least one member matches login account
     if (req.user) {
       const userEmail = (req.user.email || '').trim().toLowerCase();
-      const userReg = userEmail ? userEmail.split('@')[0].toUpperCase() : '';
-
-      const studentDocs = await Student.find({
-        $or: [
-          { email: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-          ...(userReg ? [{ regNo: new RegExp(`^${userReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : [])
-        ]
-      }).select('_id').lean();
-      const studentIds = studentDocs.map(s => s._id);
+      const userReg = userEmail.split('@')[0];
 
       const existingUserTeam = await Team.findOne({
         $or: [
-          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-          ...(userReg ? [{ leadRegNo: new RegExp(`^${userReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
-          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
+          { user: req.user._id },
+          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
         ]
       });
       if (existingUserTeam) {
@@ -265,21 +256,12 @@ export const reservePaymentSlot = async (req, res) => {
     // Check if account already registered a team & verify at least one member matches login account
     if (req.user) {
       const userEmail = (req.user.email || '').trim().toLowerCase();
-      const userReg = userEmail ? userEmail.split('@')[0].toUpperCase() : '';
-
-      const studentDocs = await Student.find({
-        $or: [
-          { email: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-          ...(userReg ? [{ regNo: new RegExp(`^${userReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : [])
-        ]
-      }).select('_id').lean();
-      const studentIds = studentDocs.map(s => s._id);
+      const userReg = userEmail.split('@')[0];
 
       const existingUserTeam = await Team.findOne({
         $or: [
-          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-          ...(userReg ? [{ leadRegNo: new RegExp(`^${userReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
-          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
+          { user: req.user._id },
+          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
         ]
       });
       if (existingUserTeam) {
@@ -452,7 +434,7 @@ export const submitRegistration = async (req, res) => {
       return res.status(400).json({ message: 'Registrations are currently closed by the administration.' });
     }
 
-    const { teamName, members, utr, screenshotUrl, track, reservationId } = req.body;
+    const { teamName, members, utr, screenshotUrl, public_id, asset_id, track, reservationId } = req.body;
 
     if (!teamName || !members || !Array.isArray(members) || members.length === 0) {
       return res.status(400).json({ message: 'Team name and member details are required.' });
@@ -471,21 +453,12 @@ export const submitRegistration = async (req, res) => {
     // Check if account already registered a team & verify at least one member matches login account
     if (req.user) {
       const userEmail = (req.user.email || '').trim().toLowerCase();
-      const userReg = userEmail ? userEmail.split('@')[0].toUpperCase() : '';
-
-      const studentDocs = await Student.find({
-        $or: [
-          { email: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-          ...(userReg ? [{ regNo: new RegExp(`^${userReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : [])
-        ]
-      }).select('_id').lean();
-      const studentIds = studentDocs.map(s => s._id);
+      const userReg = userEmail.split('@')[0];
 
       const existingUserTeam = await Team.findOne({
         $or: [
-          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-          ...(userReg ? [{ leadRegNo: new RegExp(`^${userReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
-          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
+          { user: req.user._id },
+          { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
         ]
       });
       if (existingUserTeam) {
@@ -691,6 +664,8 @@ export const submitRegistration = async (req, res) => {
       payment: {
         utr: utr.trim(),
         screenshotUrl,
+        public_id: public_id || '',
+        asset_id: asset_id || '',
         amount: totalAmount,
         status: 'PENDING',
         submittedAt: new Date()
@@ -774,55 +749,62 @@ export const verifyTeamPass = async (req, res) => {
 export const getMyTeam = async (req, res) => {
   try {
     const userEmail = (req.user?.email || '').trim().toLowerCase();
-    const userReg = userEmail ? userEmail.split('@')[0].toUpperCase() : '';
-
     if (!userEmail) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Find student documents matching user's email or regNo
-    const studentDocs = await Student.find({
-      $or: [
-        { email: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-        ...(userReg ? [{ regNo: new RegExp(`^${userReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : [])
-      ]
-    }).select('_id').lean();
-    const studentIds = studentDocs.map(s => s._id);
+    let team = null;
 
-    // Strictly find active team where this user is lead or a member
-    const team = await Team.findOne({
-      $or: [
-        { leadEmail: new RegExp(`^${userEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-        ...(userReg ? [{ leadRegNo: new RegExp(`^${userReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }] : []),
-        ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
-      ]
-    }).populate('members').sort({ createdAt: -1 }).lean();
+    // 1. If user has teamId, verify that the team exists AND strictly belongs to this user
+    if (req.user.teamId) {
+      const candidateTeam = await Team.findOne({
+        $or: [
+          { teamId: req.user.teamId },
+          { teamId: req.user.teamId.toUpperCase() }
+        ]
+      }).populate('members').sort({ createdAt: -1 }).lean();
+
+      if (candidateTeam) {
+        const isLead = candidateTeam.leadEmail && candidateTeam.leadEmail.trim().toLowerCase() === userEmail;
+        const isMember = Array.isArray(candidateTeam.members) && candidateTeam.members.some(m => m.email && m.email.trim().toLowerCase() === userEmail);
+        const isOwner = candidateTeam.user && candidateTeam.user.toString() === req.user._id.toString();
+
+        if (isLead || isMember || isOwner) {
+          team = candidateTeam;
+        } else {
+          // Team exists but doesn't belong to this user! Clear stale teamId
+          await User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
+        }
+      } else {
+        // Team was deleted, clear stale teamId
+        await User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
+      }
+    }
+
+    // 2. If team not found by verified teamId, search strictly by user's exact email or user id
+    if (!team) {
+      const studentDocs = await Student.find({ email: userEmail }).select('_id').lean();
+      const studentIds = studentDocs.map(s => s._id);
+
+      team = await Team.findOne({
+        $or: [
+          { leadEmail: userEmail },
+          { user: req.user._id },
+          ...(studentIds.length > 0 ? [{ members: { $in: studentIds } }] : [])
+        ]
+      }).populate('members').sort({ createdAt: -1 }).lean();
+    }
 
     if (!team) {
-      if (req.user && req.user._id) {
+      if (req.user && req.user._id && req.user.teamId) {
         await User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
       }
       return res.status(404).json({ message: 'No registered team found for this account. Please register your team.' });
     }
 
-    // Verify that the team actually contains this user as lead or member
-    const isLeadEmail = team.leadEmail && team.leadEmail.trim().toLowerCase() === userEmail;
-    const isLeadReg = userReg && team.leadRegNo && team.leadRegNo.trim().toUpperCase() === userReg;
-    const isMember = Array.isArray(team.members) && team.members.some(m => 
-      (m.email && m.email.trim().toLowerCase() === userEmail) || 
-      (userReg && m.regNo && m.regNo.trim().toUpperCase() === userReg)
-    );
-
-    if (!isLeadEmail && !isLeadReg && !isMember) {
-      if (req.user && req.user._id) {
-        await User.findByIdAndUpdate(req.user._id, { $unset: { teamId: 1 } }).exec().catch(() => {});
-      }
-      return res.status(404).json({ message: 'No registered team found for this account. Please register your team.' });
-    }
-
-    // Sync accurate teamId on User model
+    // Background sync of teamId on User model
     if (req.user._id && (!req.user.teamId || req.user.teamId !== team.teamId)) {
-      await User.findByIdAndUpdate(req.user._id, { teamId: team.teamId }).exec().catch(() => {});
+      User.findByIdAndUpdate(req.user._id, { teamId: team.teamId }).exec().catch(() => {});
     }
 
     const settings = (await EventSettings.findOne().lean()) || {};

@@ -13,7 +13,6 @@ import { generateNextTeamId } from '../utils/teamIdGenerator.js';
 
 export const getAdminStats = async (req, res) => {
   try {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const [
       settings,
       totalTeams,
@@ -63,7 +62,7 @@ export const getAdminAnalytics = async (req, res) => {
       auditLogs
     ] = await Promise.all([
       EventSettings.findOne().lean(),
-      Team.find().populate('members').collation({ locale: 'en', numericOrdering: true }).sort({ teamId: 1 }).lean().exec(),
+      Team.find().populate('members').lean().exec(),
       Student.find().lean().exec(),
       AttendanceSession.find().lean().exec(),
       AttendanceRecord.find().lean().exec(),
@@ -235,7 +234,6 @@ export const getAdminAnalytics = async (req, res) => {
 
 export const getAdminTeams = async (req, res) => {
   try {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const { search, status, department, year, accommodation } = req.query;
 
     let query = {};
@@ -246,8 +244,7 @@ export const getAdminTeams = async (req, res) => {
 
     let teams = await Team.find(query)
       .populate('members')
-      .collation({ locale: 'en', numericOrdering: true })
-      .sort({ teamId: 1 })
+      .sort({ createdAt: -1 })
       .exec();
 
     if (search) {
@@ -305,7 +302,6 @@ export const updatePaymentStatus = async (req, res) => {
     }
 
     await team.save();
-    const populatedTeam = await Team.findById(id).populate('members');
 
     // Create Audit Trail Record
     await PaymentAudit.create({
@@ -320,7 +316,7 @@ export const updatePaymentStatus = async (req, res) => {
     res.json({
       success: true,
       message: `Payment status updated to ${status}`,
-      team: populatedTeam
+      team
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -594,153 +590,61 @@ export const directRegistration = async (req, res) => {
 export const updateTeamDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const { teamName, track, amount, status, members, leadMemberIndex, screenshotUrl, utr } = req.body;
+    const { teamName, leadEmail, leadRegNo, utr, amount, status } = req.body;
 
-    // Fetch raw team without populate to avoid Mongoose populated doc conflicts during save
     const team = await Team.findById(id);
     if (!team) {
       return res.status(404).json({ message: 'Team not found' });
     }
 
-    if (teamName && teamName.trim()) {
-      team.teamName = teamName.trim().toUpperCase();
-    }
-    if (track && track.trim()) {
-      team.track = track.trim();
-    }
-    if (amount !== undefined && !isNaN(amount)) {
-      team.payment.amount = Number(amount);
-    }
-    if (status && ['PENDING', 'VERIFIED', 'REJECTED'].includes(status)) {
-      team.payment.status = status;
-      if (status === 'VERIFIED' && !team.payment.verifiedAt) {
-        team.payment.verifiedAt = new Date();
-      }
-    }
-    if (screenshotUrl && typeof screenshotUrl === 'string') {
-      team.payment.screenshotUrl = screenshotUrl;
-    }
-    if (utr && typeof utr === 'string' && utr.trim()) {
-      team.payment.utr = utr.trim();
-    }
+    if (teamName) team.teamName = teamName.trim().toUpperCase();
+    if (leadEmail) team.leadEmail = leadEmail.trim().toLowerCase();
+    if (leadRegNo) team.leadRegNo = leadRegNo.trim().toUpperCase();
+    if (utr) team.payment.utr = utr.trim();
+    if (amount !== undefined) team.payment.amount = Number(amount);
 
-    // Process and update member rosters if provided
-    let updatedStudentIds = [];
-    if (members && Array.isArray(members) && members.length > 0) {
-      for (let i = 0; i < members.length; i++) {
-        const m = members[i];
-        if (!m || (!m.name?.trim() && !m.regNo?.trim())) continue;
+    if (req.body.screenshotUrl) {
+      let newUrl = req.body.screenshotUrl;
+      let newPublicId = req.body.public_id || team.payment.public_id || '';
+      let newAssetId = req.body.asset_id || team.payment.asset_id || '';
 
-        const mName = (m.name || `Member ${i + 1}`).trim().toUpperCase();
-        const mReg = (m.regNo || '').trim().toUpperCase();
-        const mEmail = (m.email || (mReg ? `${mReg.toLowerCase()}@klu.ac.in` : '')).trim().toLowerCase();
-        const mDept = (m.department || 'CSE').trim();
-        const mYear = (m.year || 'III').trim();
-        const mSection = (m.section || 'A').trim().toUpperCase();
-        const mMobile = (m.mobile || '9999999999').trim();
-        const mGender = (m.gender || 'Male').trim();
-        const mAccom = (m.accommodation || 'Day Scholar').trim();
-        const mHostel = mAccom === 'Hosteller' ? (m.hostel || 'N/A') : 'N/A';
-        const mRoom = mAccom === 'Hosteller' ? (m.roomNumber || 'N/A') : 'N/A';
-
-        const studentPayload = {
-          name: mName,
-          regNo: mReg,
-          email: mEmail,
-          department: mDept,
-          year: mYear,
-          section: mSection,
-          mobile: mMobile,
-          gender: mGender,
-          accommodation: mAccom,
-          hostel: mHostel,
-          roomNumber: mRoom
-        };
-
-        const existingSlotId = team.members && team.members[i] ? team.members[i].toString() : null;
-        const targetId = m._id || existingSlotId;
-
-        let studentDoc = null;
-
-        if (targetId) {
-          studentDoc = await Student.findByIdAndUpdate(
-            targetId,
-            { $set: studentPayload },
-            { new: true, runValidators: false }
-          );
-        }
-
-        if (!studentDoc && mReg) {
-          studentDoc = await Student.findOneAndUpdate(
-            { regNo: mReg },
-            { $set: studentPayload },
-            { new: true, upsert: true, setDefaultsOnInsert: true }
-          );
-        }
-
-        if (!studentDoc) {
-          studentDoc = await Student.create(studentPayload);
-        }
-
-        if (studentDoc && studentDoc._id) {
-          updatedStudentIds.push(studentDoc._id);
-        }
-      }
-
-      if (updatedStudentIds.length > 0) {
-        // Keep members in their slot order
-        team.members = updatedStudentIds;
-        team.markModified('members');
-
-        // Resolve Team Lead
-        const parsedLeadIdx = parseInt(leadMemberIndex, 10);
-        const leadIdx = (!isNaN(parsedLeadIdx) && parsedLeadIdx >= 0 && parsedLeadIdx < updatedStudentIds.length)
-          ? parsedLeadIdx
-          : 0;
-
-        const leadStudentId = updatedStudentIds[leadIdx] || updatedStudentIds[0];
-        const leadStudent = await Student.findById(leadStudentId);
-        if (leadStudent) {
-          team.leadRegNo = leadStudent.regNo;
-          team.leadEmail = leadStudent.email;
-          team.markModified('leadRegNo');
-          team.markModified('leadEmail');
-
-          // Sync Team ID with User profile for this new lead if registered
-          if (leadStudent.email) {
-            await User.updateOne(
-              { email: new RegExp(`^${leadStudent.email.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
-              { $set: { teamId: team.teamId } }
-            );
+      // If a base64 Data URL is passed directly, upload to Cloudinary before saving
+      if (newUrl.startsWith('data:image/')) {
+        try {
+          const cloudinary = (await import('../config/cloudinary.js')).default;
+          const result = await cloudinary.uploader.upload(newUrl, {
+            folder: 'alpha_payment_screenshots',
+            resource_type: 'image'
+          });
+          if (result && result.secure_url) {
+            newUrl = result.secure_url;
+            newPublicId = result.public_id;
+            newAssetId = result.asset_id;
           }
+        } catch (cloudErr) {
+          console.warn('Cloudinary upload warning during admin edit:', cloudErr.message);
         }
       }
+
+      team.payment.screenshotUrl = newUrl;
+      team.payment.public_id = newPublicId;
+      team.payment.asset_id = newAssetId;
     }
 
-    team.markModified('payment');
+    if (req.body.public_id) team.payment.public_id = req.body.public_id;
+    if (req.body.asset_id) team.payment.asset_id = req.body.asset_id;
+
+    if (status) {
+      team.payment.status = status;
+      if (status === 'VERIFIED') team.payment.verifiedAt = new Date();
+    }
+
     await team.save();
 
-    const updatedTeam = await Team.findById(id).populate('members').lean().exec();
-
     res.json({
       success: true,
-      message: `Team ${team.teamId} details updated successfully!`,
-      team: updatedTeam
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Prune all orphaned/stale deleted records and sync user teamIds without touching present registrations
-export const cleanOrphanData = async (req, res) => {
-  try {
-    const { cleanOrphanedDeletedData } = await import('../utils/dataCleanup.js');
-    const result = await cleanOrphanedDeletedData();
-    res.json({
-      success: true,
-      message: 'Orphaned data scan & cleanup completed successfully. Present registrations preserved.',
-      result
+      message: `Team ${team.teamId} updated successfully!`,
+      team
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

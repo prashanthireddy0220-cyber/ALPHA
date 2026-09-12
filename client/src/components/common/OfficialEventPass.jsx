@@ -12,10 +12,7 @@ export const OfficialEventPass = ({
   const teamName = team.teamName || team.name || 'ALPHA TEAM';
   const teamId = team.teamId || 'ALPHA-001';
   const memberList = (members && members.length > 0) ? members : (team.members || []);
-  const lead = memberList.find(m =>
-    (m.regNo && m.regNo.toUpperCase() === (team.leadRegNo || '').toUpperCase()) ||
-    (m.email && m.email.toLowerCase() === (team.leadEmail || '').toLowerCase())
-  ) || memberList[0] || {};
+  const lead = memberList[0] || {};
   const leadName = team.leadName || lead.name || 'TEAM LEAD';
   const leadEmail = team.leadEmail || lead.email || '';
   const utr = payment.utr || team.utr || team.payment?.utr || 'N/A';
@@ -178,36 +175,31 @@ export const OfficialEventPass = ({
 
           {/* 2x2 Grid for 4 Team Members */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {memberList.map((m, idx) => {
-              const isLead = (m.regNo && m.regNo.toUpperCase() === (team.leadRegNo || '').toUpperCase()) ||
-                (m.email && m.email.toLowerCase() === (team.leadEmail || '').toLowerCase()) ||
-                (idx === 0 && !team.leadRegNo && !team.leadEmail);
-
-              return (
-                <div
-                  key={idx}
-                  className={`p-2.5 rounded-xl bg-slate-950/90 border transition-all ${
-                    isLead
-                      ? 'border-cyan-500/50 shadow-[0_0_12px_rgba(0,240,255,0.12)]'
-                      : 'border-slate-800/90'
-                  }`}
-                >
-                  {/* Header: Member Index & Name + RegNo */}
-                  <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-900">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-xs font-black text-white uppercase truncate">
-                        {idx + 1}. {m.name || `Member ${idx + 1}`}
-                      </span>
-                      {isLead && (
-                        <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-extrabold text-[8px] uppercase border border-cyan-400/30 shrink-0">
-                          TEAM LEAD
-                        </span>
-                      )}
-                    </div>
-                    <span className="px-1.5 py-0.5 rounded bg-sky-950/80 text-[10px] font-mono font-black text-sky-300 border border-sky-400/30 shrink-0">
-                      {m.regNo || 'N/A'}
+            {memberList.map((m, idx) => (
+              <div
+                key={idx}
+                className={`p-2.5 rounded-xl bg-slate-950/90 border transition-all ${
+                  idx === 0
+                    ? 'border-cyan-500/50 shadow-[0_0_12px_rgba(0,240,255,0.12)]'
+                    : 'border-slate-800/90'
+                }`}
+              >
+                {/* Header: Member Index & Name + RegNo */}
+                <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-900">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-black text-white uppercase truncate">
+                      {idx + 1}. {m.name || `Member ${idx + 1}`}
                     </span>
+                    {idx === 0 && (
+                      <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-extrabold text-[8px] uppercase border border-cyan-400/30 shrink-0">
+                        TEAM LEAD
+                      </span>
+                    )}
                   </div>
+                  <span className="px-1.5 py-0.5 rounded bg-sky-950/80 text-[10px] font-mono font-black text-sky-300 border border-sky-400/30 shrink-0">
+                    {m.regNo || 'N/A'}
+                  </span>
+                </div>
 
                 {/* Body Details: Dept, Year, Mobile, Accomm */}
                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 pt-1 text-[10px] text-slate-300">
@@ -231,8 +223,7 @@ export const OfficialEventPass = ({
                   </div>
                 </div>
               </div>
-            );
-          })}
+            ))}
           </div>
         </div>
 

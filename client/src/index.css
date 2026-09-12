@@ -232,7 +232,7 @@ video::-webkit-media-controls-fullscreen-button {
   pointer-events: none !important;
 }
 
-/* Print & PDF Download Styles for Official Event Pass & Admin Reports */
+/* Print & PDF Download Styles for Official Event Pass - Strict 1-Page Output */
 @media print {
   @page {
     size: A4 portrait;
@@ -244,14 +244,14 @@ video::-webkit-media-controls-fullscreen-button {
     color: #f8fafc !important;
     margin: 0 !important;
     padding: 0 !important;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  header, footer, nav, aside, .no-print, button, input, select {
+  header, footer, nav, aside, .no-print, button, input {
     display: none !important;
   }
 
@@ -262,26 +262,18 @@ video::-webkit-media-controls-fullscreen-button {
   .printable-pass-wrapper,
   .printable-pass-wrapper *,
   .printable-event-pass,
-  .printable-event-pass *,
-  .printable-report,
-  .printable-report * {
+  .printable-event-pass * {
     visibility: visible !important;
   }
 
   .printable-pass-wrapper {
-    position: relative !important;
-    left: auto !important;
-    top: auto !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto !important;
     padding: 0 !important;
-  }
-
-  .page-break-after {
-    page-break-after: always !important;
-    break-after: page !important;
-    margin-bottom: 24px !important;
   }
 
   .printable-event-pass {
@@ -289,19 +281,10 @@ video::-webkit-media-controls-fullscreen-button {
     background-color: #030712 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
     box-shadow: none !important;
     padding: 16px !important;
     max-height: 275mm !important;
-    margin-bottom: 20px !important;
-  }
-
-  .printable-report {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    background-color: #090e1a !important;
-    color: #ffffff !important;
-    padding: 10px !important;
   }
 }

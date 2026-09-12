@@ -110,38 +110,6 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // Revalidate profile with backend to keep teamId strictly synchronized
-  useEffect(() => {
-    let isMounted = true;
-    if (user?.token && user?.role === 'user') {
-      axios.get('/api/auth/profile')
-        .then(res => {
-          if (isMounted && res.data) {
-            const serverUser = res.data;
-            const currentTeamId = user.teamId;
-            const serverTeamId = serverUser.teamId;
-            if (currentTeamId !== serverTeamId) {
-              const updated = { ...user };
-              if (serverTeamId) {
-                updated.teamId = serverTeamId;
-              } else {
-                delete updated.teamId;
-                if (user.email) {
-                  sessionStorage.removeItem(`alpha_cached_team_dashboard_${user.email.toLowerCase()}`);
-                }
-              }
-              setUser(updated);
-              sessionStorage.setItem('alpha_user', JSON.stringify(updated));
-            }
-          }
-        })
-        .catch(() => {});
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.token]);
-
   const login = async (email, password) => {
     setLoading(true);
     try {
