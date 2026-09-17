@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Search, Filter, CheckCircle, XCircle, Eye, ExternalLink, ShieldCheck, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
 import { TiltCard } from '../common/TiltCard';
 import { getScreenshotUrl } from '../../utils/imageUrl';
+import { exportTeamsToCSV } from '../../utils/csvExporter';
 
 export const AdminTeams = () => {
   const [teams, setTeams] = useState([]);
@@ -62,28 +63,7 @@ export const AdminTeams = () => {
 
   // Export Filtered Teams as CSV
   const exportCSV = () => {
-    if (teams.length === 0) return;
-    const headers = ['Team ID', 'Team Name', 'Track', 'Lead Email', 'UTR', 'Amount', 'Payment Status', 'Submitted At'];
-    const rows = teams.map(t => [
-      t.teamId,
-      `"${t.teamName.replace(/"/g, '""')}"`,
-      `"${(t.track || '').replace(/"/g, '""')}"`,
-      t.leadEmail,
-      t.payment?.utr || '',
-      t.payment?.amount || 0,
-      t.payment?.status || 'PENDING',
-      t.createdAt ? new Date(t.createdAt).toISOString() : ''
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `ALPHA_Teams_Export_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportTeamsToCSV(teams, `ALPHA_Teams_Export_${Date.now()}.csv`);
   };
 
   return (

@@ -82,7 +82,7 @@ export const AttendanceScanner = ({ activeSession }) => {
       const parts = text.split('/verify/')[1] || '';
       const cleanPath = parts.split('?')[0].split('#')[0].replace(/\/$/, '').trim();
       
-      if (cleanPath.startsWith('ALPHA-')) {
+      if (cleanPath.toUpperCase().startsWith('ALPHA-') || cleanPath.toUpperCase().startsWith('ALPHAA')) {
         teamId = cleanPath;
       } else {
         regNo = cleanPath;
@@ -98,7 +98,7 @@ export const AttendanceScanner = ({ activeSession }) => {
       const split = text.split(':');
       teamId = split[0].trim();
       regNo = split[1].trim();
-    } else if (text.toUpperCase().startsWith('ALPHA-')) {
+    } else if (text.toUpperCase().startsWith('ALPHA-') || text.toUpperCase().startsWith('ALPHAA')) {
       teamId = text.toUpperCase();
     } else {
       regNo = text;

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { getScreenshotUrl } from '../../utils/imageUrl';
+import { exportTeamsToCSV } from '../../utils/csvExporter';
 import { OfficialEventPass } from '../common/OfficialEventPass';
 
 export const AdminDashboard = () => {
@@ -502,44 +503,7 @@ export const AdminDashboard = () => {
 
   // Export CSV
   const exportCSV = () => {
-    if (filteredTeams.length === 0) {
-      alert('No teams to export');
-      return;
-    }
-    const headers = [
-      'Team ID',
-      'Team Name',
-      'Lead Name',
-      'Lead Reg No',
-      'Lead Email',
-      'Members Count',
-      'UTR Number',
-      'Amount (INR)',
-      'Status',
-      'Registration Date'
-    ];
-    const rows = filteredTeams.map((t) => [
-      t.teamId || '',
-      `"${(t.teamName || '').replace(/"/g, '""')}"`,
-      `"${(t.members?.[0]?.name || '').replace(/"/g, '""')}"`,
-      t.leadRegNo || t.members?.[0]?.regNo || '',
-      t.leadEmail || '',
-      t.members?.length || 0,
-      t.payment?.utr || '',
-      t.payment?.amount || 0,
-      t.payment?.status || 'PENDING',
-      t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `ALPHA_Teams_Export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportTeamsToCSV(filteredTeams, `ALPHA_Teams_Export_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
   if (loading && !analytics) {

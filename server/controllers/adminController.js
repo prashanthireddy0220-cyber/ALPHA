@@ -471,6 +471,7 @@ export const deleteSingleRegistration = async (req, res) => {
 
 // Direct Registration from Admin
 export const directRegistration = async (req, res) => {
+  const createdStudentIds = [];
   try {
     const { 
       teamName, 
@@ -518,6 +519,54 @@ export const directRegistration = async (req, res) => {
       return res.status(400).json({ message: 'At least one member with Name and Reg No is required' });
     }
 
+    // Collect registration numbers from member list
+    const regNos = memberList
+      .map(m => (m.regNo || '').trim().toUpperCase())
+      .filter(Boolean);
+
+    if (regNos.length === 0) {
+      return res.status(400).json({ message: 'Registration Number is required' });
+    }
+
+    // Check for internal duplicates within the submitted member list
+    const seenRegNos = new Set();
+    for (const r of regNos) {
+      if (seenRegNos.has(r)) {
+        return res.status(400).json({
+          success: false,
+          message: `Student Already Registered. Registration Number ${r} is already registered.`,
+          error: 'Student Already Registered',
+          details: `Registration Number ${r} is already registered.`
+        });
+      }
+      seenRegNos.add(r);
+    }
+
+    // Check if any student regNo already exists in Student collection or Team leadRegNo
+    const regRegexes = regNos.map(r => new RegExp(`^${r.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i'));
+
+    const existingStudent = await Student.findOne({ regNo: { $in: regRegexes } });
+    if (existingStudent) {
+      const matchedReg = existingStudent.regNo;
+      return res.status(400).json({
+        success: false,
+        message: `Student Already Registered. Registration Number ${matchedReg} is already registered.`,
+        error: 'Student Already Registered',
+        details: `Registration Number ${matchedReg} is already registered.`
+      });
+    }
+
+    const existingTeamLead = await Team.findOne({ leadRegNo: { $in: regRegexes } });
+    if (existingTeamLead) {
+      const matchedReg = regNos.find(r => r.toUpperCase() === existingTeamLead.leadRegNo?.toUpperCase()) || existingTeamLead.leadRegNo;
+      return res.status(400).json({
+        success: false,
+        message: `Student Already Registered. Registration Number ${matchedReg} is already registered.`,
+        error: 'Student Already Registered',
+        details: `Registration Number ${matchedReg} is already registered.`
+      });
+    }
+
     const teamId = await generateNextTeamId();
     const finalTeamName = (teamName && teamName.trim()) 
       ? teamName.trim().toUpperCase() 
@@ -527,7 +576,6 @@ export const directRegistration = async (req, res) => {
     const leadEmail = (memberList[0].email || `${leadRegNo.toLowerCase()}@klu.ac.in`).trim().toLowerCase();
 
     // Create student documents
-    const createdStudentIds = [];
     for (let i = 0; i < memberList.length; i++) {
       const m = memberList[i];
       const mReg = (m.regNo || '').trim().toUpperCase();
@@ -543,8 +591,8 @@ export const directRegistration = async (req, res) => {
         email: mEmail,
         gender: m.gender || 'Male',
         accommodation: m.accommodation || 'Day Scholar',
-        hostel: m.accommodation === 'Hosteller' ? (m.hostel || '') : '',
-        roomNumber: m.accommodation === 'Hosteller' ? (m.roomNumber || '') : ''
+        hostel: (m.accommodation === 'Hosteller' && m.hostel) ? m.hostel : 'N/A',
+        roomNumber: (m.accommodation === 'Hosteller' && m.roomNumber) ? m.roomNumber : 'N/A'
       });
       createdStudentIds.push(student._id);
     }
@@ -582,6 +630,27 @@ export const directRegistration = async (req, res) => {
       team
     });
   } catch (error) {
+    // Rollback any student documents created during this attempt
+    if (createdStudentIds.length > 0) {
+      try {
+        await Student.deleteMany({ _id: { $in: createdStudentIds } });
+      } catch (rollbackErr) {
+        console.error('Rollback error in directRegistration:', rollbackErr);
+      }
+    }
+
+    if (error.code === 11000 || error.message?.includes('E11000')) {
+      const dupMatch = error.message?.match(/dup key:\s*\{\s*regNo:\s*"([^"]+)"\s*\}/i) || error.message?.match(/regNo:\s*"([^"]+)"/i);
+      const dupReg = dupMatch ? dupMatch[1] : '';
+      const detailMsg = dupReg ? `Registration Number ${dupReg} is already registered.` : 'Registration Number is already registered.';
+      return res.status(400).json({
+        success: false,
+        message: `Student Already Registered. ${detailMsg}`,
+        error: 'Student Already Registered',
+        details: detailMsg
+      });
+    }
+
     res.status(500).json({ message: error.message });
   }
 };

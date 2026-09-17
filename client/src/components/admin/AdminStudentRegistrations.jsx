@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { TiltCard } from '../common/TiltCard';
 import { getScreenshotUrl } from '../../utils/imageUrl';
+import { exportTeamsToCSV } from '../../utils/csvExporter';
 
 export const AdminStudentRegistrations = () => {
   const [teams, setTeams] = useState([]);
@@ -159,35 +160,7 @@ export const AdminStudentRegistrations = () => {
 
   // Export CSV
   const exportCSV = () => {
-    if (teams.length === 0) {
-      alert('No student registration records available to export.');
-      return;
-    }
-    const headers = ['Participant ID', 'Student Name', 'Reg No', 'Email', 'UTR Txn ID', 'Dept', 'Year', 'Status', 'Submitted At'];
-    const rows = teams.map(t => {
-      const lead = t.members && t.members[0] ? t.members[0] : {};
-      return [
-        t.teamId,
-        `"${(lead.name || t.teamName).replace(/"/g, '""')}"`,
-        lead.regNo || t.leadRegNo || '',
-        t.leadEmail,
-        t.payment?.utr || '',
-        lead.department || 'CSE',
-        lead.year || 'III',
-        t.payment?.status || 'PENDING',
-        t.createdAt ? new Date(t.createdAt).toISOString() : ''
-      ];
-    });
-
-    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `ALPHA_Student_Registrations_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportTeamsToCSV(teams, `ALPHA_Student_Registrations_${Date.now()}.csv`);
   };
 
   return (
