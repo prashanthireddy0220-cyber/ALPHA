@@ -38,6 +38,7 @@ export const AdminDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [inspectTeam, setInspectTeam] = useState(null);
   const [editTeam, setEditTeam] = useState(null);
+  const [activeEditTab, setActiveEditTab] = useState(0);
   const [passTeam, setPassTeam] = useState(null);
   const [showAllPassesModal, setShowAllPassesModal] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
@@ -394,29 +395,70 @@ export const AdminDashboard = () => {
   // Open Edit Team Modal
   const handleOpenEdit = (team) => {
     setEditTeam(team);
+    setActiveEditTab(0);
     setEditForm({
       teamName: team.teamName || '',
       leadEmail: team.leadEmail || '',
       leadRegNo: team.leadRegNo || '',
       utr: team.payment?.utr || '',
       amount: team.payment?.amount || 350,
-      status: team.payment?.status || 'PENDING'
+      status: team.payment?.status || 'PENDING',
+      members: Array.isArray(team.members) ? team.members.map(m => ({
+        _id: m._id,
+        name: m.name || '',
+        regNo: m.regNo || '',
+        department: m.department || 'CSE',
+        year: m.year || 'III',
+        section: m.section || 'A',
+        mobile: m.mobile || '',
+        email: m.email || '',
+        gender: m.gender || 'Male',
+        accommodation: m.accommodation || 'Day Scholar',
+        hostel: m.accommodation === 'Hosteller' ? (m.hostel || '') : '',
+        roomNumber: m.accommodation === 'Hosteller' ? (m.roomNumber || '') : ''
+      })) : []
     });
   };
 
-  // Save Edit Team
+  // Save Edit Team & Member Details
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editTeam) return;
     setEditingReg(true);
     try {
-      await axios.put(`/api/admin/teams/${editTeam._id}/edit`, editForm);
+      const sanitizedMembers = (editForm.members || []).map(m => {
+        const isDayScholar = m.accommodation === 'Day Scholar';
+        const cleanM = {
+          ...m,
+          name: (m.name || '').trim().toUpperCase(),
+          regNo: (m.regNo || '').trim().toUpperCase(),
+          section: (m.section || '').trim().toUpperCase(),
+          mobile: (m.mobile || '').trim(),
+          email: (m.email || '').trim().toLowerCase(),
+          accommodation: m.accommodation
+        };
+        if (isDayScholar) {
+          delete cleanM.hostel;
+          delete cleanM.roomNumber;
+        } else {
+          cleanM.hostel = m.hostel || 'N/A';
+          cleanM.roomNumber = m.roomNumber || 'N/A';
+        }
+        return cleanM;
+      });
+
+      const payload = {
+        ...editForm,
+        members: sanitizedMembers
+      };
+
+      const res = await axios.put(`/api/admin/teams/${editTeam._id}/edit`, payload);
       setEditTeam(null);
       if (inspectTeam && inspectTeam._id === editTeam._id) {
-        setInspectTeam(null);
+        setInspectTeam(res.data?.team || null);
       }
       await loadDashboardData(true);
-      alert('Team updated successfully!');
+      alert('Team and member details updated successfully!');
     } catch (err) {
       alert('Failed to update team: ' + (err.response?.data?.message || err.message));
     } finally {
@@ -1981,74 +2023,306 @@ export const AdminDashboard = () => {
       )}
 
       {/* ============================================================== */}
-      {/* 9. EDIT TEAM MODAL */}
+      {/* 9. EDIT TEAM & MEMBER DETAILS MODAL */}
       {/* ============================================================== */}
       {editTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-md w-full p-6 rounded-3xl border border-amber-500/40 bg-[#090e1a] shadow-2xl space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
+          <div className="max-w-2xl w-full p-6 rounded-3xl border border-amber-500/40 bg-[#090e1a] shadow-2xl space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
+            
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h2 className="text-base font-black text-white uppercase tracking-wider">
-                EDIT TEAM ({editTeam.teamId})
-              </h2>
-              <button onClick={() => setEditTeam(null)} className="text-slate-400 hover:text-white cursor-pointer">
+              <div>
+                <span className="text-[10px] font-extrabold text-amber-400 uppercase tracking-widest block">ADMIN EDIT PANEL</span>
+                <h2 className="text-base font-black text-white uppercase tracking-wider">
+                  EDIT TEAM ({editTeam.teamId})
+                </h2>
+              </div>
+              <button onClick={() => setEditTeam(null)} className="text-slate-400 hover:text-white cursor-pointer p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-300 uppercase mb-1">TEAM NAME</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.teamName}
-                  onChange={(e) => setEditForm({ ...editForm, teamName: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-extrabold uppercase focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-300 uppercase mb-1">LEAD EMAIL</label>
-                <input
-                  type="email"
-                  required
-                  value={editForm.leadEmail}
-                  onChange={(e) => setEditForm({ ...editForm, leadEmail: e.target.value.toLowerCase() })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">UTR NUMBER</label>
-                  <input
-                    type="text"
-                    value={editForm.utr}
-                    onChange={(e) => setEditForm({ ...editForm, utr: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1">STATUS</label>
-                  <select
-                    value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:outline-none"
-                  >
-                    <option value="PENDING">PENDING</option>
-                    <option value="VERIFIED">VERIFIED</option>
-                    <option value="REJECTED">REJECTED</option>
-                  </select>
-                </div>
-              </div>
-
+            {/* Tab selection for Team vs Members */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
               <button
-                type="submit"
-                disabled={editingReg}
-                className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg"
+                type="button"
+                onClick={() => setActiveEditTab(0)}
+                className={`px-3.5 py-1.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
+                  activeEditTab === 0
+                    ? 'bg-amber-500 text-black shadow-md'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`}
               >
-                {editingReg ? 'SAVING CHANGES...' : 'SAVE TEAM CHANGES'}
+                TEAM DETAILS
               </button>
+
+              {(editForm.members || []).map((m, idx) => (
+                <button
+                  key={m._id || idx}
+                  type="button"
+                  onClick={() => setActiveEditTab(idx + 1)}
+                  className={`px-3 py-1.5 rounded-xl font-bold text-[11px] uppercase transition-all cursor-pointer ${
+                    activeEditTab === idx + 1
+                      ? 'bg-amber-500 text-black shadow-md'
+                      : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  {idx === 0 ? 'MEMBER 1 (LEAD)' : `MEMBER ${idx + 1}`}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs pt-1">
+              
+              {/* TAB 0: TEAM & PAYMENT INFO */}
+              {activeEditTab === 0 && (
+                <div className="space-y-3 p-4 rounded-2xl bg-black/40 border border-slate-800/80">
+                  <div>
+                    <label className="block font-bold text-slate-300 uppercase mb-1">TEAM NAME *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.teamName}
+                      onChange={(e) => setEditForm({ ...editForm, teamName: e.target.value.toUpperCase() })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-extrabold uppercase focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-300 uppercase mb-1">LEAD EMAIL *</label>
+                      <input
+                        type="email"
+                        required
+                        value={editForm.leadEmail}
+                        onChange={(e) => setEditForm({ ...editForm, leadEmail: e.target.value.toLowerCase() })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-300 uppercase mb-1">LEAD REG NO *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editForm.leadRegNo}
+                        onChange={(e) => setEditForm({ ...editForm, leadRegNo: e.target.value.toUpperCase() })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono font-bold uppercase focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-300 uppercase mb-1">UTR / REF NO</label>
+                      <input
+                        type="text"
+                        value={editForm.utr}
+                        onChange={(e) => setEditForm({ ...editForm, utr: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-300 uppercase mb-1">AMOUNT (₹)</label>
+                      <input
+                        type="number"
+                        value={editForm.amount}
+                        onChange={(e) => setEditForm({ ...editForm, amount: Number(e.target.value) })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono font-bold focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-300 uppercase mb-1">PAYMENT STATUS</label>
+                      <select
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-amber-400 focus:outline-none"
+                      >
+                        <option value="PENDING">PENDING</option>
+                        <option value="VERIFIED">VERIFIED</option>
+                        <option value="REJECTED">REJECTED</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TABS 1 to N: EDIT MEMBER DETAILS */}
+              {activeEditTab > 0 && editForm.members && editForm.members[activeEditTab - 1] && (
+                (() => {
+                  const memberIdx = activeEditTab - 1;
+                  const curMember = editForm.members[memberIdx];
+                  const updateCurMember = (field, val) => {
+                    const updated = [...editForm.members];
+                    updated[memberIdx] = { ...updated[memberIdx], [field]: val };
+                    if (field === 'accommodation' && val === 'Day Scholar') {
+                      updated[memberIdx].hostel = '';
+                      updated[memberIdx].roomNumber = '';
+                    }
+                    setEditForm({ ...editForm, members: updated });
+                  };
+
+                  return (
+                    <div className="space-y-3 p-4 rounded-2xl bg-black/40 border border-slate-800/80">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                          EDITING MEMBER {memberIdx + 1} {memberIdx === 0 ? '(TEAM LEAD)' : ''}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          ID: {curMember._id || 'Existing'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">STUDENT NAME *</label>
+                          <input
+                            type="text"
+                            required
+                            value={curMember.name}
+                            onChange={(e) => updateCurMember('name', e.target.value.toUpperCase())}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-amber-400 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">REGISTRATION NO *</label>
+                          <input
+                            type="text"
+                            required
+                            value={curMember.regNo}
+                            onChange={(e) => updateCurMember('regNo', e.target.value.toUpperCase())}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono font-bold uppercase focus:border-amber-400 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">DEPARTMENT</label>
+                          <select
+                            value={curMember.department}
+                            onChange={(e) => updateCurMember('department', e.target.value)}
+                            className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-amber-400 focus:outline-none"
+                          >
+                            {['CSE', 'ECE', 'IT', 'EEE', 'MECH', 'CIVIL', 'BIO', 'OTHERS'].map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">YEAR</label>
+                          <select
+                            value={curMember.year}
+                            onChange={(e) => updateCurMember('year', e.target.value)}
+                            className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-amber-400 focus:outline-none"
+                          >
+                            <option value="II">II Year</option>
+                            <option value="III">III Year</option>
+                            <option value="IV">IV Year</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">SECTION</label>
+                          <input
+                            type="text"
+                            value={curMember.section}
+                            onChange={(e) => updateCurMember('section', e.target.value.toUpperCase())}
+                            className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-amber-400 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">MOBILE NUMBER</label>
+                          <input
+                            type="text"
+                            value={curMember.mobile}
+                            onChange={(e) => updateCurMember('mobile', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-amber-400 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">EMAIL</label>
+                          <input
+                            type="email"
+                            value={curMember.email}
+                            onChange={(e) => updateCurMember('email', e.target.value.toLowerCase())}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-amber-400 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">GENDER</label>
+                          <select
+                            value={curMember.gender}
+                            onChange={(e) => updateCurMember('gender', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-amber-400 focus:outline-none"
+                          >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-300 uppercase mb-1">ACCOMMODATION</label>
+                          <select
+                            value={curMember.accommodation}
+                            onChange={(e) => updateCurMember('accommodation', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold focus:border-amber-400 focus:outline-none"
+                          >
+                            <option value="Day Scholar">Day Scholar</option>
+                            <option value="Hosteller">Hosteller</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {curMember.accommodation === 'Hosteller' && (
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <label className="block font-bold text-slate-300 uppercase mb-1">HOSTEL NAME</label>
+                            <select
+                              value={curMember.hostel || 'MH-1'}
+                              onChange={(e) => updateCurMember('hostel', e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-amber-400 focus:outline-none"
+                            >
+                              {['MH-1', 'MH-2', 'MH-3', 'MH-4', 'MH-5', 'MH-6', 'MH-7', 'LH-1', 'LH-2', 'LH-3', 'LH-4'].map(h => (
+                                <option key={h} value={h}>{h}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-300 uppercase mb-1">ROOM NUMBER</label>
+                            <input
+                              type="text"
+                              value={curMember.roomNumber || ''}
+                              onChange={(e) => updateCurMember('roomNumber', e.target.value.toUpperCase())}
+                              placeholder="e.g. 310"
+                              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-bold uppercase focus:border-amber-400 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditTeam(null)}
+                  className="w-1/3 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase cursor-pointer"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  disabled={editingReg}
+                  className="w-2/3 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs tracking-wider uppercase cursor-pointer shadow-lg disabled:opacity-50"
+                >
+                  {editingReg ? 'SAVING CHANGES...' : 'SAVE TEAM & MEMBER CHANGES'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

@@ -626,8 +626,8 @@ export const submitRegistration = async (req, res) => {
         mobile: (m.mobile || '').trim(),
         gender: m.gender,
         accommodation: m.accommodation,
-        hostel: m.accommodation === 'Hosteller' ? m.hostel : 'N/A',
-        roomNumber: m.accommodation === 'Hosteller' ? m.roomNumber : 'N/A',
+        hostel: (m.accommodation === 'Hosteller' && m.hostel && m.hostel.trim() !== '') ? m.hostel : 'N/A',
+        roomNumber: (m.accommodation === 'Hosteller' && m.roomNumber && m.roomNumber.trim() !== '') ? m.roomNumber : 'N/A',
         email
       });
       studentDocs.push(student);

@@ -14,6 +14,19 @@ const studentSchema = new mongoose.Schema({
   email: { type: String, required: true, lowercase: true, trim: true }
 }, { timestamps: true });
 
+// Pre-validate hook to safely handle Day Scholar hostel value & sanitize empty strings
+studentSchema.pre('validate', function(next) {
+  if (this.accommodation === 'Day Scholar' || !this.hostel || this.hostel === '') {
+    if (this.accommodation === 'Day Scholar') {
+      this.hostel = 'N/A';
+      this.roomNumber = 'N/A';
+    } else if (this.hostel === '') {
+      this.hostel = 'N/A';
+    }
+  }
+  next();
+});
+
 // Index for email uniqueness checks
 studentSchema.index({ email: 1 });
 

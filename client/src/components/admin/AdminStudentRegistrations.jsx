@@ -136,7 +136,12 @@ export const AdminStudentRegistrations = () => {
 
     setActionLoading(true);
     try {
-      await axios.post('/api/admin/teams/direct-registration', directForm);
+      const payload = { ...directForm };
+      if (payload.accommodation === 'Day Scholar' || !payload.accommodation) {
+        payload.hostel = 'N/A';
+        payload.roomNumber = 'N/A';
+      }
+      await axios.post('/api/admin/teams/direct-registration', payload);
       setShowDirectModal(false);
       setDirectForm({
         studentName: '',

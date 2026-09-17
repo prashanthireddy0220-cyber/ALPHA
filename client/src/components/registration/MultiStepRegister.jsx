@@ -581,14 +581,26 @@ export const MultiStepRegister = () => {
       }
     }
 
-    const formattedMembers = members.map(m => ({
-      ...m,
-      name: m.name.trim().toUpperCase(),
-      regNo: m.regNo.trim().toUpperCase(),
-      section: m.section.trim().toUpperCase(),
-      mobile: m.mobile.trim(),
-      email: m.email.trim().toLowerCase()
-    }));
+    const formattedMembers = members.map(m => {
+      const isDayScholar = m.accommodation === 'Day Scholar';
+      const cleanM = {
+        ...m,
+        name: m.name.trim().toUpperCase(),
+        regNo: m.regNo.trim().toUpperCase(),
+        section: m.section.trim().toUpperCase(),
+        mobile: m.mobile.trim(),
+        email: m.email.trim().toLowerCase(),
+        accommodation: m.accommodation
+      };
+      if (isDayScholar) {
+        delete cleanM.hostel;
+        delete cleanM.roomNumber;
+      } else {
+        cleanM.hostel = m.hostel || 'N/A';
+        cleanM.roomNumber = m.roomNumber || 'N/A';
+      }
+      return cleanM;
+    });
 
     try {
       // 1. Pre-flight check with backend validate-details
@@ -729,10 +741,31 @@ export const MultiStepRegister = () => {
     setLoading(true);
     try {
       const savedResId = sessionStorage.getItem('alpha_reservation_id');
+      const cleanMembers = members.map(m => {
+        const isDayScholar = m.accommodation === 'Day Scholar';
+        const cleanM = {
+          ...m,
+          name: (m.name || '').trim().toUpperCase(),
+          regNo: (m.regNo || '').trim().toUpperCase(),
+          section: (m.section || '').trim().toUpperCase(),
+          mobile: (m.mobile || '').trim(),
+          email: (m.email || '').trim().toLowerCase(),
+          accommodation: m.accommodation
+        };
+        if (isDayScholar) {
+          delete cleanM.hostel;
+          delete cleanM.roomNumber;
+        } else {
+          cleanM.hostel = m.hostel || 'N/A';
+          cleanM.roomNumber = m.roomNumber || 'N/A';
+        }
+        return cleanM;
+      });
+
       const res = await axios.post('/api/registration/submit', {
         teamName: teamName.trim().toUpperCase(),
         track,
-        members,
+        members: cleanMembers,
         utr: utr.trim(),
         screenshotUrl,
         public_id: publicId,

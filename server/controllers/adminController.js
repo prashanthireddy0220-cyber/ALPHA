@@ -659,25 +659,121 @@ export const directRegistration = async (req, res) => {
 export const updateTeamDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const { teamName, leadEmail, leadRegNo, utr, amount, status } = req.body;
+    const { teamName, leadEmail, leadRegNo, utr, amount, status, members } = req.body;
 
-    const team = await Team.findById(id);
+    let team = await Team.findById(id).populate('members');
+    if (!team) {
+      team = await Team.findOne({ teamId: id }).populate('members');
+    }
     if (!team) {
       return res.status(404).json({ message: 'Team not found' });
     }
 
-    if (teamName) team.teamName = teamName.trim().toUpperCase();
+    // 1. Check duplicate Team Name (excluding current team)
+    if (teamName && teamName.trim().toUpperCase() !== team.teamName) {
+      const cleanName = teamName.trim().toUpperCase();
+      const existingTeamName = await Team.findOne({
+        _id: { $ne: team._id },
+        teamName: { $regex: new RegExp(`^${cleanName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') }
+      });
+      if (existingTeamName) {
+        return res.status(400).json({ message: 'Team name is already registered by another team.' });
+      }
+      team.teamName = cleanName;
+    }
+
+    // 2. Check duplicate UTR (excluding current team)
+    if (utr && utr.trim() !== team.payment?.utr) {
+      const cleanUtr = utr.trim();
+      const existingUtr = await Team.findOne({
+        _id: { $ne: team._id },
+        'payment.utr': cleanUtr
+      });
+      if (existingUtr) {
+        return res.status(400).json({ message: 'This UTR number has already been submitted by another team.' });
+      }
+      team.payment.utr = cleanUtr;
+    }
+
+    // 3. Process Member Student Documents if passed
+    if (members && Array.isArray(members) && members.length > 0) {
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i];
+        if (!m) continue;
+
+        const cleanReg = (m.regNo || '').trim().toUpperCase();
+        const cleanEmail = (m.email || (cleanReg ? `${cleanReg.toLowerCase()}@klu.ac.in` : '')).trim().toLowerCase();
+
+        // If updating an existing student document
+        if (m._id) {
+          if (cleanReg || cleanEmail) {
+            const cleanRegRegex = cleanReg ? new RegExp(`^${cleanReg.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+            const cleanEmailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') : null;
+
+            const orConditions = [];
+            if (cleanRegRegex) orConditions.push({ regNo: cleanRegRegex });
+            if (cleanEmailRegex) orConditions.push({ email: cleanEmailRegex });
+
+            if (orConditions.length > 0) {
+              const existingStudent = await Student.findOne({
+                _id: { $ne: m._id },
+                $or: orConditions
+              });
+              if (existingStudent) {
+                return res.status(400).json({
+                  message: `Student with Registration Number '${cleanReg}' or Email '${cleanEmail}' is already registered to another student.`
+                });
+              }
+
+              const existingLead = await Team.findOne({
+                _id: { $ne: team._id },
+                $or: [
+                  ...(cleanRegRegex ? [{ leadRegNo: cleanRegRegex }] : []),
+                  ...(cleanEmailRegex ? [{ leadEmail: cleanEmailRegex }] : [])
+                ]
+              });
+              if (existingLead) {
+                return res.status(400).json({
+                  message: `Student '${cleanReg}' is registered as lead in another team '${existingLead.teamName}'.`
+                });
+              }
+            }
+          }
+
+          const isDayScholar = m.accommodation === 'Day Scholar';
+          const studentUpdate = {};
+          if (m.name) studentUpdate.name = m.name.trim().toUpperCase();
+          if (cleanReg) studentUpdate.regNo = cleanReg;
+          if (m.department) studentUpdate.department = m.department;
+          if (m.year) studentUpdate.year = m.year;
+          if (m.section) studentUpdate.section = m.section.trim().toUpperCase();
+          if (m.mobile) studentUpdate.mobile = m.mobile.trim();
+          if (m.gender) studentUpdate.gender = m.gender;
+          if (m.accommodation) studentUpdate.accommodation = m.accommodation;
+          studentUpdate.hostel = isDayScholar ? 'N/A' : (m.hostel && m.hostel.trim() !== '' ? m.hostel : 'N/A');
+          studentUpdate.roomNumber = isDayScholar ? 'N/A' : (m.roomNumber && m.roomNumber.trim() !== '' ? m.roomNumber : 'N/A');
+          if (cleanEmail) studentUpdate.email = cleanEmail;
+
+          await Student.findByIdAndUpdate(m._id, { $set: studentUpdate }, { new: true, runValidators: true });
+        }
+
+        // If member 0 (Team Lead), update leadRegNo & leadEmail on team document
+        if (i === 0) {
+          if (cleanReg) team.leadRegNo = cleanReg;
+          if (cleanEmail) team.leadEmail = cleanEmail;
+        }
+      }
+    }
+
     if (leadEmail) team.leadEmail = leadEmail.trim().toLowerCase();
     if (leadRegNo) team.leadRegNo = leadRegNo.trim().toUpperCase();
-    if (utr) team.payment.utr = utr.trim();
-    if (amount !== undefined) team.payment.amount = Number(amount);
+    if (amount !== undefined && !isNaN(amount)) team.payment.amount = Number(amount);
 
     if (req.body.screenshotUrl) {
       let newUrl = req.body.screenshotUrl;
       let newPublicId = req.body.public_id || team.payment.public_id || '';
       let newAssetId = req.body.asset_id || team.payment.asset_id || '';
 
-      // If a base64 Data URL is passed directly, upload to Cloudinary before saving
       if (newUrl.startsWith('data:image/')) {
         try {
           const cloudinary = (await import('../config/cloudinary.js')).default;
@@ -710,10 +806,12 @@ export const updateTeamDetails = async (req, res) => {
 
     await team.save();
 
+    const updatedTeam = await Team.findById(team._id).populate('members').exec();
+
     res.json({
       success: true,
-      message: `Team ${team.teamId} updated successfully!`,
-      team
+      message: `Team ${updatedTeam.teamId} updated successfully!`,
+      team: updatedTeam
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
