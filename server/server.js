@@ -73,16 +73,16 @@ const seedInitialData = async () => {
       await User.create({
         name: 'ALPHA Chief Administrator',
         email: 'admin@alpha.klu.ac.in',
-        password: '0220',
+        password: '0509',
         role: 'admin'
       });
-      console.log('[Seed] Admin account created: admin@alpha.klu.ac.in (Password: 0220)');
+      console.log('[Seed] Admin account created: admin@alpha.klu.ac.in (Password: 0509)');
     } else {
-      const isMatch = await adminExists.matchPassword('0220');
+      const isMatch = await adminExists.matchPassword('0509');
       if (!isMatch) {
-        adminExists.password = '0220';
+        adminExists.password = '0509';
         await adminExists.save();
-        console.log('[Seed] Admin password updated: admin@alpha.klu.ac.in (Password: 0220)');
+        console.log('[Seed] Admin password updated: admin@alpha.klu.ac.in (Password: 0509)');
       }
     }
 
@@ -184,12 +184,12 @@ const PORT = process.env.PORT || 5000;
 connectDB().then(async () => {
   try {
     await seedInitialData();
-    await migrateImagesToCloudinary();
   } catch (err) {
     console.error('[Seed Error]', err);
   }
   app.listen(PORT, () => {
     console.log(`[ALPHA Server] Running on port ${PORT}`);
+    migrateImagesToCloudinary().catch(err => console.error('[Cloudinary Migration Error]', err.message));
   });
 }).catch((err) => {
   console.error('[Database Connection Error]', err);

@@ -31,7 +31,7 @@ async function getAdminToken() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: 'admin@alpha.klu.ac.in',
-        password: '0220'
+        password: '0509'
       })
     });
     const data = await res.json();

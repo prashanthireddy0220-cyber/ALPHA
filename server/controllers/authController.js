@@ -58,51 +58,47 @@ export const loginUser = async (req, res) => {
 
     // -------------------------------------------------------------
     // 1. ADMIN LOGIN HANDLER
-    // Check if logging in from admin email OR entering admin passcodes
+    // Strict authentication for Admin account (Password: 0509)
     // -------------------------------------------------------------
-    const isAdminAttempt =
-      cleanEmail === 'admin@alpha.klu.ac.in' ||
-      cleanInput === '0220' ||
-      cleanInput.toLowerCase() === 'admin' ||
-      cleanInput.toLowerCase() === 'admin123' ||
-      cleanInput.toLowerCase() === 'alpha2026';
+    const isAdminAttempt = cleanEmail === 'admin@alpha.klu.ac.in';
 
     if (isAdminAttempt) {
+      if (!rawPassword) {
+        return res.status(400).json({ message: 'Admin password is required' });
+      }
+
       let admin = await User.findOne({ role: 'admin' });
 
-      if (admin) {
-        const isMatch = await admin.matchPassword(cleanInput);
-        if (isMatch || cleanInput === '0220' || cleanInput.toLowerCase() === 'admin' || cleanInput.toLowerCase() === 'admin123') {
-          if (!isMatch) {
-            admin.password = cleanInput === '0220' ? '0220' : cleanInput;
-            await admin.save();
-          }
-          return res.json({
-            _id: admin._id,
-            name: admin.name,
-            email: admin.email,
-            role: admin.role,
-            teamId: admin.teamId,
-            token: generateToken(admin._id)
-          });
-        }
-      } else {
-        // Auto-heal default Admin account if database is fresh
+      if (!admin) {
         admin = await User.create({
           name: 'ALPHA Chief Administrator',
           email: 'admin@alpha.klu.ac.in',
-          password: '0220',
+          password: '0509',
           role: 'admin'
         });
-        return res.json({
-          _id: admin._id,
-          name: admin.name,
-          email: admin.email,
-          role: admin.role,
-          teamId: admin.teamId,
-          token: generateToken(admin._id)
-        });
       }
+
+      const isMatch = cleanInput === '0509' || (await admin.matchPassword(cleanInput));
+
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Invalid admin password' });
+      }
+
+      // Ensure stored admin password is updated to 0509 if it was previously different
+      const isPassSynced = await admin.matchPassword('0509');
+      if (!isPassSynced) {
+        admin.password = '0509';
+        await admin.save();
+      }
+
+      return res.json({
+        _id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+        teamId: admin.teamId,
+        token: generateToken(admin._id)
+      });
     }
 
     // -------------------------------------------------------------
