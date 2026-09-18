@@ -30,7 +30,7 @@ import cloudinary from '../config/cloudinary.js';
 import fs from 'fs';
 
 // Upload screenshot endpoint (Permanent Cloudinary + Base64 fallback)
-router.post('/upload-screenshot', upload.single('screenshot'), async (req, res) => {
+router.post('/upload-screenshot', protect, upload.single('screenshot'), async (req, res) => {
   let tempFilePath = req.file ? req.file.path : null;
   try {
     const uploadSource = tempFilePath || req.body.base64;

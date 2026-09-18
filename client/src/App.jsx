@@ -8,6 +8,7 @@ import { GlassHeader } from './components/common/GlassHeader';
 import { CursorLight } from './components/3d/CursorLight';
 import { GlobalDragonBackground } from './components/3d/GlobalDragonBackground';
 import { CinematicIntro } from './components/intro/CinematicIntro';
+import { DevToolsDeterrent } from './components/common/DevToolsDeterrent';
 
 import { HomePage } from './pages/HomePage';
 import { EventDetailsPage } from './pages/EventDetailsPage';
@@ -38,6 +39,9 @@ const MainApp = () => {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-100 relative selection:bg-cyan-500 selection:text-black">
+      {/* DevTools Deterrent (Shortcut & Context Menu Interceptor) */}
+      <DevToolsDeterrent />
+
       {/* 1-Time Session Cinematic Intro */}
       {!introFinished && (
         <CinematicIntro onComplete={() => setIntroFinished(true)} />

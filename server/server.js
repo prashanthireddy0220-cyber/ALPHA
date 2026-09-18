@@ -11,6 +11,8 @@ import adminRoutes from './routes/adminRoutes.js';
 import announcementRoutes from './routes/announcementRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
+import attendanceSessionRoutes from './routes/attendanceSessionRoutes.js';
+import volunteerRoutes from './routes/volunteerRoutes.js';
 import helpRoutes from './routes/helpRoutes.js';
 
 import User from './models/User.js';
@@ -42,11 +44,41 @@ app.options('*', cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-import attendanceSessionRoutes from './routes/attendanceSessionRoutes.js';
-import volunteerRoutes from './routes/volunteerRoutes.js';
+import rateLimit from 'express-rate-limit';
 
-// Serve static uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Global API Rate Limiter (150 requests per 15 mins)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 150,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests from this IP. Please try again in 15 minutes.' }
+});
+
+// Auth Rate Limiter (20 attempts per 15 mins)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many authentication attempts. Please try again after 15 minutes.' }
+});
+
+// Registration & Upload Rate Limiter (20 submissions per 15 mins)
+const submitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many registration or upload attempts. Please try again later.' }
+});
+
+// Apply Rate Limiters
+app.use('/api', globalLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/registration/submit', submitLimiter);
+app.use('/api/registration/upload-screenshot', submitLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
