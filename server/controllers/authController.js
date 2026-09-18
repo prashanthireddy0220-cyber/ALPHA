@@ -58,9 +58,9 @@ export const loginUser = async (req, res) => {
 
     // -------------------------------------------------------------
     // 1. ADMIN LOGIN HANDLER
-    // Strict authentication for Admin account (Password: 0509)
+    // Strict authentication for Admin account (Email: alpha@klu.ac.in, Password: 0509)
     // -------------------------------------------------------------
-    const isAdminAttempt = cleanEmail === 'admin@alpha.klu.ac.in';
+    const isAdminAttempt = cleanEmail === 'alpha@klu.ac.in' || cleanEmail === 'admin@alpha.klu.ac.in';
 
     if (isAdminAttempt) {
       if (!rawPassword) {
@@ -72,7 +72,7 @@ export const loginUser = async (req, res) => {
       if (!admin) {
         admin = await User.create({
           name: 'ALPHA Chief Administrator',
-          email: 'admin@alpha.klu.ac.in',
+          email: 'alpha@klu.ac.in',
           password: '0509',
           role: 'admin'
         });
@@ -84,10 +84,15 @@ export const loginUser = async (req, res) => {
         return res.status(401).json({ message: 'Invalid admin password' });
       }
 
-      // Ensure stored admin password is updated to 0509 if it was previously different
+      // Ensure stored admin account details are updated to alpha@klu.ac.in and password 0509
+      if (admin.email !== 'alpha@klu.ac.in') {
+        admin.email = 'alpha@klu.ac.in';
+      }
       const isPassSynced = await admin.matchPassword('0509');
       if (!isPassSynced) {
         admin.password = '0509';
+      }
+      if (admin.isModified()) {
         await admin.save();
       }
 

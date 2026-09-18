@@ -72,18 +72,19 @@ const seedInitialData = async () => {
     if (!adminExists) {
       await User.create({
         name: 'ALPHA Chief Administrator',
-        email: 'admin@alpha.klu.ac.in',
+        email: 'alpha@klu.ac.in',
         password: '0509',
         role: 'admin'
       });
-      console.log('[Seed] Admin account created: admin@alpha.klu.ac.in (Password: 0509)');
+      console.log('[Seed] Admin account created: alpha@klu.ac.in (Password: 0509)');
     } else {
+      adminExists.email = 'alpha@klu.ac.in';
       const isMatch = await adminExists.matchPassword('0509');
       if (!isMatch) {
         adminExists.password = '0509';
-        await adminExists.save();
-        console.log('[Seed] Admin password updated: admin@alpha.klu.ac.in (Password: 0509)');
       }
+      await adminExists.save();
+      console.log('[Seed] Admin password updated: alpha@klu.ac.in (Password: 0509)');
     }
 
     // Volunteer user seed (passcode 0509)

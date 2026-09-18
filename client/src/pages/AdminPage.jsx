@@ -26,7 +26,7 @@ export const AdminPage = () => {
     setError('');
     setLoading(true);
 
-    const result = await login('admin@alpha.klu.ac.in', password);
+    const result = await login('alpha@klu.ac.in', password);
     setLoading(false);
 
     if (!result.success) {

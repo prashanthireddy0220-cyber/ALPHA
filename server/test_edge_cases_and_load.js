@@ -30,13 +30,13 @@ async function getAdminToken() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'admin@alpha.klu.ac.in',
+        email: 'alpha@klu.ac.in',
         password: '0509'
       })
     });
     const data = await res.json();
     if (data.token) {
-      console.log('  [Auth] Successfully authenticated as Admin (admin@alpha.klu.ac.in)\n');
+      console.log('  [Auth] Successfully authenticated as Admin (alpha@klu.ac.in)\n');
       return data.token;
     }
   } catch (err) {

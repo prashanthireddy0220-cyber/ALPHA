@@ -280,7 +280,7 @@ export const updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, rejectionReason } = req.body;
-    const adminEmail = req.user?.email || 'admin@alpha.klu.ac.in';
+    const adminEmail = req.user?.email || 'alpha@klu.ac.in';
 
     if (!['VERIFIED', 'REJECTED', 'PENDING'].includes(status)) {
       return res.status(400).json({ message: 'Invalid payment status' });
@@ -335,7 +335,7 @@ export const getPaymentAudits = async (req, res) => {
 // Verify All Pending Payments
 export const verifyAllPayments = async (req, res) => {
   try {
-    const adminEmail = req.user?.email || 'admin@alpha.klu.ac.in';
+    const adminEmail = req.user?.email || 'alpha@klu.ac.in';
     const result = await Team.updateMany(
       { 'payment.status': { $ne: 'VERIFIED' } },
       { 
