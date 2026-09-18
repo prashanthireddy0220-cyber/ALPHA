@@ -57,6 +57,35 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
+  const refreshUser = async () => {
+    if (!user?.token) return;
+    try {
+      const res = await axios.get('/api/auth/me');
+      if (res?.data) {
+        setUser(prev => {
+          const updated = { ...prev, ...res.data };
+          try {
+            sessionStorage.setItem('alpha_user', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        logout();
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (user?.token) {
+      refreshUser();
+      const handleFocus = () => refreshUser();
+      window.addEventListener('focus', handleFocus);
+      return () => window.removeEventListener('focus', handleFocus);
+    }
+  }, [user?.token]);
+
   // Handle Google Redirect Result on page mount / return
   useEffect(() => {
     let isMounted = true;
@@ -263,7 +292,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout, setUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

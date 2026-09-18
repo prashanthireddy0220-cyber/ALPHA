@@ -44,6 +44,15 @@ app.options('*', cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Anti-Caching Middleware for API Endpoints (Guarantees Fresh Data for Participant Views)
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
 import rateLimit from 'express-rate-limit';
 
 // Global API Rate Limiter (150 requests per 15 mins)

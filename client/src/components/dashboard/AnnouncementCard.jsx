@@ -9,7 +9,7 @@ export const AnnouncementCard = () => {
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
-        const res = await axios.get('/api/announcements/public');
+        const res = await axios.get(`/api/announcements/public?_t=${Date.now()}`);
         setAnnouncements(res.data || []);
       } catch (err) {
         console.error('Failed to load dashboard announcements:', err);
@@ -18,6 +18,15 @@ export const AnnouncementCard = () => {
       }
     };
     fetchAnnouncements();
+
+    const interval = setInterval(fetchAnnouncements, 20000);
+    const handleFocus = () => fetchAnnouncements();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   if (loading || announcements.length === 0) return null;

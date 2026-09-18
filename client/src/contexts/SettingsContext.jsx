@@ -28,7 +28,7 @@ export const SettingsProvider = ({ children }) => {
 
   const fetchSettings = async () => {
     try {
-      const res = await axios.get('/api/settings');
+      const res = await axios.get(`/api/settings?_t=${Date.now()}`);
       if (res.data) {
         setSettings(res.data);
       }
@@ -41,6 +41,14 @@ export const SettingsProvider = ({ children }) => {
 
   useEffect(() => {
     fetchSettings();
+    const interval = setInterval(fetchSettings, 30000);
+    const handleFocus = () => fetchSettings();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   return (

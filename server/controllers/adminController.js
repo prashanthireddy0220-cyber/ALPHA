@@ -11,6 +11,32 @@ import Attendance from '../models/Attendance.js';
 import HelpRequest from '../models/HelpRequest.js';
 import { generateNextTeamId } from '../utils/teamIdGenerator.js';
 
+// Helper to synchronize User.teamId in MongoDB for all members and lead of a team
+const syncUserTeamId = async (teamDoc) => {
+  try {
+    if (!teamDoc) return;
+    const populated = await Team.findById(teamDoc._id || teamDoc).populate('members').lean();
+    if (!populated) return;
+
+    const emails = [];
+    if (populated.leadEmail) emails.push(populated.leadEmail.trim().toLowerCase());
+    if (Array.isArray(populated.members)) {
+      populated.members.forEach(m => {
+        if (m && m.email) emails.push(m.email.trim().toLowerCase());
+      });
+    }
+    const uniqueEmails = [...new Set(emails)];
+    if (uniqueEmails.length > 0) {
+      await User.updateMany(
+        { email: { $in: uniqueEmails.map(e => new RegExp(`^${e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i')) } },
+        { $set: { teamId: populated.teamId } }
+      );
+    }
+  } catch (e) {
+    console.error('[Admin Sync] User teamId sync error:', e.message);
+  }
+};
+
 export const getAdminStats = async (req, res) => {
   try {
     const [
@@ -302,6 +328,7 @@ export const updatePaymentStatus = async (req, res) => {
     }
 
     await team.save();
+    await syncUserTeamId(team);
 
     // Create Audit Trail Record
     await PaymentAudit.create({
@@ -622,6 +649,7 @@ export const directRegistration = async (req, res) => {
       { _id: { $in: createdStudentIds } },
       { $set: { teamId: team._id } }
     );
+    await syncUserTeamId(team);
 
     res.status(201).json({
       success: true,
@@ -807,6 +835,7 @@ export const updateTeamDetails = async (req, res) => {
     await team.save();
 
     const updatedTeam = await Team.findById(team._id).populate('members').exec();
+    await syncUserTeamId(updatedTeam);
 
     res.json({
       success: true,

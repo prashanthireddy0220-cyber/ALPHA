@@ -20,12 +20,10 @@ export const TeamDashboard = () => {
   const [helpMessage, setHelpMessage] = useState('');
   const [helpSuccess, setHelpSuccess] = useState('');
 
-  const fetchTeamData = async () => {
-    // Instant 0ms cached load from sessionStorage per authenticated user
+  const fetchTeamData = async (isSilent = false) => {
     const cacheKey = user?.email ? `alpha_cached_team_dashboard_${user.email.toLowerCase()}` : null;
-    let hasCache = false;
 
-    if (cacheKey) {
+    if (!isSilent && cacheKey) {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         try {
@@ -33,15 +31,15 @@ export const TeamDashboard = () => {
           if (parsed && parsed.team) {
             setData(parsed);
             setLoading(false);
-            hasCache = true;
           }
         } catch (e) {}
       }
     }
 
     try {
-      const res = await axios.get('/api/registration/my-team');
+      const res = await axios.get(`/api/registration/my-team?_t=${Date.now()}`);
       setData(res.data);
+      setError('');
       if (cacheKey) {
         sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
       }
@@ -64,14 +62,28 @@ export const TeamDashboard = () => {
       }
       setError(err.response?.data?.message || 'No registered team found for your account. Please register your team.');
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
     setData(null);
     if (user?.email) {
-      fetchTeamData();
+      fetchTeamData(false);
+
+      // Live 15-second polling interval for real-time admin status updates
+      const pollInterval = setInterval(() => {
+        fetchTeamData(true);
+      }, 15000);
+
+      // Re-fetch instantly when participant tab regains window focus
+      const handleFocus = () => fetchTeamData(true);
+      window.addEventListener('focus', handleFocus);
+
+      return () => {
+        clearInterval(pollInterval);
+        window.removeEventListener('focus', handleFocus);
+      };
     }
   }, [user?.email]);
 
