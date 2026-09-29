@@ -142,7 +142,25 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const res = await axios.post('/api/auth/login', { email, password });
+      let res;
+      try {
+        res = await axios.post('/api/auth/login', { email, password });
+      } catch (firstErr) {
+        const isConnRefused = firstErr.code === 'ERR_NETWORK' || !firstErr.response;
+        const isUsingLocalhost = axios.defaults.baseURL && axios.defaults.baseURL.includes('localhost:5000');
+
+        if (isConnRefused && isUsingLocalhost) {
+          axios.defaults.baseURL = 'https://alpha-backend-zvhx.onrender.com';
+          res = await axios.post('/api/auth/login', { email, password });
+        } else if (isConnRefused || firstErr.code === 'ECONNABORTED') {
+          // Retry once after a 2.5s delay to allow Render free-tier backend to spin up
+          await new Promise(resolve => setTimeout(resolve, 2500));
+          res = await axios.post('/api/auth/login', { email, password });
+        } else {
+          throw firstErr;
+        }
+      }
+
       const data = res.data;
       clearAllUserSessionCaches();
       if (data.token) {
@@ -154,7 +172,11 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: data };
     } catch (err) {
       setLoading(false);
-      return { success: false, message: err.response?.data?.message || 'Login failed' };
+      const isNetError = !err.response || err.code === 'ERR_NETWORK' || err.message?.includes('Network Error');
+      const msg = isNetError
+        ? 'Backend API server connection error. If the server was sleeping, please retry in a few seconds.'
+        : (err.response?.data?.message || 'Login failed. Please check your credentials.');
+      return { success: false, message: msg };
     }
   };
 

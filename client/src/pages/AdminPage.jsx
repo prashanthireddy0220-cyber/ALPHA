@@ -26,11 +26,12 @@ export const AdminPage = () => {
     setError('');
     setLoading(true);
 
-    const result = await login('alpha@klu.ac.in', password);
+    const cleanPassword = password.trim();
+    const result = await login('alpha@klu.ac.in', cleanPassword);
     setLoading(false);
 
     if (!result.success) {
-      setError(result.message || 'Invalid admin password');
+      setError(result.message || 'Invalid admin password. Default passcode is 0509.');
     } else if (result.user && result.user.role !== 'admin') {
       setError('Access denied. This portal is strictly reserved for Admin accounts.');
     }
@@ -85,10 +86,13 @@ export const AdminPage = () => {
                   autoFocus
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password"
+                  placeholder="Enter admin password (e.g. 0509)"
                   className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-slate-900/90 border border-red-500/30 text-white text-xs font-semibold placeholder-slate-600 focus:outline-none focus:border-red-400 transition-colors"
                 />
               </div>
+              <p className="text-[10px] text-slate-500 mt-1.5 font-medium">
+                Default Admin Passcode: <code className="text-red-400 font-mono font-bold">0509</code>
+              </p>
             </div>
 
             <button
