@@ -174,7 +174,8 @@ export const AdminDashboard = () => {
 
   // Filter and Sort teams logic
   const filteredTeams = useMemo(() => {
-    return teams.filter((t) => {
+    const validTeams = teams.filter(t => (t.teamName && t.teamName.trim() !== '') || (t.leadEmail && t.leadEmail.trim() !== '') || (t.members && t.members.length > 0));
+    return validTeams.filter((t) => {
       // Search
       if (search) {
         const q = search.toLowerCase().trim();

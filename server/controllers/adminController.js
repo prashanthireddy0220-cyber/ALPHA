@@ -39,6 +39,14 @@ const syncUserTeamId = async (teamDoc) => {
 
 export const getAdminStats = async (req, res) => {
   try {
+    const validTeamQuery = {
+      $or: [
+        { teamName: { $exists: true, $ne: '' } },
+        { leadEmail: { $exists: true, $ne: '' } },
+        { 'members.0': { $exists: true } }
+      ]
+    };
+
     const [
       settings,
       totalTeams,
@@ -49,12 +57,12 @@ export const getAdminStats = async (req, res) => {
       rejectedPayments
     ] = await Promise.all([
       EventSettings.findOne().lean(),
-      Team.countDocuments(),
+      Team.countDocuments(validTeamQuery),
       Student.countDocuments(),
       RegistrationReservation.countDocuments(),
-      Team.countDocuments({ 'payment.status': 'PENDING' }),
-      Team.countDocuments({ 'payment.status': 'VERIFIED' }),
-      Team.countDocuments({ 'payment.status': 'REJECTED' })
+      Team.countDocuments({ ...validTeamQuery, 'payment.status': 'PENDING' }),
+      Team.countDocuments({ ...validTeamQuery, 'payment.status': 'VERIFIED' }),
+      Team.countDocuments({ ...validTeamQuery, 'payment.status': 'REJECTED' })
     ]);
 
     const maxTeams = settings?.maxTeams || 100;
@@ -79,21 +87,31 @@ export const getAdminStats = async (req, res) => {
 // Comprehensive Analytics & Command Center Metrics Endpoint (High Performance Parallel Lookup)
 export const getAdminAnalytics = async (req, res) => {
   try {
+    const validTeamQuery = {
+      $or: [
+        { teamName: { $exists: true, $ne: '' } },
+        { leadEmail: { $exists: true, $ne: '' } },
+        { 'members.0': { $exists: true } }
+      ]
+    };
+
     const [
       settingsData,
-      teams,
+      rawTeams,
       students,
       sessions,
       logs,
       auditLogs
     ] = await Promise.all([
       EventSettings.findOne().lean(),
-      Team.find().populate('members').lean().exec(),
+      Team.find(validTeamQuery).populate('members').lean().exec(),
       Student.find().lean().exec(),
       AttendanceSession.find().lean().exec(),
       AttendanceRecord.find().lean().exec(),
       AuditLog.find().sort({ createdAt: -1 }).limit(15).lean().exec()
     ]);
+
+    const teams = rawTeams.filter(t => (t.teamName && t.teamName.trim() !== '') || (t.leadEmail && t.leadEmail.trim() !== '') || (t.members && t.members.length > 0));
 
     const settings = settingsData || {
       maxTeams: 100,
@@ -262,38 +280,46 @@ export const getAdminTeams = async (req, res) => {
   try {
     const { search, status, department, year, accommodation } = req.query;
 
-    let query = {};
+    let query = {
+      $or: [
+        { teamName: { $exists: true, $ne: '' } },
+        { leadEmail: { $exists: true, $ne: '' } },
+        { 'members.0': { $exists: true } }
+      ]
+    };
 
     if (status) {
       query['payment.status'] = status;
     }
 
-    let teams = await Team.find(query)
+    let rawTeams = await Team.find(query)
       .populate('members')
       .sort({ createdAt: -1 })
       .exec();
 
+    let teams = rawTeams.filter(t => (t.teamName && t.teamName.trim() !== '') || (t.leadEmail && t.leadEmail.trim() !== '') || (t.members && t.members.length > 0));
+
     if (search) {
       const q = search.toLowerCase().trim();
       teams = teams.filter(t => 
-        t.teamId.toLowerCase().includes(q) ||
-        t.teamName.toLowerCase().includes(q) ||
-        t.leadEmail.toLowerCase().includes(q) ||
-        t.payment.utr.toLowerCase().includes(q) ||
-        t.members.some(m => m.name.toLowerCase().includes(q) || m.regNo.toLowerCase().includes(q))
+        (t.teamId && t.teamId.toLowerCase().includes(q)) ||
+        (t.teamName && t.teamName.toLowerCase().includes(q)) ||
+        (t.leadEmail && t.leadEmail.toLowerCase().includes(q)) ||
+        (t.payment?.utr && t.payment.utr.toLowerCase().includes(q)) ||
+        (t.members && t.members.some(m => (m.name && m.name.toLowerCase().includes(q)) || (m.regNo && m.regNo.toLowerCase().includes(q))))
       );
     }
 
     if (department) {
-      teams = teams.filter(t => t.members.some(m => m.department === department));
+      teams = teams.filter(t => t.members && t.members.some(m => m.department === department));
     }
 
     if (year) {
-      teams = teams.filter(t => t.members.some(m => m.year === year));
+      teams = teams.filter(t => t.members && t.members.some(m => m.year === year));
     }
 
     if (accommodation) {
-      teams = teams.filter(t => t.members.some(m => m.accommodation === accommodation));
+      teams = teams.filter(t => t.members && t.members.some(m => m.accommodation === accommodation));
     }
 
     res.json(teams);

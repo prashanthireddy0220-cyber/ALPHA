@@ -32,7 +32,8 @@ export const AdminTeams = () => {
       if (accomFilter) params.accommodation = accomFilter;
 
       const res = await axios.get('/api/admin/teams', { params });
-      setTeams(res.data || []);
+      const validTeams = (res.data || []).filter(t => (t.teamName && t.teamName.trim() !== '') || (t.leadEmail && t.leadEmail.trim() !== '') || (t.members && t.members.length > 0));
+      setTeams(validTeams);
     } catch (err) {
       console.error('Failed to load teams:', err);
     } finally {

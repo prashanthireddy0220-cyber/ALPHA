@@ -31,7 +31,7 @@ export const AdminPage = () => {
     setLoading(false);
 
     if (!result.success) {
-      setError(result.message || 'Invalid admin password. Default passcode is 0509.');
+      setError(result.message || 'Invalid admin password');
     } else if (result.user && result.user.role !== 'admin') {
       setError('Access denied. This portal is strictly reserved for Admin accounts.');
     }
@@ -86,13 +86,10 @@ export const AdminPage = () => {
                   autoFocus
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password (e.g. 0509)"
+                  placeholder="Enter admin password"
                   className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-slate-900/90 border border-red-500/30 text-white text-xs font-semibold placeholder-slate-600 focus:outline-none focus:border-red-400 transition-colors"
                 />
               </div>
-              <p className="text-[10px] text-slate-500 mt-1.5 font-medium">
-                Default Admin Passcode: <code className="text-red-400 font-mono font-bold">0509</code>
-              </p>
             </div>
 
             <button
